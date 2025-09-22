@@ -1,0 +1,4 @@
+
+# Ignore env files
+laravel-dashboard/.env
+ocpp-server/.env
