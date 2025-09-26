@@ -2,3 +2,6 @@
 # Ignore env files
 laravel-dashboard/.env
 ocpp-server/.env
+
+# Ignore Python venv
+ocpp-server/.venv/
