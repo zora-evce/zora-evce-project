@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers\Stations;
 
+use App\Helpers\GlobalHelper;
 use App\Http\Controllers\Controller;
+use App\Models\Stations;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 
 class StationsController extends Controller
 {
@@ -12,9 +16,11 @@ class StationsController extends Controller
         return view('/stations/index', $data);
     }
 
-    public function getData()
+    public function getData(Request $request)
     {
-        return true;
+        $model = new Stations();
+        $query = $model->select();
+        return response()->json(GlobalHelper::dataTable($request, $query));
     }
 
 }

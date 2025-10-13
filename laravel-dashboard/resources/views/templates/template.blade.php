@@ -9,8 +9,7 @@
     <title>Dashboard | Zora EV Charger</title>
 
     <!-- Google Font: Source Sans Pro -->
-    <link rel="stylesheet"
-        href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
+    <link rel="stylesheet" href="{{ asset('templates/adminlte/plugins/fonts-googleapis/sans-pro.css') }}">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="{{ asset('templates/adminlte/plugins/fontawesome-free/css/all.min.css') }}">
     <!-- SweetAlert2 -->
@@ -19,7 +18,7 @@
     <!-- Toastr -->
     <link rel="stylesheet" href="{{ asset('templates/adminlte/plugins/toastr/toastr.min.css') }}">
     <!-- Ionicons -->
-    <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+    <link rel="stylesheet" href="{{ asset('templates/adminlte/plugins/code-ionicframework/ionicons.min.css') }}">
     <!-- Tempusdominus Bootstrap 4 -->
     <link rel="stylesheet"
         href="{{ asset('templates/adminlte/plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css') }}">
@@ -48,8 +47,7 @@
         href="{{ asset('templates/adminlte/plugins/datatables-responsive/css/responsive.bootstrap4.min.css') }}">
     <link rel="stylesheet"
         href="{{ asset('templates/adminlte/plugins/datatables-buttons/css/buttons.bootstrap4.min.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
-        rel="stylesheet">
+    <link rel="stylesheet" href="{{ asset('templates/adminlte/plugins/fonts-googleapis/poppins.css') }}">
     <style>
         .auto-size-btn {
             height: 40px;
@@ -274,8 +272,8 @@
             <script src="{{ asset('templates/adminlte/plugins/datatables-buttons/js/buttons.html5.min.js') }}"></script>
             <script src="{{ asset('templates/adminlte/plugins/datatables-buttons/js/buttons.print.min.js') }}"></script>
             <script src="{{ asset('templates/adminlte/plugins/datatables-buttons/js/buttons.colVis.min.js') }}"></script>
-            <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.3/xlsx.full.min.js"></script>
+            <script src="{{ asset('templates/adminlte/plugins/echarts/echarts.min.js') }}"></script>
+            <script src="{{ asset('templates/adminlte/plugins/xlsx/xlsx.full.min.js') }}"></script>
             @yield('content')
         </div>
     </div>
