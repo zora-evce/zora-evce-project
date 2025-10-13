@@ -36,6 +36,10 @@ return [
 
     ],
     'ocpp' => [
-	 'key' => env('OCPP_KEY'),
+	    'key' => env('OCPP_KEY'),
 	],
+    'ocpp_http' => [
+        'base' => env('OCPP_HTTP_BASE', 'http://127.0.0.1:9100'),
+        'key'  => env('OCPP_KEY'),
+    ],
 ];
