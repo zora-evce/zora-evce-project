@@ -128,7 +128,8 @@
                 {
                     data: null,
                     render: function(data, type, row) {
-                        return `<a class="btn btn-primary btn-sm action-detail" href="#"><i class="fas fa-eye"></i></a>`;
+                        let stationId = row.id;
+                        return `<a class="btn btn-primary btn-sm action-detail" href="/stations/details?id=${stationId}"><i class="fas fa-eye"></i></a>`;
                     }
                 }
             ],
