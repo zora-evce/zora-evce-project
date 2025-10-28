@@ -4,20 +4,28 @@ namespace App\Http\Controllers\Stations;
 
 use App\Helpers\GlobalHelper;
 use App\Http\Controllers\Controller;
-use App\Models\Connectors;
 use App\Models\LookupC;
 use App\Models\Stations;
+use App\Models\StationsV;
+use App\Traits\CommandsTrait;
 use App\Traits\OverviewTrait;
 use Illuminate\Http\Request;
 
 class StationDetailsController extends Controller
 {
     use OverviewTrait;
+    use CommandsTrait;
+
+    public $station_id;
+
+    public function __construct()
+    {}
 
     public function indexDetails(Request $request)
     {
         $station_id = $request->get('id');
-        $data = [];
+        $station = StationsV::findOrFail($station_id);
+        $station_name = $station->name;
         $tabs = self::getTabs();
         return view('/stations/details/index-details', get_defined_vars());
     }
@@ -41,24 +49,17 @@ class StationDetailsController extends Controller
         return $tabs;
     }
 
-    public function loadTab($id, $tab)
+    public function loadTab(Request $request, $id, $tab)
     {
-        $viewName = 'stations.details.partials.' . $tab;
-        if (view()->exists($viewName)) {
-            return view($viewName, [
-                'station' => Stations::findOrFail($id),
-                'station_id' => $id
-            ]);
-        }
-        return response("<p class='text-muted'>No details available for this tab.</p>");
-    }
+        $station = Stations::findOrFail($id);
+        $method = 'render' . ucfirst($tab);
 
-    public function getConnectors(Request $request)
-    {
-        $station_id = $request->get('station_id');
-        $model = new Connectors();
-        $query = $model->select()->where('station_id', $station_id);
-        return response()->json(GlobalHelper::dataTable($request, $query));
+        if (method_exists($this, $method)) {
+            return $this->{$method}($tab, $station, $request);
+        }
+
+        return response("<p class='text-muted'>No details available for this tab.</p>", 200)
+            ->header('Content-Type', 'text/html');
     }
 
 }

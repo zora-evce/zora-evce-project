@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Stations;
 use App\Helpers\GlobalHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Stations;
+use App\Models\StationsV;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 
@@ -18,7 +19,7 @@ class StationsController extends Controller
 
     public function getData(Request $request)
     {
-        $model = new Stations();
+        $model = new StationsV();
         $query = $model->select();
         return response()->json(GlobalHelper::dataTable($request, $query));
     }

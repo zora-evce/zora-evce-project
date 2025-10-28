@@ -7,12 +7,35 @@
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header">
-                        <h3 class="card-title">Device</h3>
+                        <h3 class="card-title">Information</h3>
                     </div>
                     <div class="card-body">
                         <div class="row">
-                            <div class="col-md-6">
-
+                            <div class="col-md-12">
+                                <div class="row">
+                                    <div class="col-4">
+                                        <h6>Address</h6>
+                                    </div>
+                                    <div class="col-8">
+                                        <h56>{{ $station->address }}</h6>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-4">
+                                        <h6>City</h6>
+                                    </div>
+                                    <div class="col-8">
+                                        <h56>{{ $station->city_name }}</h6>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-4">
+                                        <h6>Location Type</h6>
+                                    </div>
+                                    <div class="col-8">
+                                        <h56>{{ $station->location_type_name }}</h6>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -118,7 +141,13 @@
                     data: 'status',
                     name: 'Status',
                     searchable: true,
-                    orderable: true
+                    orderable: true,
+                    render: function(data, type, row) {
+                        let status = row.status;
+                        if (status == 'available') {
+                            return `<a class="btn btn-success btn-xs action-detail">Available</a>`;
+                        }
+                    }
                 },
                 {
                     data: 'power_kw',

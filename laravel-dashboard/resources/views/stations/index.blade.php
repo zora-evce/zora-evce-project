@@ -34,6 +34,16 @@
                                         <th>Charging Stations Name</th>
                                         <th>Last Heartbeat</th>
                                         <th>Connectors</th>
+                                        {{-- <th>Serial Number</th>
+                                        <th>Contract Number</th>
+                                        <th>Account</th>
+                                        <th>Location Holder</th> --}}
+                                        <th>Roaming Type</th>
+                                        <th>Location Type</th>
+                                        <th>Address</th>
+                                        <th>City</th>
+                                        {{-- <th>Tariff</th> --}}
+                                        <th>Status</th>
                                         <th style="width: 80px;"><i class="fas fa-cogs"></i></th>
                                     </tr>
                                 </thead>
@@ -124,6 +134,72 @@
                     name: 'Connectors',
                     searchable: true,
                     orderable: true
+                },
+                // {
+                //     data: 'serial_number',
+                //     name: 'Serial Number',
+                //     searchable: true,
+                //     orderable: true
+                // },
+                // {
+                //     data: 'contract_number',
+                //     name: 'Contract Number',
+                //     searchable: true,
+                //     orderable: true
+                // },
+                // {
+                //     data: 'account_name',
+                //     name: 'Account',
+                //     searchable: true,
+                //     orderable: true
+                // },
+                // {
+                //     data: 'location_holder_name',
+                //     name: 'Location Holder',
+                //     searchable: true,
+                //     orderable: true
+                // },
+                {
+                    data: 'roaming_type_name',
+                    name: 'Roaming Type',
+                    searchable: true,
+                    orderable: true
+                },
+                {
+                    data: 'location_type_name',
+                    name: 'Location Type',
+                    searchable: true,
+                    orderable: true
+                },
+                {
+                    data: 'address',
+                    name: 'Address',
+                    searchable: true,
+                    orderable: true
+                },
+                {
+                    data: 'city_name',
+                    name: 'City',
+                    searchable: true,
+                    orderable: true
+                },
+                // {
+                //     data: 'tariff_name',
+                //     name: 'Tariff',
+                //     searchable: true,
+                //     orderable: true
+                // },
+                {
+                    data: 'status',
+                    name: 'Status',
+                    searchable: true,
+                    orderable: true,
+                    render: function(data, type, row) {
+                        let status = row.status;
+                        if (status == 'available') {
+                            return `<a class="btn btn-success btn-xs action-detail">Available</a>`;
+                        }
+                    }
                 },
                 {
                     data: null,
