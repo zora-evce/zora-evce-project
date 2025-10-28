@@ -22,13 +22,13 @@
                 <div class="col-12">
                     <div class="card">
                         <div class="card-header">
-                            <h3 class="card-title">Station Details</h3>
+                            <h3 class="card-title">{{ $station_name }}</h3>
                         </div>
                         <!-- /.card-header -->
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-2">
-                                    <h6>Stations</h6>
+                                    <h6></h6>
                                     <h5></h5>
                                 </div>
                                 <div class="col-2">
