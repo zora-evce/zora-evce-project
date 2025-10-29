@@ -127,7 +127,7 @@
                         </li>
                         <li class="nav-item">
                             <a href="{{ route('stations') }}"
-                                class="nav-link {{ Route::is('stations') ? 'active' : '' }}">
+                                class="nav-link {{ Route::is('stations*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-charging-station"></i>
                                 <p>
                                     Stations

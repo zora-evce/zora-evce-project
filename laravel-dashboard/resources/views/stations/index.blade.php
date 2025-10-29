@@ -25,34 +25,37 @@
     </div>
     <section class="content">
         <div class="container-fluid">
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">Stations</h3> <br>
+            <div class="row g-4">
+                <div class="col-md-12">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-header text-center py-3">
+                            <h5 class="card-title mb-0 fw-semibold">
+                                Stations
+                            </h5>
                         </div>
-                        <!-- /.card-header -->
-                        <div class="card-body">
-                            <table id="auditTable" class="table table-bordered table-striped">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 30px;">No</th>
-                                        <th style="width: 30px;">Online</th>
-                                        <th>Charging Stations ID</th>
-                                        <th>Charging Stations Name</th>
-                                        <th>Last Heartbeat</th>
-                                        <th>Connectors</th>
-                                        <th>Roaming Type</th>
-                                        <th>Location Type</th>
-                                        <th>Address</th>
-                                        <th>City</th>
-                                        <th>Status</th>
-                                        <th style="width: 80px;"><i class="fas fa-cogs"></i></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                </tbody>
-                            </table>
+                        <div class="card-body p-4 bg-white">
+                            <div class="table-responsive">
+                                <table id="auditTable" class="table table-hover align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 30px;">No</th>
+                                            <th style="width: 30px;">Online</th>
+                                            <th>Charging Stations ID</th>
+                                            <th>Charging Stations Name</th>
+                                            <th>Last Heartbeat</th>
+                                            <th>Connectors</th>
+                                            <th>Roaming Type</th>
+                                            <th>Location Type</th>
+                                            <th>Address</th>
+                                            <th>City</th>
+                                            <th>Status</th>
+                                            <th style="width: 80px;"><i class="fas fa-cogs"></i></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                         <!-- /.card-body -->
                     </div>
