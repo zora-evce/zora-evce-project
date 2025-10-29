@@ -9,12 +9,14 @@ use App\Models\Stations;
 use App\Models\StationsV;
 use App\Traits\CommandsTrait;
 use App\Traits\OverviewTrait;
+use App\Traits\SettingsTrait;
 use Illuminate\Http\Request;
 
 class StationDetailsController extends Controller
 {
     use OverviewTrait;
     use CommandsTrait;
+    use SettingsTrait;
 
     public $station_id;
 
