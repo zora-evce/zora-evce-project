@@ -24,4 +24,10 @@ class StationsController extends Controller
         return response()->json(GlobalHelper::dataTable($request, $query));
     }
 
+    public function detailTable($id)
+    {
+        $data = StationsV::findOrFail($id);
+        return view('stations.partials.detail-table', compact('data'))->render();
+    }
+
 }
