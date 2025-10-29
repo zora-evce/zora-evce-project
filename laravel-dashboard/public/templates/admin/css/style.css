@@ -1,0 +1,169 @@
+.auto-size-btn {
+    height: 40px;
+    line-height: 40px;
+    padding: 0 15px;
+    font-size: 14px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+:root {
+    --zora: #023c61;
+    --zora-dark: #012b46;
+}
+
+/* Buttons */
+.btn-primary {
+    background-color: var(--zora);
+    border-color: var(--zora);
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background-color: var(--zora-dark);
+    border-color: var(--zora-dark);
+    color: #fff;
+}
+
+/* Pagination */
+.pagination .page-item.active .page-link {
+    background-color: var(--zora);
+    border-color: var(--zora);
+    color: #fff;
+}
+
+.pagination .page-link {
+    color: var(--zora);
+}
+
+.pagination .page-link:hover {
+    color: var(--zora-dark);
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    background-color: transparent;
+}
+
+.breadcrumb-item a {
+    color: var(--zora);
+}
+
+.breadcrumb-item a:hover {
+    color: var(--zora-dark);
+}
+
+.breadcrumb-item.active {
+    color: var(--zora-dark);
+}
+
+.breadcrumb-item+.breadcrumb-item::before {
+    color: var(--zora);
+}
+
+/* Links */
+.link-underline-primary,
+.link-zora {
+    color: var(--zora) !important;
+    text-decoration-color: var(--zora) !important;
+}
+
+.link-underline-primary:hover,
+.link-zora:hover {
+    color: var(--zora-dark) !important;
+    text-decoration-color: var(--zora-dark) !important;
+}
+
+/* Spinner */
+.text-primary,
+.text-zora {
+    color: var(--zora) !important;
+}
+
+.text-primary:hover,
+.text-zora:hover {
+    color: var(--zora-dark) !important;
+}
+
+/* Background utility */
+.bg-primary,
+.bg-zora {
+    background-color: var(--zora) !important;
+    color: #fff !important;
+}
+
+.bg-primary:hover,
+.bg-zora:hover {
+    background-color: var(--zora-dark) !important;
+}
+
+/* Tab container styling */
+.nav-tabs {
+  border-bottom: 2px solid var(--zora-light);
+  background-color: #f8fafc;
+  border-radius: 0.75rem 0.75rem 0 0;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* Tab link base */
+.nav-tabs .nav-link {
+  color: var(--zora);
+  border: none;
+  background: transparent;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  padding: 0.75rem 1.5rem;
+  transition: all 0.25s ease;
+  position: relative;
+}
+
+/* Hover state */
+.nav-tabs .nav-link:hover {
+  color: var(--zora-dark);
+  background-color: var(--zora-light);
+}
+
+/* Active tab */
+.nav-tabs .nav-link.active,
+.nav-tabs .nav-item.show .nav-link {
+  color: #fff;
+  background-color: var(--zora);
+  border: none;
+  border-radius: 0.5rem 0.5rem 0 0;
+  box-shadow: 0 -2px 8px rgba(2, 60, 97, 0.2);
+}
+
+/* Smooth underline effect on hover (optional fancy style) */
+.nav-tabs .nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0%;
+  height: 3px;
+  background-color: var(--zora);
+  transition: width 0.3s ease;
+  border-radius: 10px;
+}
+
+.nav-tabs .nav-link:hover::after {
+  width: 100%;
+}
+
+.nav-tabs .nav-link.active::after {
+  width: 100%;
+  background-color: #fff; /* contrast underline for active */
+}
+
+/* Tab content area */
+.tab-content {
+  background: #fff;
+  border: 1px solid var(--zora-light);
+  border-top: none;
+  padding: 1.5rem;
+  border-radius: 0 0 0.75rem 0.75rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}

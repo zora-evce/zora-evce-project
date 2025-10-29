@@ -4,7 +4,8 @@
         <div class="container-fluid">
             <div class="row mb-2">
                 <div class="col-sm-6">
-                    <p><a href="{{ url()->previous() }}" class="link-underline-primary"><i class="fas fa-arrow-left"></i> Back</a></p>
+                    <p><a href="{{ url()->previous() }}" class="link-underline-primary"><i class="fas fa-arrow-left"></i>
+                            Back</a></p>
                 </div><!-- /.col -->
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-right">
@@ -18,42 +19,11 @@
     </div>
     <section class="content">
         <div class="container-fluid">
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">{{ $station_name }}</h3>
-                        </div>
-                        <!-- /.card-header -->
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-2">
-                                    <h6></h6>
-                                    <h5></h5>
-                                </div>
-                                <div class="col-2">
-                                    <h6></h6>
-                                    <h5></h5>
-                                </div>
-                                <div class="col-2">
-                                    <h6></h6>
-                                    <h5></h5>
-                                </div>
-                                <div class="col-2">
-                                    <h6></h6>
-                                    <h5></h5>
-                                </div>
-                                <div class="col-2">
-                                    <h6></h6>
-                                    <h5></h5>
-                                </div>
-                                <div class="col-2">
-                                    <h6></h6>
-                                    <h5></h5>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- /.card-body -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="bg-light rounded-3 px-4 py-3 d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold text-dark mb-0">{{ $station_name }}</h5>
+                        <small class="text-muted">Information Overview</small>
                     </div>
                 </div>
             </div>
@@ -62,12 +32,10 @@
                     <ul class="nav nav-tabs" id="station-tabs" role="tablist">
                         @foreach ($tabs as $key => $tab)
                             <li class="nav-item">
-                                <a class="nav-link {{ $loop->first ? 'active' : '' }}"
-                                id="{{ $tab['tab_name'] }}-tab"
-                                data-toggle="tab"
-                                href="#"
-                                data-url="{{ route('stations.details.tab', ['id' => $station_id, 'tab' => $tab['lookup_code']]) }}"
-                                role="tab">
+                                <a class="nav-link {{ $loop->first ? 'active' : '' }}" id="{{ $tab['tab_name'] }}-tab"
+                                    data-toggle="tab" href="#"
+                                    data-url="{{ route('stations.details.tab', ['id' => $station_id, 'tab' => $tab['lookup_code']]) }}"
+                                    role="tab">
                                     {{ $tab['lookup_value'] }}
                                 </a>
                             </li>
@@ -93,11 +61,12 @@
                 $("#tab-loader").show();
                 $("#tab-content-body").html('');
 
-                $.get(url, function (data) {
+                $.get(url, function(data) {
                     $("#tab-content-body").html(data);
                     $("#tab-loader").hide();
-                }).fail(function () {
-                    $("#tab-content-body").html("<p class='text-danger p-3'>Error loading tab content.</p>");
+                }).fail(function() {
+                    $("#tab-content-body").html(
+                    "<p class='text-danger p-3'>Error loading tab content.</p>");
                     $("#tab-loader").hide();
                 });
             }
@@ -109,7 +78,7 @@
             }
 
             // On tab click
-            $("#station-tabs .nav-link").on("click", function (e) {
+            $("#station-tabs .nav-link").on("click", function(e) {
                 e.preventDefault();
 
                 $("#station-tabs .nav-link").removeClass("active");

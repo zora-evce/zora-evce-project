@@ -1,5 +1,13 @@
 @extends('templates/template')
 @section('content')
+    <style>
+        .btn-group .btn-divider {
+            width: 2px;
+            margin: 0 0px;
+            height: 24px;
+            align-self: center;
+        }
+    </style>
     <div class="content-header">
         <div class="container-fluid">
             <div class="row mb-2">
@@ -17,39 +25,37 @@
     </div>
     <section class="content">
         <div class="container-fluid">
-            <div class="row">
-                <div class="col-12">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">Stations</h3> <br>
+            <div class="row g-4">
+                <div class="col-md-12">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-header text-center py-3">
+                            <h5 class="card-title mb-0 fw-semibold">
+                                Stations
+                            </h5>
                         </div>
-                        <!-- /.card-header -->
-                        <div class="card-body">
-                            <table id="auditTable" class="table table-bordered table-striped">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 30px;">No</th>
-                                        <th style="width: 30px;">Online</th>
-                                        <th>Charging Stations ID</th>
-                                        <th>Charging Stations Name</th>
-                                        <th>Last Heartbeat</th>
-                                        <th>Connectors</th>
-                                        {{-- <th>Serial Number</th>
-                                        <th>Contract Number</th>
-                                        <th>Account</th>
-                                        <th>Location Holder</th> --}}
-                                        <th>Roaming Type</th>
-                                        <th>Location Type</th>
-                                        <th>Address</th>
-                                        <th>City</th>
-                                        {{-- <th>Tariff</th> --}}
-                                        <th>Status</th>
-                                        <th style="width: 80px;"><i class="fas fa-cogs"></i></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                </tbody>
-                            </table>
+                        <div class="card-body p-4 bg-white">
+                            <div class="table-responsive">
+                                <table id="auditTable" class="table table-hover align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 30px;">No</th>
+                                            <th style="width: 30px;">Online</th>
+                                            <th>Charging Stations ID</th>
+                                            <th>Charging Stations Name</th>
+                                            <th>Last Heartbeat</th>
+                                            <th>Connectors</th>
+                                            <th>Roaming Type</th>
+                                            <th>Location Type</th>
+                                            <th>Address</th>
+                                            <th>City</th>
+                                            <th>Status</th>
+                                            <th style="width: 80px;"><i class="fas fa-cogs"></i></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                         <!-- /.card-body -->
                     </div>
@@ -135,30 +141,6 @@
                     searchable: true,
                     orderable: true
                 },
-                // {
-                //     data: 'serial_number',
-                //     name: 'Serial Number',
-                //     searchable: true,
-                //     orderable: true
-                // },
-                // {
-                //     data: 'contract_number',
-                //     name: 'Contract Number',
-                //     searchable: true,
-                //     orderable: true
-                // },
-                // {
-                //     data: 'account_name',
-                //     name: 'Account',
-                //     searchable: true,
-                //     orderable: true
-                // },
-                // {
-                //     data: 'location_holder_name',
-                //     name: 'Location Holder',
-                //     searchable: true,
-                //     orderable: true
-                // },
                 {
                     data: 'roaming_type_name',
                     name: 'Roaming Type',
@@ -183,12 +165,6 @@
                     searchable: true,
                     orderable: true
                 },
-                // {
-                //     data: 'tariff_name',
-                //     name: 'Tariff',
-                //     searchable: true,
-                //     orderable: true
-                // },
                 {
                     data: 'status',
                     name: 'Status',
@@ -205,7 +181,17 @@
                     data: null,
                     render: function(data, type, row) {
                         let stationId = row.id;
-                        return `<a class="btn btn-primary btn-sm action-detail" href="/stations/details?id=${stationId}"><i class="fas fa-eye"></i></a>`;
+                        return `
+                            <div class="btn-group align-items-center" role="group" aria-label="Station Actions">
+                                <a href="#" class="btn btn-primary btn-sm action-detail" id="btn-detail-table">
+                                    <i class="fas fa-chevron-down"></i>
+                                </a>
+                                <div class="btn-divider"></div>
+                                <a href="/stations/details?id=${stationId}" class="btn btn-primary btn-sm action-detail">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        `;
                     }
                 }
             ],
@@ -216,7 +202,8 @@
 
         const detailRows = [];
 
-        table.on('click', 'tbody', function () {
+        table.on('click', '#btn-detail-table', function () {
+            let btn = $(this);
             let tr = event.target.closest('tr');
             let row = table.row(tr);
             let idx = detailRows.indexOf(tr.id);
@@ -226,6 +213,7 @@
                 row.child.hide();
 
                 detailRows.splice(idx, 1);
+                btn.find('i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
             }
             else {
                 tr.classList.add('details');
@@ -234,6 +222,7 @@
                 if (idx === -1) {
                     detailRows.push(tr.id);
                 }
+                btn.find('i').removeClass('fa-chevron-down').addClass('fa-chevron-up');
             }
         });
 
@@ -248,11 +237,17 @@
         });
 
         function format(d) {
-            console.log(d);
+            let html = '';
 
-            return (
-                'test'
-            );
+            $.ajax({
+                url: `/stations/detail-table/${d.id}`,
+                async: false,
+                success: function(response) {
+                    html = response;
+                }
+            });
+
+            return html;
         }
 
     </script>

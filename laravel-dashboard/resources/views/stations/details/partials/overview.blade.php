@@ -1,104 +1,116 @@
-<div class="card">
-    <div class="card-header">
-        <h3 class="card-title">Overview</h3>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Information</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-12">
-                                <div class="row">
-                                    <div class="col-4">
-                                        <h6>Address</h6>
-                                    </div>
-                                    <div class="col-8">
-                                        <h56>{{ $station->address }}</h6>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-4">
-                                        <h6>City</h6>
-                                    </div>
-                                    <div class="col-8">
-                                        <h56>{{ $station->city_name }}</h6>
-                                    </div>
-                                </div>
-                                <div class="row">
-                                    <div class="col-4">
-                                        <h6>Location Type</h6>
-                                    </div>
-                                    <div class="col-8">
-                                        <h56>{{ $station->location_type_name }}</h6>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+<div class="row g-4">
+    <!-- Information Card -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-primary text-white text-center py-3">
+                <h5 class="card-title mb-0 fw-semibold">
+                    Information
+                </h5>
+            </div>
+            <div class="card-body p-4 bg-white">
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted small text-uppercase fw-semibold">Address</span>
+                        <span class="fw-medium text-dark">{{ $station->address }}</span>
                     </div>
                 </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Maps</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-
-                            </div>
-                        </div>
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted small text-uppercase fw-semibold">City</span>
+                        <span class="fw-medium text-dark">{{ $station->city_name }}</span>
                     </div>
                 </div>
-            </div>
-            <div class="col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Chargin Station Owner</h3>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-
-                            </div>
-                        </div>
+                <div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted small text-uppercase fw-semibold">Location Type</span>
+                        <span class="fw-medium text-dark">{{ $station->location_type_name }}</span>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="row">
-            <div class="col-md-12">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Connectors</h3>
-                    </div>
-                    <div class="card-body">
-                        <table id="connectorsTable" class="table table-bordered table-striped">
-                            <thead>
-                                <tr>
-                                    <th style="width: 30px;">No</th>
-                                    <th>Connector Number</th>
-                                    <th>Status</th>
-                                    <th>Power KW</th>
-                                    <th>Last Status</th>
-                                    {{-- <th style="width: 80px;"><i class="fas fa-cogs"></i></th> --}}
-                                </tr>
-                            </thead>
-                            <tbody>
-                            </tbody>
-                        </table>
-                        <div class="row">
-                            <div class="col-md-12">
+    </div>
 
-                            </div>
-                        </div>
+    <!-- Location Card -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-primary text-white text-center py-3">
+                <h5 class="card-title mb-0 fw-semibold">
+                    Location
+                </h5>
+            </div>
+            <div class="card-body p-4 bg-white">
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted small text-uppercase fw-semibold">Latitude</span>
+                        <span class="fw-medium text-dark">{{ $station->latitude }}</span>
+                    </div>
+                </div>
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted small text-uppercase fw-semibold">Longitude</span>
+                        <span class="fw-medium text-dark">{{ $station->longitude }}</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted small text-uppercase fw-semibold">Elevation</span>
+                        <span class="fw-medium text-dark">{{ $station->elevation ?? '—' }}</span>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Owner Information Card -->
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-primary text-white text-center py-3">
+                <h5 class="card-title mb-0 fw-semibold">
+                    Owner Information
+                </h5>
+            </div>
+            <div class="card-body p-4 bg-white">
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted small text-uppercase fw-semibold">Owner Name</span>
+                        <span class="fw-medium text-dark">{{ $station->owner_name }}</span>
+                    </div>
+                </div>
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted small text-uppercase fw-semibold">Contact</span>
+                        <span class="fw-medium text-dark">{{ $station->owner_contact }}</span>
+                    </div>
+                </div>
+                <div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted small text-uppercase fw-semibold">Email</span>
+                        <span class="fw-medium text-dark">{{ $station->owner_email }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Connectors Table -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="table-responsive">
+            <table id="connectorsTable" class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 40px;">No</th>
+                        <th>Connector Number</th>
+                        <th>Status</th>
+                        <th>Power (KW)</th>
+                        <th>Last Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Dynamic Rows -->
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

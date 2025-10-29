@@ -48,18 +48,7 @@
     <link rel="stylesheet"
         href="{{ asset('templates/adminlte/plugins/datatables-buttons/css/buttons.bootstrap4.min.css') }}">
     <link rel="stylesheet" href="{{ asset('templates/adminlte/plugins/fonts-googleapis/poppins.css') }}">
-    <style>
-        .auto-size-btn {
-            height: 40px;
-            line-height: 40px;
-            padding: 0 15px;
-            font-size: 14px;
-            white-space: nowrap;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ asset('templates/admin/css/style.css') }}">
 </head>
 
 <body class="hold-transition sidebar-mini layout-fixed layout-navbar-fixed">
@@ -67,8 +56,8 @@
 
         <!-- Preloader -->
         <div class="preloader flex-column justify-content-center align-items-center">
-            <img class="animation__shake" src="{{ asset('templates/adminlte/dist/img/logo.png') }}"
-                alt="AdminLTELogo" height="20%" width="">
+            <img class="animation__shake" src="{{ asset('images/logo.png') }}"
+                alt="Zora Logo" height="8%" width="">
         </div>
 
         <!-- Navbar -->
@@ -116,9 +105,8 @@
         <aside class="main-sidebar sidebar-dark-primary elevation-4">
             <!-- Brand Logo -->
             <a href="{{ route('dashboard') }}" class="brand-link">
-                <img src="{{ asset('templates/adminlte/dist/img/AdminLTELogo.png') }}" alt="AdminLTE Logo"
-                    class="brand-image img-circle elevation-3">
-                <span class="brand-text font-weight-bold">Zora EV Charger</span>
+                <img src="{{ asset('images/logo-white.png') }}" alt="AdminLTE Logo" class="brand-image elevation-3">
+                <span class="brand-text font-weight-bold">EV Charger</span>
             </a>
 
             <!-- Sidebar -->
@@ -139,7 +127,7 @@
                         </li>
                         <li class="nav-item">
                             <a href="{{ route('stations') }}"
-                                class="nav-link {{ Route::is('stations') ? 'active' : '' }}">
+                                class="nav-link {{ Route::is('stations*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-charging-station"></i>
                                 <p>
                                     Stations
