@@ -146,8 +146,8 @@
                             </a>
                             <ul class="nav nav-treeview">
                                 <li class="nav-item">
-                                    <a href="{{ route('admin.dashboard') }}"
-                                        class="nav-link {{ Str::contains(Route::currentRouteName(), 'program-mcu') ? 'active' : '' }}">
+                                    <a href="{{ route('admin.transactions.chargepoints') }}"
+                                        class="nav-link {{ Route::is('admin.transactions*') ? 'active' : '' }}">
                                         <i class="far fa-circle nav-icon"></i>
                                         <p>Chargepoints</p>
                                     </a>

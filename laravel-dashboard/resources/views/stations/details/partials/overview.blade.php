@@ -39,7 +39,8 @@
                 </h5>
             </div>
             <div class="card-body p-4 bg-white">
-                <div class="mb-3 pb-2 border-bottom">
+                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3961.0180961933343!2d107.57396777585224!3d-6.888435467408043!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e68e778ac7176b7%3A0x6ebd62876b56957a!2sDHealth!5e0!3m2!1sen!2sid!4v1761833127385!5m2!1sen!2sid" width="380" height="380" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                {{-- <div class="mb-3 pb-2 border-bottom">
                     <div class="d-flex justify-content-between">
                         <span class="text-muted small text-uppercase fw-semibold">Latitude</span>
                         <span class="fw-medium text-dark">{{ $station->latitude }}</span>
@@ -56,7 +57,7 @@
                         <span class="text-muted small text-uppercase fw-semibold">Elevation</span>
                         <span class="fw-medium text-dark">{{ $station->elevation ?? '—' }}</span>
                     </div>
-                </div>
+                </div> --}}
             </div>
         </div>
     </div>
