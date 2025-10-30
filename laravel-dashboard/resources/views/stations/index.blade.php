@@ -16,7 +16,7 @@
                 </div><!-- /.col -->
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
                         <li class="breadcrumb-item active">Stations</li>
                     </ol>
                 </div><!-- /.col -->
@@ -25,15 +25,54 @@
     </div>
     <section class="content">
         <div class="container-fluid">
-            <div class="row g-4">
-                <div class="col-md-12">
-                    <div class="card border-0 shadow-sm rounded-4">
-                        <div class="card-header text-center py-3">
-                            <h5 class="card-title mb-0 fw-semibold">
-                                Stations
-                            </h5>
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-header py-3">
+                    <h5 class="card-title mb-0 fw-semibold">
+                        <i class="fas fa-filter me-1"></i> Data
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-2">
+                            <label for="filter_name" class="form-label">Station Name</label>
+                            <input type="text" class="form-control" id="filter_name" placeholder="Search by name...">
                         </div>
-                        <div class="card-body p-4 bg-white">
+                        <div class="col-md-2">
+                            <label for="filter_status" class="form-label">Status</label>
+                            <select class="form-control" id="filter_status" style="width: 100%;">
+                                <option value="">All Statuses</option>
+                                <option value="available">Available</option>
+                                <option value="unavailable">Unavailable</option>
+                                <option value="charging">Charging</option>
+                                <option value="offline">Offline</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="filter_roaming" class="form-label">Roaming Type</label>
+                            <select class="form-control" id="filter_roaming" style="width: 100%;">
+                                <option value="">All Types</option>
+                                {{-- These should ideally be populated from your DB via Blade --}}
+                                <option value="1">Public</option>
+                                <option value="2">Private</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="filter_city" class="form-label">City</label>
+                            <select class="form-control" id="filter_city" style="width: 100%;">
+                                <option value="">Select a City</option>
+                            </select>
+                        </div>
+                    </div>
+                    <br>
+                    <div class="row g-4">
+                        <div class="col-md-12">
+                            <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button>
+                        </div>
+                    </div>
+                    <br>
+                    <div class="row g-4">
+                        <div class="col-md-12">
                             <div class="table-responsive">
                                 <table id="auditTable" class="table table-hover align-middle">
                                     <thead class="table-light">
@@ -57,8 +96,9 @@
                                 </table>
                             </div>
                         </div>
-                        <!-- /.card-body -->
                     </div>
+                </div>
+                <div class="card-footer text-end bg-white border-0 pt-0">
                 </div>
             </div>
         </div>
@@ -81,18 +121,33 @@
         </div>
     </section>
     <script>
+        // Standard Select2 for Status
+        const $filterStatus = $('#filter_status').select2({
+            placeholder: 'All Statuses',
+            allowClear: true,
+            theme: 'bootstrap4' // Assuming you use Bootstrap 4 with AdminLTE
+        });
+
+        // Standard Select2 for Roaming Type
+        const $filterRoaming = $('#filter_roaming').select2({
+            placeholder: 'All Types',
+            allowClear: true,
+            theme: 'bootstrap4'
+        });
         let table = $("#auditTable").DataTable({
             responsive: true,
             lengthChange: true,
             autoWidth: false,
-            searching: true,
+            searching: false,
             processing: true,
             serverSide: true,
             ajax: {
-                url: '/stations/get-data',
+                url: '{{ route("admin.stations.get-data") }}',
                 type: 'GET',
                 data: function(d) {
-
+                    d.filter_name = $('#filter_name').val();
+                    d.filter_status = $filterStatus.val();
+                    d.filter_roaming = $filterRoaming.val();
                 }
             },
             columns: [{
@@ -110,9 +165,9 @@
                     orderable: true,
                     render: function(data, type, row) {
                         if (data == 'online') {
-                            return `<center><a class="btn btn-success btn-sm" readonly><i class="fas fa-signal"></i></a></center>`;
+                            return `<center><i class="fas fa-signal-alt text-success"></i></center>`;
                         } else {
-                            return `<center><a class="btn btn-danger btn-sm" readonly><i class="fas fa-signal"></i></a></center>`;
+                            return `<center><i class="fas fa-signal-alt-slash text-danger"></i></center>`;
                         }
 
                     }
@@ -173,7 +228,7 @@
                     render: function(data, type, row) {
                         let status = row.status;
                         if (status == 'available') {
-                            return `<a class="btn btn-success btn-xs action-detail">Available</a>`;
+                            return `<span class="badge badge-primary">Available</span>`;
                         }
                     }
                 },
@@ -187,7 +242,7 @@
                                     <i class="fas fa-chevron-down"></i>
                                 </a>
                                 <div class="btn-divider"></div>
-                                <a href="/stations/details?id=${stationId}" class="btn btn-primary btn-sm action-detail">
+                                <a href="{{ route("admin.stations.details") }}?id=${stationId}" class="btn btn-primary btn-sm action-detail">
                                     <i class="fas fa-eye"></i>
                                 </a>
                             </div>
@@ -198,6 +253,23 @@
             order: [
                 [1, 'asc']
             ],
+        });
+
+        // Filter button click event
+        $('#btn_filter').on('click', function() {
+            table.draw(); // Redraw the table, which re-triggers the AJAX call with new data
+        });
+
+        // Reset button click event
+        $('#btn_reset').on('click', function() {
+            // Reset all filter inputs to their default state
+            $('#filter_name').val('');
+            $filterStatus.val(null).trigger('change'); // Reset Select2
+            $filterRoaming.val(null).trigger('change');
+            $filterCity.val(null).trigger('change'); // Reset AJAX Select2
+
+            // Redraw the table
+            table.draw();
         });
 
         const detailRows = [];
@@ -236,11 +308,12 @@
             });
         });
 
+        const detailTableUrl = "{{ route('admin.stations.detail-table', ['id' => '__ID__']) }}";
         function format(d) {
             let html = '';
 
             $.ajax({
-                url: `/stations/detail-table/${d.id}`,
+                url: detailTableUrl.replace('__ID__', d.id),
                 async: false,
                 success: function(response) {
                     html = response;

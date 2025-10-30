@@ -129,7 +129,8 @@
             paging: false,
             info: false,
             ajax: {
-                url: '/stations/details/get-connectors',
+                // url: '/stations/details/get-connectors',
+                url: '{{ route("admin.stations.details.get-connectors") }}',
                 type: 'GET',
                 data: function(d) {
                     d.station_id = stationId;
