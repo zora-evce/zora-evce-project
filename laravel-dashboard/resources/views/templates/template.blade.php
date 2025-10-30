@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="{{ asset('templates/adminlte/plugins/fonts-googleapis/sans-pro.css') }}">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="{{ asset('templates/adminlte/plugins/fontawesome-free/css/all.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('templates/adminlte/plugins/fontawesome-pro/css/all.min.css') }}">
     <!-- SweetAlert2 -->
     <link rel="stylesheet"
         href="{{ asset('templates/adminlte/plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css') }}">
@@ -104,7 +105,7 @@
 
         <aside class="main-sidebar sidebar-dark-primary elevation-4">
             <!-- Brand Logo -->
-            <a href="{{ route('dashboard') }}" class="brand-link">
+            <a href="{{ route('admin.dashboard') }}" class="brand-link">
                 <img src="{{ asset('images/logo-white.png') }}" alt="AdminLTE Logo" class="brand-image elevation-3">
                 <span class="brand-text font-weight-bold">EV Charger</span>
             </a>
@@ -117,8 +118,8 @@
                     <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu"
                         data-accordion="false">
                         <li class="nav-item">
-                            <a href="{{ route('dashboard') }}"
-                                class="nav-link {{ Route::is('dashboard') ? 'active' : '' }}">
+                            <a href="{{ route('admin.dashboard') }}"
+                                class="nav-link {{ Route::is('admin.dashboard') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-chart-bar"></i>
                                 <p>
                                     Dashboard
@@ -126,8 +127,8 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('stations') }}"
-                                class="nav-link {{ Route::is('stations*') ? 'active' : '' }}">
+                            <a href="{{ route('admin.stations') }}"
+                                class="nav-link {{ Route::is('admin.stations*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-charging-station"></i>
                                 <p>
                                     Stations
@@ -145,14 +146,14 @@
                             </a>
                             <ul class="nav nav-treeview">
                                 <li class="nav-item">
-                                    <a href="{{ route('dashboard') }}"
+                                    <a href="{{ route('admin.dashboard') }}"
                                         class="nav-link {{ Str::contains(Route::currentRouteName(), 'program-mcu') ? 'active' : '' }}">
                                         <i class="far fa-circle nav-icon"></i>
                                         <p>Chargepoints</p>
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a href="{{ route('dashboard') }}"
+                                    <a href="{{ route('admin.dashboard') }}"
                                         class="nav-link {{ Str::contains(Route::currentRouteName(), 'program-mcu') ? 'active' : '' }}">
                                         <i class="far fa-circle nav-icon"></i>
                                         <p>Cards</p>
@@ -161,7 +162,7 @@
                             </ul>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('dashboard') }}"
+                            <a href="{{ route('admin.dashboard') }}"
                                 class="nav-link">
                                 <i class="nav-icon fas fa-users"></i>
                                 <p>

@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\Route;
 
 
 // CLIENT
-// Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/start/{station_code}/{connector_code}', [HomeController::class, 'start']);
 Route::get('/start/session', [HomeController::class, 'session'])->name('start.session');
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Stations\StationsController;
 use Illuminate\Support\Facades\Route;
 
 // ADMIN
+Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
 Route::group(['prefix' => 'stations'], function () {

@@ -11,25 +11,42 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function () {
-            $appUrlHost = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
+            $host = request()->getHost();
 
-            $adminDomain = 'admin.' . $appUrlHost;
-            $clientDomain = 'client.' . $appUrlHost;
-            $rootDomain = $appUrlHost;
+            $isIpOrLocal = ($host === 'localhost' || filter_var($host, FILTER_VALIDATE_IP));
 
-            Route::middleware('web')
-                 ->domain($adminDomain)
-                 ->name('admin.')
-                 ->group(base_path('routes/admin.php'));
+            if (!$isIpOrLocal) {
+                // --- DOMAIN-BASED ROUTING ---
+                $appUrlHost = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
 
-            Route::middleware('web')
-                 ->domain($rootDomain)
-                 ->group(base_path('routes/web.php'));
+                $adminDomain = 'admin.' . $appUrlHost;
+                $clientDomain = 'client.' . $appUrlHost;
+                $rootDomain = $appUrlHost;
 
-            Route::middleware('web')
-                 ->domain($clientDomain)
-                 ->name('client.')
-                 ->group(base_path('routes/web.php'));
+                Route::middleware('web')
+                     ->domain($adminDomain)
+                     ->name('admin.')
+                     ->group(base_path('routes/admin.php'));
+
+                Route::middleware('web')
+                     ->domain($rootDomain)
+                     ->group(base_path('routes/web.php'));
+
+                Route::middleware('web')
+                     ->domain($clientDomain)
+                     ->name('client.')
+                     ->group(base_path('routes/web.php'));
+
+            } else {
+                // --- IP-BASED (PREFIX) ROUTING ---
+                Route::middleware('web')
+                     ->prefix('admin')
+                     ->name('admin.')
+                     ->group(base_path('routes/admin.php'));
+
+                Route::middleware('web')
+                     ->group(base_path('routes/web.php'));
+            }
         }
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -38,3 +55,4 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
+
