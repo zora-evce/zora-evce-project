@@ -16,7 +16,7 @@
                 </div><!-- /.col -->
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('cpo.dashboard') }}">Home</a></li>
                         <li class="breadcrumb-item active">Stations</li>
                     </ol>
                 </div><!-- /.col -->
@@ -128,7 +128,7 @@
             processing: true,
             serverSide: true,
             ajax: {
-                url: '{{ route("admin.transactions.chargepoints.get-data") }}',
+                url: '{{ route("cpo.transactions.chargepoints.get-data") }}',
                 type: 'GET',
                 data: function(d) {
                 }

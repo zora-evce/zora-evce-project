@@ -16,7 +16,7 @@
                 </div><!-- /.col -->
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('cpo.dashboard') }}">Home</a></li>
                         <li class="breadcrumb-item active">Stations</li>
                     </ol>
                 </div><!-- /.col -->
@@ -68,6 +68,7 @@
                         <div class="col-md-12">
                             <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button>
+                            <div id="colvis-container" style="display: inline-block; margin-left: 5px; vertical-align: middle;"></div>
                         </div>
                     </div>
                     <br>
@@ -141,8 +142,18 @@
             searching: false,
             processing: true,
             serverSide: true,
+            dom: "<'row'<'col-sm-12 col-md-6'Bl><'col-sm-12 col-md-6'f>>" +
+                 "<'row'<'col-sm-12'tr>>" +
+                 "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+            buttons: [
+                {
+                    extend: 'colvis',
+                    text: '<i class="fas fa-columns"></i> Columns', // Your custom button
+                    className: 'btn-sm btn-primary'
+                }
+            ],
             ajax: {
-                url: '{{ route("admin.stations.get-data") }}',
+                url: '{{ route("cpo.stations.get-data") }}',
                 type: 'GET',
                 data: function(d) {
                     d.filter_name = $('#filter_name').val();
@@ -242,7 +253,7 @@
                                     <i class="fas fa-chevron-down"></i>
                                 </a>
                                 <div class="btn-divider"></div>
-                                <a href="{{ route("admin.stations.details") }}?id=${stationId}" class="btn btn-primary btn-sm action-detail">
+                                <a href="{{ route("cpo.stations.details") }}?id=${stationId}" class="btn btn-primary btn-sm action-detail">
                                     <i class="fas fa-eye"></i>
                                 </a>
                             </div>
@@ -254,6 +265,7 @@
                 [1, 'asc']
             ],
         });
+        table.buttons().container().appendTo('#colvis-container');
 
         // Filter button click event
         $('#btn_filter').on('click', function() {
@@ -308,7 +320,7 @@
             });
         });
 
-        const detailTableUrl = "{{ route('admin.stations.detail-table', ['id' => '__ID__']) }}";
+        const detailTableUrl = "{{ route('cpo.stations.detail-table', ['id' => '__ID__']) }}";
         function format(d) {
             let html = '';
 

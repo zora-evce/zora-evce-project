@@ -19,13 +19,13 @@ return Application::configure(basePath: dirname(__DIR__))
                 // --- DOMAIN-BASED ROUTING ---
                 $appUrlHost = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
 
-                $adminDomain = 'admin.' . $appUrlHost;
-                $clientDomain = 'client.' . $appUrlHost;
+                $adminDomain = 'cpo.' . $appUrlHost;
+                $clientDomain = 'zora.' . $appUrlHost;
                 $rootDomain = $appUrlHost;
 
                 Route::middleware('web')
                      ->domain($adminDomain)
-                     ->name('admin.')
+                     ->name('cpo.')
                      ->group(base_path('routes/admin.php'));
 
                 Route::middleware('web')
@@ -34,14 +34,14 @@ return Application::configure(basePath: dirname(__DIR__))
 
                 Route::middleware('web')
                      ->domain($clientDomain)
-                     ->name('client.')
+                     ->name('zora.')
                      ->group(base_path('routes/web.php'));
 
             } else {
                 // --- IP-BASED (PREFIX) ROUTING ---
                 Route::middleware('web')
-                     ->prefix('admin')
-                     ->name('admin.')
+                     ->prefix('cpo')
+                     ->name('cpo.')
                      ->group(base_path('routes/admin.php'));
 
                 Route::middleware('web')
