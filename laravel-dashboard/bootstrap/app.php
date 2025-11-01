@@ -28,9 +28,9 @@ return Application::configure(basePath: dirname(__DIR__))
                      ->name('cpo.')
                      ->group(base_path('routes/admin.php'));
 
-                Route::middleware('web')
-                     ->domain($rootDomain)
-                     ->group(base_path('routes/web.php'));
+                // Route::middleware('web')
+                //      ->domain($rootDomain)
+                //      ->group(base_path('routes/web.php'));
 
                 Route::middleware('web')
                      ->domain($clientDomain)
