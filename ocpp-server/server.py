@@ -12,6 +12,9 @@ from ocpp.v16 import ChargePoint as CP16
 from ocpp.v16.enums import RegistrationStatus, Action
 from ocpp.v16 import call_result, call
 
+# 🔧 bring in the normalizer
+from ocpp_bridge import _normalize_remote_cmd
+
 # ------------ Config ------------
 LARAVEL_BASE = os.getenv("LARAVEL_BASE", "https://zora.apenable.com")
 OCPP_KEY     = os.getenv("OCPP_KEY")  # must be set
@@ -35,7 +38,7 @@ async def post_laravel(path: str, payload: dict) -> dict:
     url = f"{LARAVEL_BASE}/api/ocpp/{path.lstrip('/')}"
     headers = {
         "Content-Type": "application/json",
-        "Accept": "application/json",          # <-- add this
+        "Accept": "application/json",
         "X-OCPP-Key": OCPP_KEY,
     }
     r = await http.post(url, headers=headers, json=payload)
@@ -43,6 +46,10 @@ async def post_laravel(path: str, payload: dict) -> dict:
     return r.json()
 
 async def poll_command(station_code: str, connector: Optional[int]) -> Optional[dict]:
+    """
+    Returns the RAW JSON from Laravel (not just the inner 'command'),
+    so we can normalize field names robustly.
+    """
     params = {"station_code": station_code}
     if connector is not None:
         params["connector"] = connector
@@ -50,8 +57,7 @@ async def poll_command(station_code: str, connector: Optional[int]) -> Optional[
     url = f"{LARAVEL_BASE}/api/ocpp/commands/poll"
     r = await http.get(url, headers=headers, params=params)
     r.raise_for_status()
-    data = r.json()
-    return data.get("command")
+    return r.json()
 
 # ------------ ChargePoint class ------------
 class ChargePoint(CP16):
@@ -80,18 +86,37 @@ class ChargePoint(CP16):
         connector_hint = None
         while self._running:
             try:
-                cmd = await poll_command(self.cp_id, connector_hint)
-                if cmd:
-                    name = cmd.get("command")
-                    payload = cmd.get("payload") or {}
+                raw = await poll_command(self.cp_id, connector_hint)
+                if raw:
+                    log.info("poll raw: %s", raw)
+                norm = _normalize_remote_cmd(raw) if raw else None
+
+                if norm and norm.get("name"):
+                    name = norm["name"]
+                    payload = norm.get("payload") or {}
+                    # Keep/learn connector hint if present
+                    if norm.get("connector") is not None:
+                        connector_hint = norm["connector"]
+
                     if name == "RemoteStartTransaction":
-                        id_tag = payload.get("idTag") or "CARD"
-                        req = call.RemoteStartTransactionPayload(id_tag=id_tag)
+                        id_tag = payload.get("idTag") or payload.get("id_tag") or "CARD"
+                        connector_id = norm.get("connector") or payload.get("connectorId")
+                        if connector_id is not None:
+                            req = call.RemoteStartTransactionPayload(id_tag=id_tag, connector_id=int(connector_id))
+                        else:
+                            req = call.RemoteStartTransactionPayload(id_tag=id_tag)
                         await self.call(req)
+
                     elif name == "RemoteStopTransaction":
-                        tx = int(payload.get("transactionId") or 0)
+                        # Laravel might send 'transactionId' (str or int)
+                        tx_raw = payload.get("transactionId") or payload.get("transaction_id") or 0
+                        try:
+                            tx = int(tx_raw)
+                        except Exception:
+                            tx = 0
                         req = call.RemoteStopTransactionPayload(transaction_id=tx)
                         await self.call(req)
+
                 await asyncio.sleep(POLL_SEC)
             except Exception as e:
                 log.warning("poll/send command error: %s", e)
@@ -122,7 +147,7 @@ class ChargePoint(CP16):
         }))
         return call_result.BootNotificationPayload(
             current_time=utcnow(),
-            interval=300,
+            interval=30,
             status=RegistrationStatus.accepted,
         )
 
@@ -253,9 +278,9 @@ async def handler(websocket, path):
     try:
         log.info("Starting OCPP listener for %s ...", cp_id)
         await asyncio.gather(
-            charge_point.start(),       # OCPP router (from CP16)
-            charge_point.start_poller(),# our command poller
-            websocket.wait_closed(),    # keep task alive
+            charge_point.start(),        # OCPP router (from CP16)
+            charge_point.start_poller(), # our command poller
+            websocket.wait_closed(),     # keep task alive
         )
         log.info("OCPP listener finished for %s", cp_id)
     finally:
@@ -264,7 +289,7 @@ async def handler(websocket, path):
 
 async def main():
     log.info("OCPP server starting on %s:%d", LISTEN_HOST, LISTEN_PORT)
-    async with serve(handler, LISTEN_HOST, LISTEN_PORT, subprotocols=["ocpp1.6"]):
+    async with serve(handler, LISTEN_HOST, LISTEN_PORT, subprotocols=["ocpp1.6"], ping_interval=None, ping_timeout=None, close_timeout=120):
         await asyncio.Future()  # run forever
 
 if __name__ == "__main__":

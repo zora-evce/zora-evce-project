@@ -1,5 +1,30 @@
 # /opt/zora-ev-charger/ocpp-server/ocpp_bridge.py
 from typing import Dict, Any, List, Optional
+
+def _normalize_remote_cmd(raw):
+    # raw looks like {"ok":true,"command":{"id":4,"command":"RemoteStartTransaction","payload":{"idTag":"TEST123"},"station_id":1,"connector_id":1}}
+    if not raw: 
+        return None
+    cmd = raw.get("command") if isinstance(raw, dict) else None
+    if not cmd: 
+        return None
+    # Accept multiple key variants
+    name = (cmd.get("command") if cmd else None) or cmd.get("name") or cmd.get("action")
+    payload = (cmd.get("payload") if cmd else {}) or {}
+    connector = (cmd.get("connector") or cmd.get("connector_id") or 
+                 cmd.get("connectorId") or payload.get("connectorId"))
+    try:
+        connector = int(connector) if connector is not None else None
+    except Exception:
+        connector = None
+    # Minimal normalized shape
+    return {
+        "id": cmd.get("id"),
+        "name": name,
+        "payload": payload,
+        "connector": connector,
+        "raw": raw
+    }
 from datetime import datetime, timezone
 
 from config import STATION_CODE, CONNECTOR
