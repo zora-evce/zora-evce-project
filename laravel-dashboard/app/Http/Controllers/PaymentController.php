@@ -5,6 +5,9 @@ use Illuminate\Http\Request;
 use App\Services\CheckoutService;
 use Midtrans\Config;
 use Midtrans\Snap;
+use App\Models\Transaction;
+use App\Models\RemoteCommand;
+use App\Helpers\GlobalHelper;
 
 class PaymentController extends Controller
 {
@@ -23,25 +26,24 @@ class PaymentController extends Controller
     public function checkout(Request $request)
     {
         $data = $request->only([
-            'product_id','customer_id','quantity','total_price',
-            'name','email','phone_number'
+            'quantity',
+            'name', 'email', 'phone_number', 'station_id', 'connector_id', 'tariff_code'
         ]);
 
         $result = $this->checkoutService->processCheckout([
-            'product_id' => $data['product_id'],
-            'customer_id' => $data['customer_id'],
-            'quantity' => $data['quantity'],
-            'total_price' => $data['total_price'],
-            'customer_name' => $data['name'],
-            'customer_email' => $data['email'],
-            'customer_phone' => $data['phone_number'],
+            'quantity'        => $data['quantity'] ?? null,
+            'customer_name'   => $data['name'] ?? null,
+            'customer_email'  => $data['email'] ?? null,
+            'customer_phone'  => $data['phone_number'] ?? null,
+            'station_id'      => $data['station_id'] ?? null,
+            'connector_id'    => $data['connector_id'] ?? null,
+            'tariff_code'     => $data['tariff_code'] ?? null,
         ]);
-
         return response()->json($result);
     }
 
     // webhook handler
-    public function handleWebhook(Request $request)
+    public function notification(Request $request)
     {
         $serverKey = config('midtrans.server_key');
 
@@ -59,7 +61,7 @@ class PaymentController extends Controller
         // ambil order id (sesuaikan dengan penyimpanan)
         $orderId = $request->order_id;
         // temukan transaksi berdasarkan midtrans_order_id lalu update status
-        $transaction = \App\Models\Transaction::where('midtrans_order_id', $orderId)->first();
+        $transaction = Transaction::where('midtrans_order_id', $orderId)->first();
         if (!$transaction) {
             return response()->json(['message' => 'transaction not found'], 404);
         }
@@ -67,6 +69,11 @@ class PaymentController extends Controller
         // contoh mapping status midtrans -> local
         if ($request->transaction_status === 'settlement' || $request->transaction_status === 'capture') {
             $transaction->status = 'paid';
+            $transaction->save();
+
+            // After successful payment, enqueue RemoteStartTransaction command via Helper
+            GlobalHelper::enqueueRemoteStartCommand($transaction);
+
         } elseif ($request->transaction_status === 'deny' || $request->transaction_status === 'cancel') {
             $transaction->status = 'failed';
         } elseif ($request->transaction_status === 'expire') {

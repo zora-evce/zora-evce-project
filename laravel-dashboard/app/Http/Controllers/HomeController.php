@@ -9,11 +9,15 @@ use Illuminate\View\View;
 use App\Models\SessionToken;
 use App\Models\Connector;
 use App\Models\Station;
+use App\Models\Tariff;
+use App\Models\WebhookLog;
 
 class HomeController extends Controller
 {
     public function start($station_code, $connector_code)
     {
+        $data = WebhookLog::where('payload->status', 'Available')->get();
+        
         try {
             $station = Station::where('code', $station_code)->first();
             $connector = Connector::where('connector_code', $connector_code)->first();
@@ -29,15 +33,7 @@ class HomeController extends Controller
                     'connector_code' => $connector_code,
                 ], 409);
             }
-
-            // CHECK IF CONNECTOR PLUGGED IN
-            // if ($connector->status !== 'available') {
-            //     return response()->view('errors.connector_not_plugged', [
-            //         'station_code' => $station_code,
-            //         'connector_code' => $connector_code,
-            //     ], 409);
-            // }
-
+            
             $payload = json_encode([
                 'station_code' => $station_code,
                 'connector_code' => $connector_code,
@@ -58,7 +54,7 @@ class HomeController extends Controller
             return response()->view('errors.500', [], 500);
         }
 
-        return redirect()->route('start.session', ['token' => $token]);
+        return redirect()->route('zora.start.session', ['token' => $token]);
     }
 
     public function session()
@@ -80,9 +76,15 @@ class HomeController extends Controller
                 return response()->view('errors.404', [], 404);
             }
 
+            // GET PRODUCTS
+            $products = Tariff::where('tariff_type', 'duration')
+                                ->where('active', 1)
+                                ->get();
+
             return view('home.index', [
                 'station' => $station ?? null,
                 'connector' => $connector ?? null,
+                'products' => $products ?? collect(),
             ]);
 
         } catch (\Throwable $e) {
