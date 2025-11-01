@@ -66,7 +66,7 @@
                     </div>
                 </div>
 
-                <div class="row gx-4 gx-lg-5 justify-content-center mainForm mb-5" id="mainForm1">
+            <div class="row gx-4 gx-lg-5 justify-content-center mainForm mb-5 d-none" id="mainForm1">
                     <div class="col-lg-8 col-xl-6 text-center">
                         <div class="subsection px-4 py-4">
                             <h2 class="mt-0">Welcome!</h2>
@@ -113,15 +113,18 @@
                     </div>
                 </div>
 
-                <div class="row gx-4 gx-lg-5 justify-content-center mb-5 mainForm d-none" id="mainForm3">
+                <div class="row gx-4 gx-lg-5 justify-content-center mb-5 mainForm" id="mainForm3">
                     <div class="col-lg-6">
                         <div class="subsection px-4 py-4">
                             <div class="mb-3">
                                 <label for="duration" class="form-label">Duration</label>
                                 <select id="duration" name="duration" class="form-select">
-                                    <option value="30">30 Minutes</option>
-                                    <option value="60">60 Minutes</option>
-                                    <option value="90">90 Minutes</option>
+                                    @foreach(($products ?? []) as $product)
+                                    @php
+                                        $minutes = (int) (data_get($product, 'tariff_value', 0));
+                                    @endphp
+                                        <option value="{{ $minutes }}">{{ $minutes }} Minutes</option>
+                                    @endforeach
                                 </select>
                             </div>
                             <div class="text-danger small d-none" id="durationError">Please select a duration.</div>
@@ -144,12 +147,8 @@
                                     <span id="summaryDuration">-</span>
                                 </div>
                                 <div class="d-flex justify-content-between">
-                                    <span>Price (before tax)</span>
-                                    <span id="summaryBeforeTax">-</span>
-                                </div>
-                                <div class="d-flex justify-content-between">
-                                    <span>Price (after tax)</span>
-                                    <span id="summaryAfterTax">-</span>
+                                    <span>Price</span>
+                                    <span id="summaryPrice">-</span>
                                 </div>
                             </div>
                         </div>
@@ -196,12 +195,19 @@
                 var form4 = $("#mainForm4");
                 var stepperItems = $(".stepper-wrapper .stepper-item");
 
-                var durationToPrice = {
-                    30: 10000,
-                    60: 20000,
-                    90: 30000
-                };
-                var taxRate = 0.11; // 11%
+                var PRODUCTS = @json(($products ?? collect())->map(function($p){
+                    return [
+                        'value' => (int) ($p->tariff_value ?? 0),
+                        'price' => (int) ($p->tariff_price ?? 0),
+                    ];
+                }));
+                var durationToPrice = {};
+                (PRODUCTS || []).forEach(function(p){
+                    if (p && p.value) {
+                        durationToPrice[p.value] = p.price || 0;
+                    }
+                });
+                // Prices from backend are final (tax-included)
 
                 function formatRupiah(value) {
                     return "Rp " + Number(value).toLocaleString("id-ID");
@@ -314,44 +320,48 @@
                 function updatePaymentSummary() {
                     var durationVal = $("#duration").val();
                     var durationMinutes = durationVal ? parseInt(durationVal, 10) : null;
-                    var priceBefore = durationMinutes ? (durationToPrice[durationMinutes] || 0) : 0;
-                    var priceAfter = Math.round(priceBefore * (1 + taxRate));
+                    var price = durationMinutes ? (durationToPrice[durationMinutes] || 0) : 0;
 
                     $("#summaryDuration").text(durationMinutes ? (durationMinutes + " Minutes") : "-");
-                    $("#summaryBeforeTax").text(priceBefore ? formatRupiah(priceBefore) : "-");
-                    $("#summaryAfterTax").text(priceAfter ? formatRupiah(priceAfter) : "-");
+                    $("#summaryPrice").text(price ? formatRupiah(price) : "-");
                 }
 
-                function computePaymentAmountAfterTax() {
+                function computePaymentAmount() {
                     var durationVal = $("#duration").val();
                     var durationMinutes = durationVal ? parseInt(durationVal, 10) : null;
-                    var priceBefore = durationMinutes ? (durationToPrice[durationMinutes] || 0) : 0;
-                    return Math.round(priceBefore * (1 + taxRate));
+                    var price = durationMinutes ? (durationToPrice[durationMinutes] || 0) : 0;
+                    return price;
                 }
 
                 // Pay button handler (Midtrans Snap)
                 $(document).on("click", "#mainForm4 .btn-next", function(e){
                     e.preventDefault();
                     var $btn = $(this);
-                    var amount = computePaymentAmountAfterTax();
+                    var amount = computePaymentAmount();
                     if (!amount) { return; }
 
                     $btn.prop("disabled", true).text("Processing...");
 
                     $.ajax({
-                        url: "/checkout",
+                        url: "{{ route('checkout') }}",
                         method: "POST",
                         data: {
                             _token: $("meta[name='csrf-token']").attr("content"),
-                            amount: amount,
-                            product_id: 123,
-                            customer_id: 456,
                             quantity: 1,
-                            total_price: amount,
                             duration: $("#duration").val(),
                             name: $("#name").val(),
                             email: $("#email").val(),
-                            phone_number: $("#phone").val()
+                            phone_number: $("#phone").val(),
+                            station_id: {{ $station->id }},
+                            connector_id: {{ $connector->id }},
+                            tariff_code: (function(){
+                                var val = $("#duration").val();
+                                var code = null;
+                                @foreach(($products ?? []) as $product)
+                                    if ({{ (int)($product->tariff_value) }} == val) code = '{{ $product->tariff_code }}';
+                                @endforeach
+                                return code;
+                            })()
                         }
                     }).done(function(response){
                         if (response && response.snap_token && window.snap) {

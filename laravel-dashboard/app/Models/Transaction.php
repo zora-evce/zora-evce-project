@@ -35,4 +35,9 @@ class Transaction extends BaseModel
     {
         return $this->belongsTo(Connector::class, 'connector_id');
     }
+
+    public function tariff()
+    {
+        return $this->belongsTo(Tariff::class, 'tariff_code', 'tariff_code');
+    }
 }
