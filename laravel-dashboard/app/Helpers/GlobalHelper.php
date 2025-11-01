@@ -6,6 +6,9 @@ use App\Models\LookupC;
 use App\Models\PackageM;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use App\Models\Transaction;
+use App\Models\RemoteCommand;
+use App\Jobs\EnqueueRemoteStopCommandJob;
 
 class GlobalHelper {
     public static function validation($data, $rules, $messages, $attributes = null){
@@ -70,4 +73,42 @@ class GlobalHelper {
         ];
     }
 
+    /**
+     * Enqueue a RemoteStartTransaction command after successful payment.
+     * Accepts a Transaction Eloquent model instance.
+     *
+     * @param Transaction $transaction
+     * @return bool True if enqueued, false if not applicable.
+     */
+    public static function enqueueRemoteStartCommand(Transaction $transaction): bool
+    {
+        $station = $transaction->station;
+        $connector = $transaction->connector;
+        $tariff = $transaction->tariff;
+        // Default payload
+        $payload = [];
+        if ($connector && isset($connector->idTag)) {
+            $payload['idTag'] = $connector->idTag;
+        }
+        if ($tariff && isset($tariff->tariff_value)) {
+            $payload['tariff_value'] = $tariff->tariff_value;
+        }
+        if ($station && $connector && !empty($payload)) {
+            RemoteCommand::create([
+                'station_id' => $station->id,
+                'connector_id' => $connector->id,
+                'command' => 'RemoteStartTransaction',
+                'payload' => json_encode($payload),
+                'status' => 'pending',
+            ]);
+            // Dispatch the RemoteStopTransaction job after X minutes
+            if ($tariff && isset($tariff->tariff_value) && is_numeric($tariff->tariff_value) && $tariff->tariff_value > 0 && isset($connector->idTag)) {
+                $delayMinutes = (int) $tariff->tariff_value;
+                EnqueueRemoteStopCommandJob::dispatch($transaction->id, $connector->idTag)
+                    ->delay(now()->addMinutes($delayMinutes));
+            }
+            return true;
+        }
+        return false;
+    }
 }

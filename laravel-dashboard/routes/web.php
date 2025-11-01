@@ -12,7 +12,7 @@ Route::get('/start/session', [HomeController::class, 'session'])->name('start.se
 
 Route::get('/pay', [PaymentController::class, 'index']);
 Route::post('/checkout', [PaymentController::class, 'checkout']);
-Route::post('/midtrans/webhook', [PaymentController::class, 'handleWebhook']); // endpoint webhook
+Route::post('/checkout/notification', [PaymentController::class, 'notification']); // endpoint webhook
 
 // TEST STOP ROUTE
 Route::get('/teststop', function () {
