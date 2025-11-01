@@ -10,9 +10,9 @@ use Illuminate\Support\Facades\Route;
 Route::get('/start/{station_code}/{connector_code}', [HomeController::class, 'start']);
 Route::get('/start/session', [HomeController::class, 'session'])->name('start.session');
 
-Route::get('/pay', [PaymentController::class, 'index']);
-Route::post('/checkout', [PaymentController::class, 'checkout']);
-Route::post('/checkout/notification', [PaymentController::class, 'notification']); // endpoint webhook
+// Route::get('/pay', [PaymentController::class, 'index'])->name('');
+Route::post('/checkout', [PaymentController::class, 'checkout'])->name('checkout');
+Route::post('/checkout/notification', [PaymentController::class, 'notification'])->name('checkout.notification'); // endpoint webhook
 
 // TEST STOP ROUTE
 Route::get('/teststop', function () {
