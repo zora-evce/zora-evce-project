@@ -68,7 +68,7 @@ class PaymentController extends Controller
 
         // contoh mapping status midtrans -> local
         if ($request->transaction_status === 'settlement' || $request->transaction_status === 'capture') {
-            $transaction->status = 'paid';
+            $transaction->payment_status = '200';
             $transaction->save();
 
             // After successful payment, enqueue RemoteStartTransaction command via Helper
