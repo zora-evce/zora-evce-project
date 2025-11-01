@@ -343,7 +343,7 @@
                     $btn.prop("disabled", true).text("Processing...");
 
                     $.ajax({
-                        url: "{{ route('checkout') }}",
+                        url: "{{ route('zora.checkout') }}",
                         method: "POST",
                         data: {
                             _token: $("meta[name='csrf-token']").attr("content"),
