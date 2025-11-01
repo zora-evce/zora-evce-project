@@ -194,3 +194,18 @@
     background-color: var(--zora-dark) !important;
     color: #fff !important;
 }
+
+.btn-group .btn-divider {
+    /* ... your existing style ... */
+}
+
+/* Add these styles */
+#length-container .dt-length {
+    display: flex;
+    align-items: center;
+}
+#length-container .dt-length label {
+    margin-bottom: 0; /* Fixes vertical alignment */
+    margin-right: 5px;  /* Adds space between label and dropdown */
+    white-space: nowrap; /* Prevents "Show" and "entries" from splitting */
+}

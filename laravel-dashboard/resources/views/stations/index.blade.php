@@ -68,6 +68,7 @@
                         <div class="col-md-12">
                             <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button>
+                            <div id="colvis-container" style="display: inline-block; margin-left: 5px; vertical-align: middle;"></div>
                         </div>
                     </div>
                     <br>
@@ -141,6 +142,16 @@
             searching: false,
             processing: true,
             serverSide: true,
+            dom: "<'row'<'col-sm-12 col-md-6'Bl><'col-sm-12 col-md-6'f>>" +
+                 "<'row'<'col-sm-12'tr>>" +
+                 "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+            buttons: [
+                {
+                    extend: 'colvis',
+                    text: '<i class="fas fa-columns"></i> Columns', // Your custom button
+                    className: 'btn-sm btn-primary'
+                }
+            ],
             ajax: {
                 url: '{{ route("admin.stations.get-data") }}',
                 type: 'GET',
@@ -254,6 +265,7 @@
                 [1, 'asc']
             ],
         });
+        table.buttons().container().appendTo('#colvis-container');
 
         // Filter button click event
         $('#btn_filter').on('click', function() {
