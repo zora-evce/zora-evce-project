@@ -105,7 +105,7 @@
 
         <aside class="main-sidebar sidebar-dark-primary elevation-4">
             <!-- Brand Logo -->
-            <a href="{{ route('admin.dashboard') }}" class="brand-link">
+            <a href="{{ route('cpo.dashboard') }}" class="brand-link">
                 <img src="{{ asset('images/logo-white.png') }}" alt="AdminLTE Logo" class="brand-image elevation-3">
                 <span class="brand-text font-weight-bold">EV Charger</span>
             </a>
@@ -118,8 +118,8 @@
                     <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu"
                         data-accordion="false">
                         <li class="nav-item">
-                            <a href="{{ route('admin.dashboard') }}"
-                                class="nav-link {{ Route::is('admin.dashboard') ? 'active' : '' }}">
+                            <a href="{{ route('cpo.dashboard') }}"
+                                class="nav-link {{ Route::is('cpo.dashboard') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-chart-bar"></i>
                                 <p>
                                     Dashboard
@@ -127,8 +127,8 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.stations') }}"
-                                class="nav-link {{ Route::is('admin.stations*') ? 'active' : '' }}">
+                            <a href="{{ route('cpo.stations') }}"
+                                class="nav-link {{ Route::is('cpo.stations*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-charging-station"></i>
                                 <p>
                                     Stations
@@ -146,14 +146,14 @@
                             </a>
                             <ul class="nav nav-treeview">
                                 <li class="nav-item">
-                                    <a href="{{ route('admin.transactions.chargepoints') }}"
-                                        class="nav-link {{ Route::is('admin.transactions*') ? 'active' : '' }}">
+                                    <a href="{{ route('cpo.transactions.chargepoints') }}"
+                                        class="nav-link {{ Route::is('cpo.transactions*') ? 'active' : '' }}">
                                         <i class="far fa-circle nav-icon"></i>
                                         <p>Chargepoints</p>
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a href="{{ route('admin.dashboard') }}"
+                                    <a href="{{ route('cpo.dashboard') }}"
                                         class="nav-link {{ Str::contains(Route::currentRouteName(), 'program-mcu') ? 'active' : '' }}">
                                         <i class="far fa-circle nav-icon"></i>
                                         <p>Cards</p>
@@ -162,7 +162,7 @@
                             </ul>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('admin.dashboard') }}"
+                            <a href="{{ route('cpo.dashboard') }}"
                                 class="nav-link">
                                 <i class="nav-icon fas fa-users"></i>
                                 <p>

@@ -16,7 +16,7 @@
                 </div><!-- /.col -->
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('cpo.dashboard') }}">Home</a></li>
                         <li class="breadcrumb-item active">Stations</li>
                     </ol>
                 </div><!-- /.col -->
@@ -153,7 +153,7 @@
                 }
             ],
             ajax: {
-                url: '{{ route("admin.stations.get-data") }}',
+                url: '{{ route("cpo.stations.get-data") }}',
                 type: 'GET',
                 data: function(d) {
                     d.filter_name = $('#filter_name').val();
@@ -253,7 +253,7 @@
                                     <i class="fas fa-chevron-down"></i>
                                 </a>
                                 <div class="btn-divider"></div>
-                                <a href="{{ route("admin.stations.details") }}?id=${stationId}" class="btn btn-primary btn-sm action-detail">
+                                <a href="{{ route("cpo.stations.details") }}?id=${stationId}" class="btn btn-primary btn-sm action-detail">
                                     <i class="fas fa-eye"></i>
                                 </a>
                             </div>
@@ -320,7 +320,7 @@
             });
         });
 
-        const detailTableUrl = "{{ route('admin.stations.detail-table', ['id' => '__ID__']) }}";
+        const detailTableUrl = "{{ route('cpo.stations.detail-table', ['id' => '__ID__']) }}";
         function format(d) {
             let html = '';
 

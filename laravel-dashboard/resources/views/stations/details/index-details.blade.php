@@ -34,7 +34,7 @@
                             <li class="nav-item">
                                 <a class="nav-link {{ $loop->first ? 'active' : '' }}" id="{{ $tab['tab_name'] }}-tab"
                                     data-toggle="tab" href="#"
-                                    data-url="{{ route('admin.stations.details.tab', ['id' => $station_id, 'tab' => $tab['lookup_code']]) }}"
+                                    data-url="{{ route('cpo.stations.details.tab', ['id' => $station_id, 'tab' => $tab['lookup_code']]) }}"
                                     role="tab">
                                     {{ $tab['lookup_value'] }}
                                 </a>
