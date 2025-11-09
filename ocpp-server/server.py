@@ -252,8 +252,6 @@ async def handler(websocket, path):
     charge_point = ChargePoint(cp_id, websocket)
     try:
         log.info("Starting OCPP listener for %s ...", cp_id)
-        # 🟢 Start background keep-alive ping loop
-        asyncio.create_task(keep_alive(websocket, cp_id))
         await asyncio.gather(
             charge_point.start(),       # OCPP router (from CP16)
             charge_point.start_poller(),# our command poller
@@ -263,21 +261,6 @@ async def handler(websocket, path):
     finally:
         await charge_point.stop_poller()
         log.info("Connection closed: %s", cp_id)
-
-async def keep_alive(ws, cp_id):
-    """
-    Periodically send ping frames to keep WebSocket alive.
-    Prevents idle disconnects by Nginx, firewalls, or network routers.
-    """
-    while True:
-        try:
-            pong_waiter = await ws.ping()
-            await asyncio.wait_for(pong_waiter, timeout=10)
-            logging.debug("[%s] Ping OK", cp_id)
-        except Exception as e:
-            logging.warning("[%s] Keep-alive ping failed: %s", cp_id, e)
-            break
-        await asyncio.sleep(30)  # send ping every 30 seconds
 
 async def main():
     log.info("OCPP server starting on %s:%d", LISTEN_HOST, LISTEN_PORT)
