@@ -5,6 +5,7 @@ services:
   nginx_stag:
     image: nginx:alpine
     container_name: zora_laravel_nginx_stag
+    restart: unless-stopped
     ports:
       - "8080:80"  # Second instance on port 8081
     volumes:
@@ -21,8 +22,21 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: zora_laravel_php_stag
+    restart: unless-stopped
     volumes:
       - ./laravel-dashboard:/var/www/html
+    networks:
+      - laravel_network_stag
+
+  # Server OCPP
+  ocpp_server_stag:
+    build: .
+    container_name: zora_ocpp_stag
+    restart: unless-stopped
+    env_file:
+      - ./ocpp-env/.env
+    ports:
+      - "9001:9001"
     networks:
       - laravel_network_stag
 
