@@ -28,7 +28,7 @@ services:
     networks:
       - laravel_network_stag
 
-  # Server OCPP
+# Server OCPP
   ocpp_server_stag:
     build:
       context: ./ocpp-server
@@ -37,10 +37,22 @@ services:
     restart: unless-stopped
     env_file:
       - ./ocpp-env/.env
+    volumes:
+      - ./ocpp-server:/app
+    expose:
+      - "9001"
+
+# Nginx OCPP
+  nginx_ocpp:
+    image: nginx:1.25-alpine
+    container_name: nginx_ocpp_stag
+    restart: unless-stopped
+    depends_on:
+      - ocpp_server_stag
     ports:
       - "9001:9001"
-    networks:
-      - laravel_network_stag
+    volumes:
+      - ./ocpp-server/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
 
 networks:
   laravel_network_stag:

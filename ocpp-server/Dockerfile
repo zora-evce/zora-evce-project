@@ -20,7 +20,8 @@ RUN pip install --no-cache-dir \
     python-dotenv \
     psycopg2-binary \
     httpx \
-    uvloop
+    uvloop \
+    ocpp==0.8.1
 
 # Copy all source code from your project folder into the container
 COPY . /app
