@@ -1,7 +1,7 @@
 # Use a lightweight Python base image
 FROM python:3.12-slim
 
-# Prevent Python from buffering stdout and writing pyc files
+# Environment settings for cleaner logs and faster startup
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
@@ -14,23 +14,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-# If you have a requirements.txt file, uncomment these two lines:
-# COPY requirements.txt /app/
-# RUN pip install --no-cache-dir -r requirements.txt
-
-# Otherwise, install common libraries manually
+# Install Python dependencies (including httpx)
 RUN pip install --no-cache-dir \
     websockets \
     python-dotenv \
     psycopg2-binary \
+    httpx \
     uvloop
 
-# Copy all project files into container
+# Copy all source code from your project folder into the container
 COPY . /app
 
-# Expose OCPP WebSocket port
-EXPOSE 9000
+# Expose the WebSocket port used by your OCPP server
+EXPOSE 9001
 
-# Command to start the OCPP server
+# Run the OCPP server
 CMD ["python", "server.py"]
