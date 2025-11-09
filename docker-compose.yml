@@ -7,7 +7,7 @@ services:
     container_name: zora_laravel_nginx_stag
     restart: unless-stopped
     ports:
-      - "8080:80"  # Second instance on port 8081
+      - "80:80"  # Second instance on port 8081
     volumes:
       - ./laravel-dashboard/:/var/www/html
       - ./docker-compose/nginx/default.conf:/etc/nginx/conf.d/default.conf
@@ -30,7 +30,9 @@ services:
 
   # Server OCPP
   ocpp_server_stag:
-    build: .
+    build:
+      context: ./ocpp-server
+      dockerfile: Dockerfile
     container_name: zora_ocpp_stag
     restart: unless-stopped
     env_file:
