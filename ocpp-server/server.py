@@ -93,7 +93,7 @@ class ChargePoint(CP16):
     async def _command_poller(self):
         """
         Subscribe to Redis channel and process commands in real-time.
-        Uses async iterator for better reliability with aioredis 2.0.1
+        Uses polling approach with get_message() for aioredis 2.0.1 compatibility
         """
         if not redis_client:
             log.error("Redis client not initialized for cp_id: %s", self.cp_id)
@@ -104,58 +104,70 @@ class ChargePoint(CP16):
             pubsub = redis_client.pubsub()
             await pubsub.subscribe(REDIS_CHANNEL)
             log.info("✅ Subscribed to Redis channel: %s for cp_id: %s", REDIS_CHANNEL, self.cp_id)
-            log.info("Waiting for messages on channel: %s...", REDIS_CHANNEL)
+            log.info("🔄 Starting message polling loop...")
 
-            # Use async iterator to listen for messages
-            async for message in pubsub.listen():
-                if not self._running:
-                    log.info("Stopping command poller for cp_id: %s", self.cp_id)
-                    break
-                
-                # Skip subscribe/unsubscribe messages
-                if message['type'] not in ('message', 'pmessage'):
-                    log.debug("Skipping non-message type: %s", message['type'])
-                    continue
-                
-                log.info("📨 Raw Redis message received: type=%s", message.get('type'))
-                
+            while self._running:
                 try:
-                    # aioredis 2.0.1 returns bytes, decode to string
-                    message_data = message.get('data')
-                    if message_data is None:
-                        log.warning("Message data is None, skipping")
-                        continue
+                    # Try to get message with short timeout
+                    # aioredis 2.0.1 get_message() returns None if no message available
+                    message = await asyncio.wait_for(
+                        pubsub.get_message(ignore_subscribe_messages=True),
+                        timeout=0.5
+                    )
+                    
+                    if message:
+                        log.info("📨 Raw Redis message received: type=%s", message.get('type'))
                         
-                    if isinstance(message_data, bytes):
-                        data_str = message_data.decode('utf-8')
-                    else:
-                        data_str = str(message_data)
-                    
-                    log.info("📝 Decoded message string (first 200 chars): %s", data_str[:200])
-                    
-                    data = json.loads(data_str)
-                    log.info("📋 Parsed Redis message: %s", json.dumps(data, indent=2))
-                    
-                    # Filter by cp_id (station code)
-                    received_cp_id = data.get('cp_id')
-                    log.info("🔍 Filtering: received cp_id='%s' vs current cp_id='%s'", received_cp_id, self.cp_id)
-                    
-                    if received_cp_id != self.cp_id:
-                        log.info("⏭️  Skipping command: cp_id mismatch (received: '%s', expected: '%s')", 
-                                 received_cp_id, self.cp_id)
-                        continue
+                        try:
+                            # aioredis 2.0.1 returns bytes, decode to string
+                            message_data = message.get('data')
+                            if message_data is None:
+                                log.warning("Message data is None, skipping")
+                                continue
+                                
+                            if isinstance(message_data, bytes):
+                                data_str = message_data.decode('utf-8')
+                            else:
+                                data_str = str(message_data)
+                            
+                            log.info("📝 Decoded message string (first 200 chars): %s", data_str[:200])
+                            
+                            data = json.loads(data_str)
+                            log.info("📋 Parsed Redis message: %s", json.dumps(data, indent=2))
+                            
+                            # Filter by cp_id (station code)
+                            received_cp_id = data.get('cp_id')
+                            log.info("🔍 Filtering: received cp_id='%s' vs current cp_id='%s'", received_cp_id, self.cp_id)
+                            
+                            if received_cp_id != self.cp_id:
+                                log.info("⏭️  Skipping command: cp_id mismatch (received: '%s', expected: '%s')", 
+                                         received_cp_id, self.cp_id)
+                                continue
 
-                    log.info("✅ Command matched! Processing command for cp_id: %s", self.cp_id)
-                    log.info("📦 Command details: id=%s, command=%s, payload=%s", 
-                            data.get('id'), data.get('command'), data.get('payload'))
-                    
-                    # Process command
-                    await self._process_command(data)
-                    
-                except json.JSONDecodeError as e:
-                    log.error("❌ Failed to decode Redis message: %s, raw data: %s", e, data_str[:200] if 'data_str' in locals() else 'N/A')
+                            log.info("✅ Command matched! Processing command for cp_id: %s", self.cp_id)
+                            log.info("📦 Command details: id=%s, command=%s, payload=%s", 
+                                    data.get('id'), data.get('command'), data.get('payload'))
+                            
+                            # Process command
+                            await self._process_command(data)
+                            
+                        except json.JSONDecodeError as e:
+                            log.error("❌ Failed to decode Redis message: %s, raw data: %s", e, data_str[:200] if 'data_str' in locals() else 'N/A')
+                        except Exception as e:
+                            log.exception("❌ Error processing Redis command: %s", e)
+                    else:
+                        # No message, just continue loop to check _running flag
+                        await asyncio.sleep(0.1)  # Small sleep to prevent busy waiting
+                        
+                except asyncio.TimeoutError:
+                    # Timeout is expected, continue loop to check _running flag
+                    continue
+                except asyncio.CancelledError:
+                    log.info("Command poller cancelled for cp_id: %s", self.cp_id)
+                    break
                 except Exception as e:
-                    log.exception("❌ Error processing Redis command: %s", e)
+                    log.exception("Redis subscriber error: %s", e)
+                    await asyncio.sleep(1.0)
 
         except asyncio.CancelledError:
             log.info("Command poller task cancelled for cp_id: %s", self.cp_id)
