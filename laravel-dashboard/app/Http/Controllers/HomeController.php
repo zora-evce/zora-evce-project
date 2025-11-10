@@ -100,8 +100,7 @@ class HomeController extends Controller
         $payload = [];
         $payload['idTag'] = "TEST123";
 
-        // Use Eloquent to create RemoteCommand
-        // Observer will automatically publish to Redis
+        // Gunakan Eloquent model agar Observer terpanggil dan otomatis publish ke Redis
         $remoteCommand = RemoteCommand::create([
             'station_id'   => 1,
             'connector_id' => 1,
@@ -110,7 +109,12 @@ class HomeController extends Controller
             'status'       => 'pending',
         ]);
 
-        dd('aw');
+        // Observer akan otomatis publish ke Redis, tidak perlu manual publish lagi
+        return response()->json([
+            'success' => true,
+            'message' => 'Command created and published to Redis via Observer',
+            'command_id' => $remoteCommand->id,
+        ]);
     }
 }
 
