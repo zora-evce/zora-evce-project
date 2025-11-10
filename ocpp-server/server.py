@@ -67,23 +67,35 @@ class ChargePoint(CP16):
         # self._poller_task = None
         self._tx_seq = 0
         
-    async def send_command(self, command_name: str, payload: dict):
-        log.info("[%s] Menerima perintah dari Redis: %s", self.cp_id, command_name)
+    async def send_command(self, command_name: str, payload: dict, command_db_id: int):
+        log.info("[%s] Menerima perintah dari Redis: %s (DB ID: %s)", self.cp_id, command_name, command_db_id)
+        response_status = "ack"
+        response_detail = {}
         try:
             if command_name == "RemoteStartTransaction":
-                id_tag = payload.get("idTag") or "CARD"
-                req = call.RemoteStartTransactionPayload(id_tag=id_tag)
-                await self.call(req)
-                log.info("[%s] Perintah RemoteStartTransaction terkirim", self.cp_id)
+                req = call.RemoteStartTransactionPayload(**payload)
+                # 'await self.call(req)' mengembalikan respons dari charger
+                response = await self.call(req) 
+                response_detail = response.__dict__
             elif command_name == "RemoteStopTransaction":
-                tx = int(payload.get("transactionId") or 0)
-                req = call.RemoteStopTransactionPayload(transaction_id=tx)
-                await self.call(req)
-                log.info("[%s] Perintah RemoteStopTransaction terkirim", self.cp_id)
+                req = call.RemoteStopTransactionPayload(**payload)
+                response = await self.call(req)
+                response_detail = response.__dict__
             else:
-                log.warning("[%s] Perintah tidak diketahui dari Redis: %s", self.cp_id, command_name)
+                log.warning("[%s] Perintah tidak diketahui: %s", self.cp_id, command_name)
+                response_status = "error"
+                
         except Exception as e:
             log.error("[%s] Gagal mengirim perintah %s: %s", self.cp_id, command_name, e)
+            response_status = "error"
+            response_detail = {"error": str(e)}
+        
+        if command_db_id:
+            asyncio.create_task(self._safe_post("commands/ack", {
+                "id": command_db_id,
+                "status": response_status,
+                "detail": response_detail
+            }))
 
     # async def start_poller(self):
     #     if self._poller_task is None or self._poller_task.done():
@@ -316,7 +328,8 @@ async def redis_subscriber():
                     
                     cp_id = command_data.get("cp_id")
                     command_name = command_data.get("command")
-                    payload = command_data.get("payload", {})
+                    
+                    command_db_id = command_data.get("command_db_id")
 
                     if not cp_id or not command_name:
                         log.warning("Pesan Redis tidak valid: %s", data_str)
@@ -330,7 +343,7 @@ async def redis_subscriber():
                         # Menjalankannya sebagai task baru agar tidak memblokir
                         # loop subscriber
                         asyncio.create_task(
-                            charge_point.send_command(command_name, payload)
+                            charge_point.send_command(command_name, payload, command_db_id)
                         )
                     else:
                         log.warning(
