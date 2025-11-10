@@ -19,14 +19,29 @@ services:
   # PHP-FPM Service for the second instance
   php_stag:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ./laravel-dashboard # <-- UBAH INI
+      dockerfile: ../Dockerfile
     container_name: zora_laravel_php_stag
     restart: unless-stopped
     volumes:
       - ./laravel-dashboard:/var/www/html
     networks:
       - laravel_network_stag
+  
+  # redis
+  redis_stag:
+    image: redis:7.2-alpine
+    container_name: zora_redis_stag
+    restart: unless-stopped
+    ports:
+      - "6379:6379" # Opsional, untuk debugging dari host
+    networks:
+      - laravel_network_stag # WAJIB
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
 
 # Server OCPP
   ocpp_server_stag:
@@ -41,6 +56,11 @@ services:
       - ./ocpp-server:/app
     expose:
       - "9001"
+    networks: # <-- BARU
+      - laravel_network_stag
+    depends_on: # <-- BARU
+      - redis_stag
+      - php_stag
 
 # Nginx OCPP
   nginx_ocpp:
@@ -59,6 +79,8 @@ services:
       net.ipv4.tcp_keepalive_time: 60
       net.ipv4.tcp_keepalive_intvl: 30
       net.ipv4.tcp_keepalive_probes: 5
+    networks: # <-- BARU
+      - laravel_network_stag
 
 networks:
   laravel_network_stag:

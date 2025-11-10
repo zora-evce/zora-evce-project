@@ -1,32 +1,50 @@
-# Use a lightweight Python base image
-FROM python:3.12-slim
+# --- STAGE 1: BUILDER ---
+# Di stage ini, kita instal alat 'build' dan meng-compile paket python
+FROM python:3.10-slim AS builder
 
-# Environment settings for cleaner logs and faster startup
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
-
-# Set working directory inside container
+# Set working directory
 WORKDIR /app
 
-# Install required system dependencies
+# Instal alat build (HANYA di stage ini)
+# Kita tidak perlu libpq-dev
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies (including httpx)
+# Buat virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Instal dependensi Python (aioredis akan diinstal di sini)
+# Ini akan meng-compile uvloop menggunakan build-essential
 RUN pip install --no-cache-dir \
     websockets \
     python-dotenv \
-    psycopg2-binary \
     httpx \
     uvloop \
-    ocpp==0.8.1
+    ocpp==0.8.1 \
+    aioredis
 
-# Copy all source code from your project folder into the container
+# --- STAGE 2: FINAL IMAGE ---
+# Ini adalah image akhir yang bersih dan kecil, tanpa alat 'build'
+FROM python:3.10-slim
+
+# Environment settings
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /app
+
+# Salin HANYA paket python yang sudah terinstal dari stage 'builder'
+COPY --from=builder /opt/venv /opt/venv
+
+# Salin kode aplikasi Anda
 COPY . /app
 
-# Expose the WebSocket port used by your OCPP server
+# Atur PATH untuk menggunakan virtual environment
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Expose port
 EXPOSE 9001
 
 # Run the OCPP server

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\OcppCommandController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\OcppEventController;
 
@@ -11,7 +12,12 @@ Route::prefix('ocpp')->middleware(\App\Http\Middleware\VerifyOcppKey::class)->gr
     Route::post('/stop-transaction',    [OcppEventController::class, 'stopTransaction']);
     Route::post('/status-notification', [OcppEventController::class, 'statusNotification']);
     Route::post('/heartbeat',           [OcppEventController::class, 'heartbeat']);
-    Route::post('/commands',            [\App\Http\Controllers\RemoteCommandController::class, 'enqueue']);
-    Route::get('/commands/poll',        [\App\Http\Controllers\RemoteCommandController::class, 'poll']);
-    Route::post('/commands/ack',        [\App\Http\Controllers\RemoteCommandController::class, 'ack']); // optional ack
+    // Route::post('/commands',            [\App\Http\Controllers\RemoteCommandController::class, 'enqueue']);
+    // Route::get('/commands/poll',        [\App\Http\Controllers\RemoteCommandController::class, 'poll']);
+    // Route::post('/commands/ack',        [\App\Http\Controllers\RemoteCommandController::class, 'ack']); // optional ack
+});
+
+Route::prefix('ocpp/commands')->middleware('auth:sanctum')->group(function () {
+    Route::post('/remote-start', [OcppCommandController::class, 'remoteStart']);
+    Route::post('/remote-stop', [OcppCommandController::class, 'remoteStop']);
 });
