@@ -1,13 +1,13 @@
 import asyncio
+import json
 import logging
 import os
-import json
 from datetime import datetime, timezone
-from typing import Optional, Dict
+from typing import Optional
 from urllib.parse import urlparse, parse_qs
 
-import httpx
 import aioredis
+import httpx
 from websockets.server import serve
 from ocpp.routing import on
 from ocpp.v16 import ChargePoint as CP16
@@ -17,10 +17,12 @@ from ocpp.v16 import call_result, call
 # ------------ Config ------------
 LARAVEL_BASE = os.getenv("LARAVEL_BASE", "https://zora.apenable.com")
 OCPP_KEY     = os.getenv("OCPP_KEY")  # must be set
-# POLL_SEC     = float(os.getenv("COMMAND_POLL_SECONDS", "2"))
 LISTEN_HOST  = os.getenv("OCPP_LISTEN_HOST", "127.0.0.1")
 LISTEN_PORT  = int(os.getenv("OCPP_LISTEN_PORT", "9000"))
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+REDIS_HOST   = os.getenv("REDIS_HOST", "127.0.0.1")
+REDIS_PORT   = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_DB     = int(os.getenv("REDIS_DB", "0"))
+REDIS_CHANNEL = os.getenv("REDIS_CHANNEL", "ocpp:commands")
 
 assert OCPP_KEY, "OCPP_KEY env must be set"
 
@@ -30,7 +32,19 @@ log = logging.getLogger("ocpp-server")
 # httpx async client (module-level; closed on process exit)
 http = httpx.AsyncClient(timeout=10.0, verify=True)
 
-ACTIVE_CONNECTIONS: Dict[str, "ChargePoint"] = {}
+# Redis connection pool (module-level)
+redis_pool: Optional[aioredis.Redis] = None
+
+async def get_redis() -> aioredis.Redis:
+    """Get or create Redis connection pool"""
+    global redis_pool
+    if redis_pool is None:
+        redis_pool = aioredis.from_url(
+            f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
+            encoding="utf-8",
+            decode_responses=True
+        )
+    return redis_pool
 
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -47,90 +61,118 @@ async def post_laravel(path: str, payload: dict) -> dict:
     r.raise_for_status()
     return r.json()
 
-# async def poll_command(station_code: str, connector: Optional[int]) -> Optional[dict]:
-#     params = {"station_code": station_code}
-#     if connector is not None:
-#         params["connector"] = connector
-#     headers = {"X-OCPP-Key": OCPP_KEY}
-#     url = f"{LARAVEL_BASE}/api/ocpp/commands/poll"
-#     r = await http.get(url, headers=headers, params=params)
-#     r.raise_for_status()
-#     data = r.json()
-#     return data.get("command")
+# Removed poll_command - now using Redis pub/sub instead
 
 # ------------ ChargePoint class ------------
 class ChargePoint(CP16):
     def __init__(self, cp_id, ws):
         super().__init__(cp_id, ws)
         self.cp_id = cp_id
-        # self._running = True
-        # self._poller_task = None
+        self._running = True
+        self._poller_task = None
         self._tx_seq = 0
+
+    async def start_poller(self):
+        """Start Redis subscriber for this charge point"""
+        if self._poller_task is None or self._poller_task.done():
+            self._running = True
+            self._poller_task = asyncio.create_task(self._redis_subscriber())
+
+    async def stop_poller(self):
+        """Stop Redis subscriber"""
+        self._running = False
+        if self._poller_task:
+            self._poller_task.cancel()
+            try:
+                await self._poller_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                log.warning("Error stopping Redis subscriber: %s", e)
+
+    async def _redis_subscriber(self):
+        """Subscribe to Redis channel and process commands for this cp_id"""
+        redis = await get_redis()
+        pubsub = redis.pubsub()
         
-    async def send_command(self, command_name: str, payload: dict, command_db_id: int):
-        log.info("[%s] Menerima perintah dari Redis: %s (DB ID: %s)", self.cp_id, command_name, command_db_id)
-        response_status = "ack"
-        response_detail = {}
         try:
-            if command_name == "RemoteStartTransaction":
-                req = call.RemoteStartTransactionPayload(**payload)
-                # 'await self.call(req)' mengembalikan respons dari charger
-                response = await self.call(req) 
-                response_detail = response.__dict__
-            elif command_name == "RemoteStopTransaction":
-                req = call.RemoteStopTransactionPayload(**payload)
-                response = await self.call(req)
-                response_detail = response.__dict__
-            else:
-                log.warning("[%s] Perintah tidak diketahui: %s", self.cp_id, command_name)
-                response_status = "error"
-                
+            await pubsub.subscribe(REDIS_CHANNEL)
+            log.info("Subscribed to Redis channel '%s' for cp_id=%s", REDIS_CHANNEL, self.cp_id)
+            
+            while self._running:
+                try:
+                    # Wait for message with timeout to allow checking _running flag
+                    try:
+                        message = await asyncio.wait_for(
+                            pubsub.get_message(ignore_subscribe_messages=True),
+                            timeout=1.0
+                        )
+                    except asyncio.TimeoutError:
+                        # Timeout is expected, continue loop to check _running
+                        continue
+                    
+                    if message is None:
+                        continue
+                    
+                    if message.get("type") != "message":
+                        continue
+                    
+                    # Parse message data
+                    try:
+                        message_data = message.get("data")
+                        if isinstance(message_data, bytes):
+                            message_data = message_data.decode("utf-8")
+                        data = json.loads(message_data)
+                    except (json.JSONDecodeError, TypeError, AttributeError) as e:
+                        log.warning("Invalid JSON in Redis message: %s", e)
+                        continue
+                    
+                    # Check if message is for this charge point
+                    msg_cp_id = data.get("cp_id")
+                    if msg_cp_id != self.cp_id:
+                        continue
+                    
+                    # Process command
+                    command = data.get("command")
+                    payload = data.get("payload") or {}
+                    command_db_id = data.get("command_db_id")
+                    
+                    log.info("Received command '%s' for cp_id=%s (db_id=%s)", 
+                            command, self.cp_id, command_db_id)
+                    
+                    try:
+                        if command == "RemoteStartTransaction":
+                            id_tag = payload.get("idTag") or "CARD"
+                            req = call.RemoteStartTransactionPayload(id_tag=id_tag)
+                            await self.call(req)
+                            log.info("Sent RemoteStartTransaction for cp_id=%s", self.cp_id)
+                            
+                        elif command == "RemoteStopTransaction":
+                            tx = int(payload.get("transactionId") or 0)
+                            req = call.RemoteStopTransactionPayload(transaction_id=tx)
+                            await self.call(req)
+                            log.info("Sent RemoteStopTransaction for cp_id=%s (tx_id=%d)", 
+                                    self.cp_id, tx)
+                        else:
+                            log.warning("Unknown command '%s' for cp_id=%s", command, self.cp_id)
+                    except Exception as e:
+                        log.exception("Error processing command '%s' for cp_id=%s: %s", 
+                                    command, self.cp_id, e)
+                        
+                except Exception as e:
+                    log.warning("Redis subscriber error for cp_id=%s: %s", self.cp_id, e)
+                    await asyncio.sleep(1.0)
+                    
+        except asyncio.CancelledError:
+            log.info("Redis subscriber cancelled for cp_id=%s", self.cp_id)
         except Exception as e:
-            log.error("[%s] Gagal mengirim perintah %s: %s", self.cp_id, command_name, e)
-            response_status = "error"
-            response_detail = {"error": str(e)}
-        
-        if command_db_id:
-            asyncio.create_task(self._safe_post("commands/ack", {
-                "id": command_db_id,
-                "status": response_status,
-                "detail": response_detail
-            }))
-
-    # async def start_poller(self):
-    #     if self._poller_task is None or self._poller_task.done():
-    #         self._running = True
-    #         self._poller_task = asyncio.create_task(self._command_poller())
-
-    # async def stop_poller(self):
-    #     self._running = False
-    #     if self._poller_task:
-    #         self._poller_task.cancel()
-    #         try:
-    #             await self._poller_task
-    #         except Exception:
-    #             pass
-
-    # async def _command_poller(self):
-    #     connector_hint = None
-    #     while self._running:
-    #         try:
-    #             cmd = await poll_command(self.cp_id, connector_hint)
-    #             if cmd:
-    #                 name = cmd.get("command")
-    #                 payload = cmd.get("payload") or {}
-    #                 if name == "RemoteStartTransaction":
-    #                     id_tag = payload.get("idTag") or "CARD"
-    #                     req = call.RemoteStartTransactionPayload(id_tag=id_tag)
-    #                     await self.call(req)
-    #                 elif name == "RemoteStopTransaction":
-    #                     tx = int(payload.get("transactionId") or 0)
-    #                     req = call.RemoteStopTransactionPayload(transaction_id=tx)
-    #                     await self.call(req)
-    #             await asyncio.sleep(POLL_SEC)
-    #         except Exception as e:
-    #             log.warning("poll/send command error: %s", e)
-    #             await asyncio.sleep(POLL_SEC)
+            log.exception("Fatal error in Redis subscriber for cp_id=%s: %s", self.cp_id, e)
+        finally:
+            try:
+                await pubsub.unsubscribe(REDIS_CHANNEL)
+                await pubsub.close()
+            except Exception as e:
+                log.warning("Error closing pubsub for cp_id=%s: %s", self.cp_id, e)
 
     def _next_tx_id(self) -> int:
         self._tx_seq += 1
@@ -283,111 +325,24 @@ async def handler(websocket, path):
         await websocket.close(code=1002, reason="Subprotocol required: ocpp1.6")
         return
 
-    # 4) Create CP and run router + poller
+    # 4) Create CP and run router + Redis subscriber
     charge_point = ChargePoint(cp_id, websocket)
-    
-    ACTIVE_CONNECTIONS[cp_id] = charge_point
-    
     try:
         log.info("Starting OCPP listener for %s ...", cp_id)
         await asyncio.gather(
             charge_point.start(),       # OCPP router (from CP16)
-            # charge_point.start_poller(),# our command poller
+            charge_point.start_poller(),# Redis subscriber
             websocket.wait_closed(),    # keep task alive
         )
         log.info("OCPP listener finished for %s", cp_id)
     finally:
-        # await charge_point.stop_poller()
-        ACTIVE_CONNECTIONS.pop(cp_id, None)
+        await charge_point.stop_poller()
         log.info("Connection closed: %s", cp_id)
-
-async def redis_subscriber():
-    """
-    Terhubung ke Redis dan mendengarkan perintah di channel 'ocpp:commands'.
-    """
-    log.info("Redis subscriber starting... Menghubungkan ke %s", REDIS_URL)
-    while True:
-        try:
-            # Terhubung ke Redis
-            redis = await aioredis.from_url(REDIS_URL)
-            pubsub = redis.pubsub()
-            
-            # Berlangganan ke channel
-            await pubsub.subscribe("ocpp:commands")
-            log.info("Berhasil subscribe ke Redis channel 'ocpp:commands'")
-            
-            # Mulai mendengarkan pesan
-            async for message in pubsub.listen():
-                if message["type"] != "message":
-                    continue
-                
-                try:
-                    # 1. Ambil data pesan
-                    data_str = message["data"].decode("utf-8")
-                    command_data = json.loads(data_str)
-                    
-                    cp_id = command_data.get("cp_id")
-                    command_name = command_data.get("command")
-                    
-                    payload = command_data.get("payload") or {}
-                    command_db_id = command_data.get("command_db_id")
-
-                    if not cp_id or not command_name:
-                        log.warning("Pesan Redis tidak valid: %s", data_str)
-                        continue
-
-                    # 2. Cari koneksi WebSocket yang aktif untuk cp_id ini
-                    charge_point = ACTIVE_CONNECTIONS.get(cp_id)
-                    
-                    # 3. Jika ditemukan, kirim perintah
-                    if charge_point:
-                        # Menjalankannya sebagai task baru agar tidak memblokir
-                        # loop subscriber
-                        asyncio.create_task(
-                            charge_point.send_command(command_name, payload, command_db_id)
-                        )
-                    else:
-                        log.warning(
-                            "Menerima perintah untuk CP '%s' tapi tidak ada koneksi aktif.", 
-                            cp_id
-                        )
-                        
-                except json.JSONDecodeError:
-                    log.error("Gagal parse JSON dari Redis: %s", message["data"])
-                except Exception as e:
-                    log.exception("Error saat memproses pesan Redis: %s", e)
-
-        except aioredis.RedisError as e:
-            log.error("Koneksi Redis gagal: %s. Mencoba lagi dalam 5 detik...", e)
-            await asyncio.sleep(5)
-        except Exception as e:
-            log.exception("Subscriber Redis crash: %s. Mencoba lagi dalam 5 detik...", e)
-            await asyncio.sleep(5)
 
 async def main():
     log.info("OCPP server starting on %s:%d", LISTEN_HOST, LISTEN_PORT)
-
-    async with serve(handler, LISTEN_HOST, LISTEN_PORT,
-                     subprotocols=["ocpp1.6"], ping_interval=None):
-        # Jalankan Redis subscriber bersamaan
-        redis_task = asyncio.create_task(redis_subscriber())
-
-        try:
-            await asyncio.Future()  # tetap jalan selamanya
-        except asyncio.CancelledError:
-            pass
-        finally:
-            # Pastikan task redis berhenti dengan aman
-            redis_task.cancel()
-            try:
-                await redis_task
-            except asyncio.CancelledError:
-                pass
-            except Exception as e:
-                log.warning("Redis subscriber cleanup error: %s", e)
-    
-    # async with serve(handler, LISTEN_HOST, LISTEN_PORT, subprotocols=["ocpp1.6"]):
-    #     await asyncio.Future()  # run forever
+    async with serve(handler, LISTEN_HOST, LISTEN_PORT, subprotocols=["ocpp1.6"]):
+        await asyncio.Future()  # run forever
 
 if __name__ == "__main__":
     try:
