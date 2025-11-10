@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
 // CLIENT
 Route::get('/start/{station_code}/{connector_code}', [HomeController::class, 'start']);
 Route::get('/start/session', [HomeController::class, 'session'])->name('start.session');
+Route::get('/test', [HomeController::class, 'test'])->name('test');
 
 // Route::get('/pay', [PaymentController::class, 'index'])->name('');
 Route::post('/checkout', [PaymentController::class, 'checkout'])->name('checkout');

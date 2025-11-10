@@ -329,6 +329,7 @@ async def redis_subscriber():
                     cp_id = command_data.get("cp_id")
                     command_name = command_data.get("command")
                     
+                    payload = command_data.get("payload") or {}
                     command_db_id = command_data.get("command_db_id")
 
                     if not cp_id or not command_name:
@@ -365,12 +366,25 @@ async def redis_subscriber():
 
 async def main():
     log.info("OCPP server starting on %s:%d", LISTEN_HOST, LISTEN_PORT)
-    
-    server = serve(handler, LISTEN_HOST, LISTEN_PORT, subprotocols=["ocpp1.6"], ping_interval=None)
-    await asyncio.gather(
-        server,
-        redis_subscriber()
-    )
+
+    async with serve(handler, LISTEN_HOST, LISTEN_PORT,
+                     subprotocols=["ocpp1.6"], ping_interval=None):
+        # Jalankan Redis subscriber bersamaan
+        redis_task = asyncio.create_task(redis_subscriber())
+
+        try:
+            await asyncio.Future()  # tetap jalan selamanya
+        except asyncio.CancelledError:
+            pass
+        finally:
+            # Pastikan task redis berhenti dengan aman
+            redis_task.cancel()
+            try:
+                await redis_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                log.warning("Redis subscriber cleanup error: %s", e)
     
     # async with serve(handler, LISTEN_HOST, LISTEN_PORT, subprotocols=["ocpp1.6"]):
     #     await asyncio.Future()  # run forever

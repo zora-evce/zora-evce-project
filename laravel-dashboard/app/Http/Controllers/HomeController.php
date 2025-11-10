@@ -8,16 +8,20 @@ use Illuminate\Support\Carbon;
 use Illuminate\View\View;
 use App\Models\SessionToken;
 use App\Models\Connector;
+use App\Models\RemoteCommand;
 use App\Models\Station;
 use App\Models\Tariff;
 use App\Models\WebhookLog;
+use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
 {
+    private const REDIS_CHANNEL = 'ocpp:commands';
     public function start($station_code, $connector_code)
     {
         $data = WebhookLog::where('payload->status', 'Available')->get();
-        
+
         try {
             $station = Station::where('code', $station_code)->first();
             $connector = Connector::where('connector_code', $connector_code)->first();
@@ -33,7 +37,7 @@ class HomeController extends Controller
                     'connector_code' => $connector_code,
                 ], 409);
             }
-            
+
             $payload = json_encode([
                 'station_code' => $station_code,
                 'connector_code' => $connector_code,
@@ -91,6 +95,29 @@ class HomeController extends Controller
             store_error_log($e);
             return response()->view('errors.500', [], 500);
         }
+    }
+
+    public function test()
+    {
+        $payload = [];
+        $payload['idTag'] = "TEST123";
+        $newCommandId = DB::table('remote_commands')->insertGetId([
+                'station_id'   => 1,
+                'connector_id' => 1,
+                'command'      => 'RemoteStartTransaction',
+                'payload'      => json_encode($payload),
+                'status'       => 'pending',
+                'created_at'   => now(),
+                'updated_at'   => now(),
+            ]);
+
+        $redisPayload = [
+                'command'       => 'RemoteStartTransaction',
+                'cp_id'         => 'Zora1',
+                'payload'       => $payload,
+                'command_db_id' => $newCommandId, // Gunakan ID baru
+            ];
+        Redis::publish(self::REDIS_CHANNEL, json_encode($redisPayload));
     }
 }
 
