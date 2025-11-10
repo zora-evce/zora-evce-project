@@ -366,7 +366,7 @@ async def redis_subscriber():
 async def main():
     log.info("OCPP server starting on %s:%d", LISTEN_HOST, LISTEN_PORT)
     
-    server = serve(handler, LISTEN_HOST, LISTEN_PORT, subprotocols=["ocpp1.6"])
+    server = serve(handler, LISTEN_HOST, LISTEN_PORT, subprotocols=["ocpp1.6"], ping_interval=None)
     await asyncio.gather(
         server,
         redis_subscriber()
