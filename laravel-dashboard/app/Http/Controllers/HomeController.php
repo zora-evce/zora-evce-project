@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
@@ -16,6 +17,50 @@ class HomeController extends Controller
 {
     public function start($station_code, $connector_code)
     {
+    //     $response = Http::withHeaders([
+    //     'X-OCPP-Key' => 'ZORA_SUPER_SECRET',
+    //     'Content-Type' => 'application/json',
+    // ])->post('https://zora.apenable.com/api/ocpp/commands', [
+    //     'station_code' => 'Zora1',
+    //     'connector' => 1,
+    //     'command' => 'RemoteStartTransaction',
+    //     'payload' => [
+    //         'idTag' => 'TEST123'
+    //     ],
+    // ]);
+
+    // // Lihat hasil response
+    // if ($response->successful()) {
+    //     return response()->json([
+    //         'status' => 'success',
+    //         'data' => $response->json()
+    //     ]);
+    // } else {
+    //     return response()->json([
+    //         'status' => 'error',
+    //         'code' => $response->status(),
+    //         'body' => $response->body()
+    //     ]);
+    // }
+
+        $response = Http::withHeaders([
+        'X-OCPP-Key' => 'ZORA_SUPER_SECRET',
+        'Content-Type' => 'application/json',
+    ])->post('https://zora.apenable.com/api/ocpp/commands', [
+        'station_code' => 'Zora1',
+        'connector' => 1,
+        'command' => 'RemoteStopTransaction',
+        'payload' => [
+            'transactionId' => 3
+        ]
+    ]);
+
+    return response()->json([
+        'status' => $response->successful() ? 'success' : 'error',
+        'code' => $response->status(),
+        'body' => $response->json(),
+    ]);
+    die;
         $data = WebhookLog::where('payload->status', 'Available')->get();
         
         try {

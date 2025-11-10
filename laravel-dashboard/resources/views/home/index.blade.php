@@ -370,30 +370,7 @@
                                     // Show payment success modal
                                     $("#paymentSuccessModal").css("display", "flex");
 
-                                    // Trigger OCPP RemoteStartTransaction call
-                                    $.ajax({
-                                        url: "https://zora.apenable.com/api/ocpp/commands",
-                                        method: "POST",
-                                        headers: { "X-OCPP-Key": "ZORA_SUPER_SECRET" },
-                                        contentType: "application/json",
-                                        data: JSON.stringify({
-                                            station_code: "Zora1",
-                                            connector: 1,
-                                            command: "RemoteStartTransaction",
-                                            payload: { idTag: "TEST123" }
-                                        })
-                                    }).always(function(){
-                                        // Start 30s countdown then redirect to /teststop
-                                        var remaining = 30;
-                                        var timer = setInterval(function(){
-                                            // $("#countdownText").text("Redirecting to test page in " + remaining + " seconds...");
-                                            remaining -= 1;
-                                            if (remaining <= 0) {
-                                                clearInterval(timer);
-                                                window.location.href = "/teststop";
-                                            }
-                                        }, 1000);
-                                    });
+                                    window.location.href = "{{ route('zora.checkout.after') }}";
                                 },
                                 onPending: function(result){
                                     alert("Menunggu pembayaran...");

@@ -12,9 +12,10 @@ Route::get('/start/session', [HomeController::class, 'session'])->name('start.se
 
 // Route::get('/pay', [PaymentController::class, 'index'])->name('');
 Route::post('/checkout', [PaymentController::class, 'checkout'])->name('checkout');
+Route::post('/checkout/after', [PaymentController::class, 'after'])->name('checkout.after');
 Route::post('/checkout/notification', [PaymentController::class, 'notification'])->name('checkout.notification'); // endpoint webhook
 
 // TEST STOP ROUTE
-Route::get('/teststop', function () {
-    return view('home.teststop');
-})->name('teststop');
+// Route::get('/teststop', function () {
+//     return view('home.teststop');
+// })->name('teststop');
