@@ -9,38 +9,6 @@ use Illuminate\Support\Facades\Log;
 class RemoteCommandController extends Controller
 {
     /**
-     * POST /api/ocpp/commands
-     * Body:
-     *  - station_code (string, required)
-     *  - connector (int, optional)
-     *  - command: "RemoteStartTransaction" | "RemoteStopTransaction"
-     *  - payload: object (e.g. {"idTag":"CARD123"})
-     */
-    public function enqueue(Request $r)
-    {
-        $data = $this->validated($r, [
-            'station_code' => ['required','string','max:100'],
-            'connector'    => ['nullable','integer','min:0'],
-            'command'      => ['required','string','in:RemoteStartTransaction,RemoteStopTransaction'],
-            'payload'      => ['nullable','array'],
-        ]);
-
-        [$stationId, $connectorId] = $this->resolveStationConnector($data['station_code'], $data['connector'] ?? null);
-
-        $id = DB::table('remote_commands')->insertGetId([
-            'station_id'   => $stationId,
-            'connector_id' => $connectorId,
-            'command'      => $data['command'],
-            'payload'      => isset($data['payload']) ? json_encode($data['payload']) : null,
-            'status'       => 'pending',
-            'created_at'   => now(),
-            'updated_at'   => now(),
-        ]);
-
-        return response()->json(['ok' => true, 'command_id' => $id]);
-    }
-
-    /**
      * GET /api/ocpp/commands/poll?station_code=Zora1&connector=1
      * Returns at most 1 pending command and marks as "sent".
      */

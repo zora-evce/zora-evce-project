@@ -12,12 +12,10 @@ use App\Models\RemoteCommand;
 use App\Models\Station;
 use App\Models\Tariff;
 use App\Models\WebhookLog;
-use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
 {
-    private const REDIS_CHANNEL = 'ocpp:commands';
     public function start($station_code, $connector_code)
     {
         $data = WebhookLog::where('payload->status', 'Available')->get();
@@ -101,23 +99,18 @@ class HomeController extends Controller
     {
         $payload = [];
         $payload['idTag'] = "TEST123";
-        $newCommandId = DB::table('remote_commands')->insertGetId([
-                'station_id'   => 1,
-                'connector_id' => 1,
-                'command'      => 'RemoteStartTransaction',
-                'payload'      => json_encode($payload),
-                'status'       => 'pending',
-                'created_at'   => now(),
-                'updated_at'   => now(),
-            ]);
 
-        $redisPayload = [
-                'command'       => 'RemoteStartTransaction',
-                'cp_id'         => 'Zora1',
-                'payload'       => $payload,
-                'command_db_id' => $newCommandId, // Gunakan ID baru
-            ];
-        Redis::publish(self::REDIS_CHANNEL, json_encode($redisPayload));
+        // Use Eloquent to create RemoteCommand
+        // Observer will automatically publish to Redis
+        $remoteCommand = RemoteCommand::create([
+            'station_id'   => 1,
+            'connector_id' => 1,
+            'command'      => 'RemoteStartTransaction',
+            'payload'      => json_encode($payload),
+            'status'       => 'pending',
+        ]);
+
+        dd('aw');
     }
 }
 

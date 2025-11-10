@@ -6,22 +6,26 @@ from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import urlparse, parse_qs
 
-import aioredis
 import httpx
+import aioredis
 from websockets.server import serve
 from ocpp.routing import on
 from ocpp.v16 import ChargePoint as CP16
 from ocpp.v16.enums import RegistrationStatus, Action
 from ocpp.v16 import call_result, call
 
+# 🔧 bring in the normalizer
+from ocpp_bridge import _normalize_remote_cmd
+
 # ------------ Config ------------
 LARAVEL_BASE = os.getenv("LARAVEL_BASE", "https://zora.apenable.com")
 OCPP_KEY     = os.getenv("OCPP_KEY")  # must be set
 LISTEN_HOST  = os.getenv("OCPP_LISTEN_HOST", "127.0.0.1")
 LISTEN_PORT  = int(os.getenv("OCPP_LISTEN_PORT", "9000"))
-REDIS_HOST   = os.getenv("REDIS_HOST", "127.0.0.1")
+REDIS_HOST   = os.getenv("REDIS_HOST", "redis_stag")
 REDIS_PORT   = int(os.getenv("REDIS_PORT", "6379"))
 REDIS_DB     = int(os.getenv("REDIS_DB", "0"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
 REDIS_CHANNEL = os.getenv("REDIS_CHANNEL", "ocpp:commands")
 
 assert OCPP_KEY, "OCPP_KEY env must be set"
@@ -32,19 +36,8 @@ log = logging.getLogger("ocpp-server")
 # httpx async client (module-level; closed on process exit)
 http = httpx.AsyncClient(timeout=10.0, verify=True)
 
-# Redis connection pool (module-level)
-redis_pool: Optional[aioredis.Redis] = None
-
-async def get_redis() -> aioredis.Redis:
-    """Get or create Redis connection pool"""
-    global redis_pool
-    if redis_pool is None:
-        redis_pool = aioredis.from_url(
-            f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}",
-            encoding="utf-8",
-            decode_responses=True
-        )
-    return redis_pool
+# Redis connection (module-level; will be initialized in main)
+redis_client: Optional[aioredis.Redis] = None
 
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -54,14 +47,24 @@ async def post_laravel(path: str, payload: dict) -> dict:
     url = f"{LARAVEL_BASE}/api/ocpp/{path.lstrip('/')}"
     headers = {
         "Content-Type": "application/json",
-        "Accept": "application/json",          # <-- add this
+        "Accept": "application/json",
         "X-OCPP-Key": OCPP_KEY,
     }
     r = await http.post(url, headers=headers, json=payload)
     r.raise_for_status()
     return r.json()
 
-# Removed poll_command - now using Redis pub/sub instead
+async def update_command_status(command_id: int, status: str):
+    """
+    Update command status in Laravel after processing.
+    """
+    try:
+        await post_laravel("commands/ack", {
+            "id": command_id,
+            "status": status,
+        })
+    except Exception as e:
+        log.warning("Failed to update command status: %s", e)
 
 # ------------ ChargePoint class ------------
 class ChargePoint(CP16):
@@ -73,106 +76,122 @@ class ChargePoint(CP16):
         self._tx_seq = 0
 
     async def start_poller(self):
-        """Start Redis subscriber for this charge point"""
         if self._poller_task is None or self._poller_task.done():
             self._running = True
-            self._poller_task = asyncio.create_task(self._redis_subscriber())
+            self._poller_task = asyncio.create_task(self._command_poller())
 
     async def stop_poller(self):
-        """Stop Redis subscriber"""
         self._running = False
         if self._poller_task:
             self._poller_task.cancel()
             try:
                 await self._poller_task
-            except asyncio.CancelledError:
+            except Exception:
                 pass
-            except Exception as e:
-                log.warning("Error stopping Redis subscriber: %s", e)
 
-    async def _redis_subscriber(self):
-        """Subscribe to Redis channel and process commands for this cp_id"""
-        redis = await get_redis()
-        pubsub = redis.pubsub()
-        
+    async def _command_poller(self):
+        """
+        Subscribe to Redis channel and process commands in real-time.
+        """
+        if not redis_client:
+            log.error("Redis client not initialized")
+            return
+
         try:
+            pubsub = redis_client.pubsub()
             await pubsub.subscribe(REDIS_CHANNEL)
-            log.info("Subscribed to Redis channel '%s' for cp_id=%s", REDIS_CHANNEL, self.cp_id)
-            
+            log.info("Subscribed to Redis channel: %s for cp_id: %s", REDIS_CHANNEL, self.cp_id)
+
             while self._running:
                 try:
-                    # Wait for message with timeout to allow checking _running flag
-                    try:
-                        message = await asyncio.wait_for(
-                            pubsub.get_message(ignore_subscribe_messages=True),
-                            timeout=1.0
-                        )
-                    except asyncio.TimeoutError:
-                        # Timeout is expected, continue loop to check _running
-                        continue
+                    # Get message with timeout
+                    message = await asyncio.wait_for(pubsub.get_message(ignore_subscribe_messages=True), timeout=1.0)
                     
-                    if message is None:
-                        continue
-                    
-                    if message.get("type") != "message":
-                        continue
-                    
-                    # Parse message data
-                    try:
-                        message_data = message.get("data")
-                        if isinstance(message_data, bytes):
-                            message_data = message_data.decode("utf-8")
-                        data = json.loads(message_data)
-                    except (json.JSONDecodeError, TypeError, AttributeError) as e:
-                        log.warning("Invalid JSON in Redis message: %s", e)
-                        continue
-                    
-                    # Check if message is for this charge point
-                    msg_cp_id = data.get("cp_id")
-                    if msg_cp_id != self.cp_id:
-                        continue
-                    
-                    # Process command
-                    command = data.get("command")
-                    payload = data.get("payload") or {}
-                    command_db_id = data.get("command_db_id")
-                    
-                    log.info("Received command '%s' for cp_id=%s (db_id=%s)", 
-                            command, self.cp_id, command_db_id)
-                    
-                    try:
-                        if command == "RemoteStartTransaction":
-                            id_tag = payload.get("idTag") or "CARD"
-                            req = call.RemoteStartTransactionPayload(id_tag=id_tag)
-                            await self.call(req)
-                            log.info("Sent RemoteStartTransaction for cp_id=%s", self.cp_id)
+                    if message:
+                        try:
+                            # aioredis 2.0.1 returns bytes, decode to string
+                            if isinstance(message['data'], bytes):
+                                data_str = message['data'].decode('utf-8')
+                            else:
+                                data_str = str(message['data'])
                             
-                        elif command == "RemoteStopTransaction":
-                            tx = int(payload.get("transactionId") or 0)
-                            req = call.RemoteStopTransactionPayload(transaction_id=tx)
-                            await self.call(req)
-                            log.info("Sent RemoteStopTransaction for cp_id=%s (tx_id=%d)", 
-                                    self.cp_id, tx)
-                        else:
-                            log.warning("Unknown command '%s' for cp_id=%s", command, self.cp_id)
-                    except Exception as e:
-                        log.exception("Error processing command '%s' for cp_id=%s: %s", 
-                                    command, self.cp_id, e)
-                        
+                            data = json.loads(data_str)
+                            
+                            # Filter by cp_id (station code)
+                            if data.get('cp_id') != self.cp_id:
+                                continue
+
+                            log.info("Received command from Redis: %s", data)
+                            
+                            # Process command
+                            await self._process_command(data)
+                            
+                        except json.JSONDecodeError as e:
+                            log.warning("Failed to decode Redis message: %s", e)
+                        except Exception as e:
+                            log.warning("Error processing Redis command: %s", e)
+                            
+                except asyncio.TimeoutError:
+                    # Timeout is expected, continue loop to check _running
+                    continue
                 except Exception as e:
-                    log.warning("Redis subscriber error for cp_id=%s: %s", self.cp_id, e)
+                    log.warning("Redis subscriber error: %s", e)
                     await asyncio.sleep(1.0)
-                    
-        except asyncio.CancelledError:
-            log.info("Redis subscriber cancelled for cp_id=%s", self.cp_id)
+
         except Exception as e:
-            log.exception("Fatal error in Redis subscriber for cp_id=%s: %s", self.cp_id, e)
+            log.error("Redis subscription failed: %s", e)
         finally:
             try:
                 await pubsub.unsubscribe(REDIS_CHANNEL)
                 await pubsub.close()
-            except Exception as e:
-                log.warning("Error closing pubsub for cp_id=%s: %s", self.cp_id, e)
+            except Exception:
+                pass
+
+    async def _process_command(self, data: dict):
+        """
+        Process a command received from Redis.
+        """
+        command_id = data.get('id')
+        command_name = data.get('command')
+        payload = data.get('payload') or {}
+        connector = data.get('connector')  # connector number
+
+        try:
+            if command_name == "RemoteStartTransaction":
+                id_tag = payload.get("idTag") or payload.get("id_tag") or "CARD"
+                connector_id = connector or payload.get("connectorId")
+                
+                if connector_id is not None:
+                    req = call.RemoteStartTransactionPayload(id_tag=id_tag, connector_id=int(connector_id))
+                else:
+                    req = call.RemoteStartTransactionPayload(id_tag=id_tag)
+                
+                await self.call(req)
+                
+                # Update command status to 'sent'
+                if command_id:
+                    await update_command_status(command_id, "ack")
+
+            elif command_name == "RemoteStopTransaction":
+                # Laravel might send 'transactionId' (str or int)
+                tx_raw = payload.get("transactionId") or payload.get("transaction_id") or 0
+                try:
+                    tx = int(tx_raw)
+                except Exception:
+                    tx = 0
+                
+                req = call.RemoteStopTransactionPayload(transaction_id=tx)
+                await self.call(req)
+                
+                # Update command status to 'sent'
+                if command_id:
+                    await update_command_status(command_id, "ack")
+
+        except Exception as e:
+            log.error("Failed to execute command %s: %s", command_name, e)
+            # Update command status to 'error'
+            if command_id:
+                await update_command_status(command_id, "error")
 
     def _next_tx_id(self) -> int:
         self._tx_seq += 1
@@ -199,7 +218,7 @@ class ChargePoint(CP16):
         }))
         return call_result.BootNotificationPayload(
             current_time=utcnow(),
-            interval=300,
+            interval=30,
             status=RegistrationStatus.accepted,
         )
 
@@ -325,24 +344,64 @@ async def handler(websocket, path):
         await websocket.close(code=1002, reason="Subprotocol required: ocpp1.6")
         return
 
-    # 4) Create CP and run router + Redis subscriber
+    # 4) Create CP and run router + poller
     charge_point = ChargePoint(cp_id, websocket)
     try:
         log.info("Starting OCPP listener for %s ...", cp_id)
         await asyncio.gather(
-            charge_point.start(),       # OCPP router (from CP16)
-            charge_point.start_poller(),# Redis subscriber
-            websocket.wait_closed(),    # keep task alive
+            charge_point.start(),        # OCPP router (from CP16)
+            charge_point.start_poller(), # our command poller
+            websocket.wait_closed(),     # keep task alive
         )
         log.info("OCPP listener finished for %s", cp_id)
     finally:
         await charge_point.stop_poller()
         log.info("Connection closed: %s", cp_id)
 
+async def init_redis():
+    """Initialize Redis connection."""
+    global redis_client
+    try:
+        # Build Redis URL
+        if REDIS_PASSWORD:
+            redis_url = f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+        else:
+            redis_url = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
+        
+        log.info("Connecting to Redis at %s:%d (db=%d)", REDIS_HOST, REDIS_PORT, REDIS_DB)
+        redis_client = aioredis.from_url(redis_url, encoding="utf-8", decode_responses=False)
+        
+        # Test connection
+        await redis_client.ping()
+        log.info("Redis connection established")
+    except Exception as e:
+        log.error("Failed to connect to Redis: %s", e)
+        redis_client = None
+
+async def close_redis():
+    """Close Redis connection."""
+    global redis_client
+    if redis_client:
+        try:
+            await redis_client.close()
+            log.info("Redis connection closed")
+        except Exception:
+            pass
+        redis_client = None
+
 async def main():
+    # Initialize Redis connection
+    await init_redis()
+    
+    if not redis_client:
+        log.error("Redis connection failed. Server will start but commands won't work.")
+    
     log.info("OCPP server starting on %s:%d", LISTEN_HOST, LISTEN_PORT)
-    async with serve(handler, LISTEN_HOST, LISTEN_PORT, subprotocols=["ocpp1.6"]):
-        await asyncio.Future()  # run forever
+    try:
+        async with serve(handler, LISTEN_HOST, LISTEN_PORT, subprotocols=["ocpp1.6"], ping_interval=None, ping_timeout=None, close_timeout=120):
+            await asyncio.Future()  # run forever
+    finally:
+        await close_redis()
 
 if __name__ == "__main__":
     try:
@@ -350,4 +409,7 @@ if __name__ == "__main__":
         uvloop.install()
     except Exception:
         pass
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        log.info("Server stopped by user")
