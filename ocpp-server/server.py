@@ -79,6 +79,7 @@ class ChargePoint(CP16):
         if self._poller_task is None or self._poller_task.done():
             self._running = True
             self._poller_task = asyncio.create_task(self._command_poller())
+            log.info("Started Redis command poller for cp_id: %s", self.cp_id)
 
     async def stop_poller(self):
         self._running = False
@@ -92,60 +93,82 @@ class ChargePoint(CP16):
     async def _command_poller(self):
         """
         Subscribe to Redis channel and process commands in real-time.
+        Uses async iterator for better reliability with aioredis 2.0.1
         """
         if not redis_client:
-            log.error("Redis client not initialized")
+            log.error("Redis client not initialized for cp_id: %s", self.cp_id)
             return
 
+        pubsub = None
         try:
             pubsub = redis_client.pubsub()
             await pubsub.subscribe(REDIS_CHANNEL)
-            log.info("Subscribed to Redis channel: %s for cp_id: %s", REDIS_CHANNEL, self.cp_id)
+            log.info("✅ Subscribed to Redis channel: %s for cp_id: %s", REDIS_CHANNEL, self.cp_id)
+            log.info("Waiting for messages on channel: %s...", REDIS_CHANNEL)
 
-            while self._running:
-                try:
-                    # Get message with timeout
-                    message = await asyncio.wait_for(pubsub.get_message(ignore_subscribe_messages=True), timeout=1.0)
-                    
-                    if message:
-                        try:
-                            # aioredis 2.0.1 returns bytes, decode to string
-                            if isinstance(message['data'], bytes):
-                                data_str = message['data'].decode('utf-8')
-                            else:
-                                data_str = str(message['data'])
-                            
-                            data = json.loads(data_str)
-                            
-                            # Filter by cp_id (station code)
-                            if data.get('cp_id') != self.cp_id:
-                                continue
-
-                            log.info("Received command from Redis: %s", data)
-                            
-                            # Process command
-                            await self._process_command(data)
-                            
-                        except json.JSONDecodeError as e:
-                            log.warning("Failed to decode Redis message: %s", e)
-                        except Exception as e:
-                            log.warning("Error processing Redis command: %s", e)
-                            
-                except asyncio.TimeoutError:
-                    # Timeout is expected, continue loop to check _running
+            # Use async iterator to listen for messages
+            async for message in pubsub.listen():
+                if not self._running:
+                    log.info("Stopping command poller for cp_id: %s", self.cp_id)
+                    break
+                
+                # Skip subscribe/unsubscribe messages
+                if message['type'] not in ('message', 'pmessage'):
+                    log.debug("Skipping non-message type: %s", message['type'])
                     continue
-                except Exception as e:
-                    log.warning("Redis subscriber error: %s", e)
-                    await asyncio.sleep(1.0)
+                
+                log.info("📨 Raw Redis message received: type=%s", message.get('type'))
+                
+                try:
+                    # aioredis 2.0.1 returns bytes, decode to string
+                    message_data = message.get('data')
+                    if message_data is None:
+                        log.warning("Message data is None, skipping")
+                        continue
+                        
+                    if isinstance(message_data, bytes):
+                        data_str = message_data.decode('utf-8')
+                    else:
+                        data_str = str(message_data)
+                    
+                    log.info("📝 Decoded message string (first 200 chars): %s", data_str[:200])
+                    
+                    data = json.loads(data_str)
+                    log.info("📋 Parsed Redis message: %s", json.dumps(data, indent=2))
+                    
+                    # Filter by cp_id (station code)
+                    received_cp_id = data.get('cp_id')
+                    log.info("🔍 Filtering: received cp_id='%s' vs current cp_id='%s'", received_cp_id, self.cp_id)
+                    
+                    if received_cp_id != self.cp_id:
+                        log.info("⏭️  Skipping command: cp_id mismatch (received: '%s', expected: '%s')", 
+                                 received_cp_id, self.cp_id)
+                        continue
 
+                    log.info("✅ Command matched! Processing command for cp_id: %s", self.cp_id)
+                    log.info("📦 Command details: id=%s, command=%s, payload=%s", 
+                            data.get('id'), data.get('command'), data.get('payload'))
+                    
+                    # Process command
+                    await self._process_command(data)
+                    
+                except json.JSONDecodeError as e:
+                    log.error("❌ Failed to decode Redis message: %s, raw data: %s", e, data_str[:200] if 'data_str' in locals() else 'N/A')
+                except Exception as e:
+                    log.exception("❌ Error processing Redis command: %s", e)
+
+        except asyncio.CancelledError:
+            log.info("Command poller task cancelled for cp_id: %s", self.cp_id)
         except Exception as e:
-            log.error("Redis subscription failed: %s", e)
+            log.exception("❌ Redis subscription failed: %s", e)
         finally:
-            try:
-                await pubsub.unsubscribe(REDIS_CHANNEL)
-                await pubsub.close()
-            except Exception:
-                pass
+            if pubsub:
+                try:
+                    await pubsub.unsubscribe(REDIS_CHANNEL)
+                    await pubsub.close()
+                    log.info("Unsubscribed from Redis channel: %s for cp_id: %s", REDIS_CHANNEL, self.cp_id)
+                except Exception as e:
+                    log.warning("Error closing pubsub: %s", e)
 
     async def _process_command(self, data: dict):
         """
@@ -156,20 +179,30 @@ class ChargePoint(CP16):
         payload = data.get('payload') or {}
         connector = data.get('connector')  # connector number
 
+        log.info("Processing command: %s (id=%s) for cp_id=%s", command_name, command_id, self.cp_id)
+        log.info("Command payload: %s", json.dumps(payload, indent=2))
+        log.info("Connector number: %s", connector)
+
         try:
             if command_name == "RemoteStartTransaction":
                 id_tag = payload.get("idTag") or payload.get("id_tag") or "CARD"
                 connector_id = connector or payload.get("connectorId")
                 
+                log.info("RemoteStartTransaction: idTag=%s, connector_id=%s", id_tag, connector_id)
+                
                 if connector_id is not None:
                     req = call.RemoteStartTransactionPayload(id_tag=id_tag, connector_id=int(connector_id))
+                    log.info("Calling RemoteStartTransaction with connector_id=%s", int(connector_id))
                 else:
                     req = call.RemoteStartTransactionPayload(id_tag=id_tag)
+                    log.info("Calling RemoteStartTransaction without connector_id")
                 
-                await self.call(req)
+                result = await self.call(req)
+                log.info("RemoteStartTransaction result: %s", result)
                 
-                # Update command status to 'sent'
+                # Update command status to 'ack'
                 if command_id:
+                    log.info("Updating command status to 'ack' for command_id=%s", command_id)
                     await update_command_status(command_id, "ack")
 
             elif command_name == "RemoteStopTransaction":
@@ -180,17 +213,24 @@ class ChargePoint(CP16):
                 except Exception:
                     tx = 0
                 
-                req = call.RemoteStopTransactionPayload(transaction_id=tx)
-                await self.call(req)
+                log.info("RemoteStopTransaction: transaction_id=%s", tx)
                 
-                # Update command status to 'sent'
+                req = call.RemoteStopTransactionPayload(transaction_id=tx)
+                result = await self.call(req)
+                log.info("RemoteStopTransaction result: %s", result)
+                
+                # Update command status to 'ack'
                 if command_id:
+                    log.info("Updating command status to 'ack' for command_id=%s", command_id)
                     await update_command_status(command_id, "ack")
+            else:
+                log.warning("Unknown command: %s", command_name)
 
         except Exception as e:
-            log.error("Failed to execute command %s: %s", command_name, e)
+            log.exception("Failed to execute command %s: %s", command_name, e)
             # Update command status to 'error'
             if command_id:
+                log.info("Updating command status to 'error' for command_id=%s", command_id)
                 await update_command_status(command_id, "error")
 
     def _next_tx_id(self) -> int:
@@ -369,13 +409,23 @@ async def init_redis():
             redis_url = f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
         
         log.info("Connecting to Redis at %s:%d (db=%d)", REDIS_HOST, REDIS_PORT, REDIS_DB)
+        log.info("Redis URL: %s", redis_url.replace(REDIS_PASSWORD or '', '***') if REDIS_PASSWORD else redis_url)
+        
         redis_client = aioredis.from_url(redis_url, encoding="utf-8", decode_responses=False)
         
         # Test connection
-        await redis_client.ping()
-        log.info("Redis connection established")
+        pong = await redis_client.ping()
+        log.info("Redis connection established - PING response: %s", pong)
+        
+        # Test pubsub capability
+        test_pubsub = redis_client.pubsub()
+        await test_pubsub.subscribe("test_channel")
+        log.info("Redis pubsub test successful")
+        await test_pubsub.unsubscribe("test_channel")
+        await test_pubsub.close()
+        
     except Exception as e:
-        log.error("Failed to connect to Redis: %s", e)
+        log.exception("Failed to connect to Redis: %s", e)
         redis_client = None
 
 async def close_redis():
