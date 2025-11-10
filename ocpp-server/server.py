@@ -15,7 +15,7 @@ from ocpp.v16.enums import RegistrationStatus, Action
 from ocpp.v16 import call_result, call
 
 # 🔧 bring in the normalizer
-from ocpp_bridge import _normalize_remote_cmd
+# from ocpp_bridge import _normalize_remote_cmd
 
 # ------------ Config ------------
 LARAVEL_BASE = os.getenv("LARAVEL_BASE", "https://zora.apenable.com")
