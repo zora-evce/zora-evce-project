@@ -112,62 +112,77 @@ class OcppCommandController extends Controller
      */
     private function enqueueAndPublish(string $stationCode, ?int $connectorNumber, string $commandName, array $payload): int
     {
-        // $commandId akan diisi oleh return value dari transaksi
-        $commandId = DB::transaction(function () use ($stationCode, $connectorNumber, $commandName, $payload) {
-
-            // 1. Dapatkan ID Stasiun/Konektor
+        // 1) Insert inside a transaction only
+        $newCommandId = DB::transaction(function () use ($stationCode, $connectorNumber, $commandName, $payload) {
             [$stationId, $connectorId] = $this->resolveStationConnector($stationCode, $connectorNumber);
 
-            // 2. Catat perintah ke DB
-            // Gunakan variabel LOKAL, bukan dari scope luar
-            $newCommandId = DB::table('remote_commands')->insertGetId([
+            return DB::table('remote_commands')->insertGetId([
                 'station_id'   => $stationId,
                 'connector_id' => $connectorId,
                 'command'      => $commandName,
-                'payload'      => json_encode($payload),
+                'payload'      => json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
                 'status'       => 'pending',
                 'created_at'   => now(),
                 'updated_at'   => now(),
             ]);
+        });
 
-            // 3. Siapkan payload untuk Redis
-            $redisPayload = [
-                'command'       => $commandName,
-                'cp_id'         => $stationCode,
-                'payload'       => $payload,
-                'command_db_id' => $newCommandId, // Gunakan ID baru
-            ];
-
-            // 4. Publish ke Redis
-            Redis::publish(self::REDIS_CHANNEL, json_encode($redisPayload));
-
-            // 5. Update status ke 'sent'
-            DB::table('remote_commands')->where('id', $newCommandId)->update([
-                'status'     => 'sent',
-                'updated_at' => now(),
-            ]);
-
-            // 6. Kembalikan ID dari closure ini
-            return $newCommandId;
-
-        }); // Transaksi di-commit, dan $commandId sekarang berisi return value
-
-        // 7. Pemeriksaan keamanan untuk memuaskan tool analisis statis
-        // Jika transaksi gagal, $commandId bisa jadi null
-        if (!is_int($commandId)) {
+        if (!is_int($newCommandId)) {
             Log::error('Gagal membuat command ID dalam transaksi', [
                 'station_code' => $stationCode,
-                'command' => $commandName
+                'command'      => $commandName,
             ]);
-            throw new \RuntimeException('Gagal memproses perintah dalam transaksi.');
+            throw new \RuntimeException('Gagal membuat command.');
         }
 
-        return $commandId;
-    }
+        // 2) Prepare Redis payload
+        $redisPayload = [
+            'command'       => $commandName,
+            'cp_id'         => $stationCode,
+            'payload'       => $payload,
+            'command_db_id' => $newCommandId,
+        ];
 
-    // =====================================================================
-    // HELPER DIBAWAH INI DIAMBIL DARI 'RemoteCommandController' LAMA ANDA
-    // =====================================================================
+        // 3) Publish (outside transaction) and update status
+        try {
+            Redis::publish(self::REDIS_CHANNEL, json_encode($redisPayload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+
+            DB::table('remote_commands')
+                ->where('id', $newCommandId)
+                ->update([
+                    'status'     => 'sent',
+                    'updated_at' => now(),
+                ]);
+
+            Log::info('Redis publish OK', [
+                'channel' => self::REDIS_CHANNEL,
+                'id'      => $newCommandId,
+                'cmd'     => $commandName,
+                'cp_id'   => $stationCode,
+            ]);
+        } catch (\Throwable $e) {
+            // Mark as failed (or keep 'pending' if you have a separate retry flow)
+            DB::table('remote_commands')
+                ->where('id', $newCommandId)
+                ->update([
+                    'status'     => 'failed',
+                    'updated_at' => now(),
+                ]);
+
+            Log::error('Redis publish FAILED', [
+                'channel' => self::REDIS_CHANNEL,
+                'id'      => $newCommandId,
+                'cmd'     => $commandName,
+                'cp_id'   => $stationCode,
+                'error'   => $e->getMessage(),
+            ]);
+
+            // Re-throw so the controller can return 500 if desired
+            throw $e;
+        }
+
+        return $newCommandId;
+    }
 
     private function validated(Request $r, array $rules): array
     {
@@ -177,21 +192,23 @@ class OcppCommandController extends Controller
     private function resolveStationConnector(string $stationCode, ?int $connectorNumber): array
     {
         $station = DB::table('stations')->where('code', $stationCode)->first();
-        if (! $station) {
-            // Anda bisa membuat stasiun baru di sini jika perlu, atau error
+        if (!$station) {
             abort(404, 'Stasiun tidak ditemukan: ' . $stationCode);
         }
+
         $connectorId = null;
-        if (! is_null($connectorNumber)) {
+        if (!is_null($connectorNumber)) {
             $connector = DB::table('connectors')
                 ->where('station_id', $station->id)
                 ->where('connector_number', $connectorNumber)
                 ->first();
-            if (! $connector) {
+
+            if (!$connector) {
                 abort(404, 'Konektor tidak ditemukan');
             }
             $connectorId = $connector->id;
         }
+
         return [$station->id, $connectorId];
     }
 }
