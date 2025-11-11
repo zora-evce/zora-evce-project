@@ -8,8 +8,10 @@ use App\Models\LookupC;
 use App\Models\Stations;
 use App\Models\StationsV;
 use App\Traits\CommandsTrait;
+use App\Traits\LocationTrait;
 use App\Traits\OverviewTrait;
 use App\Traits\SettingsTrait;
+use App\Traits\TariffTrait;
 use Illuminate\Http\Request;
 
 class StationDetailsController extends Controller
@@ -17,6 +19,8 @@ class StationDetailsController extends Controller
     use OverviewTrait;
     use CommandsTrait;
     use SettingsTrait;
+    use LocationTrait;
+    use TariffTrait;
 
     public $station_id;
 
