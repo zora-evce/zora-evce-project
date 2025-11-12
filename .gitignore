@@ -9,3 +9,27 @@ ocpp-server/.venv/
 # Python virtual environments
 .venv/
 
+
+# ==== OCPP Server ====
+ocpp-server/venv/
+ocpp-server/*.bak*
+ocpp-server/server.py.bak.*
+ocpp-server/.env
+**/__pycache__/
+*.pyc
+
+# ==== Laravel ====
+laravel-dashboard/vendor/
+laravel-dashboard/node_modules/
+laravel-dashboard/storage/
+laravel-dashboard/.env
+laravel-dashboard/backup-*/
+
+# ==== Logs & dumps ====
+*.log
+/var/log/ocpp-server.log
+*.sql
+*.sql.gz
+
+# ==== Misc ====
+.DS_Store
