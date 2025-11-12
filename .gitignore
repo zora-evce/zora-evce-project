@@ -5,3 +5,7 @@ ocpp-server/.env
 
 # Ignore Python venv
 ocpp-server/.venv/
+
+# Python virtual environments
+.venv/
+
