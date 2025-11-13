@@ -1,12 +1,14 @@
 import asyncio
 import logging
 import os
+from dotenv import load_dotenv
 from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import urlparse, parse_qs
 
 import httpx
 from websockets.server import serve
+load_dotenv(dotenv_path='.env', override=True)
 from ocpp.routing import on
 from ocpp.v16 import ChargePoint as CP16
 from ocpp.v16.enums import RegistrationStatus, Action
@@ -30,18 +32,45 @@ log = logging.getLogger("ocpp-server")
 # httpx async client (module-level; closed on process exit)
 http = httpx.AsyncClient(timeout=10.0, verify=True)
 
+# --- Key selection helpers ---
+_OCPP_MAP = None
+def _parse_key_map():
+    global _OCPP_MAP
+    if _OCPP_MAP is not None:
+        return _OCPP_MAP
+    raw = os.getenv("OCPP_KEY_MAP","").strip()
+    m = {}
+    if raw:
+        # format: A=keyA,B=keyB
+        for pair in raw.split(","):
+            if "=" in pair:
+                k,v = pair.split("=",1)
+                m[k.strip()] = v.strip()
+    _OCPP_MAP = m
+    return _OCPP_MAP
+
+def _key_for_station(station_code: str, default_key: str):
+    m = _parse_key_map()
+    return m.get(station_code, default_key or "")
+
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 # ------------ Helpers ------------
 async def post_laravel(path: str, payload: dict) -> dict:
     url = f"{LARAVEL_BASE}/api/ocpp/{path.lstrip('/')}"
+    st = (payload or {}).get("station_code") or ""
+    key = _key_for_station(st, OCPP_KEY)
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "X-OCPP-Key": OCPP_KEY,
+        "X-OCPP-Key": key,
     }
     r = await http.post(url, headers=headers, json=payload)
+    if r.status_code >= 400:
+        import logging
+        logger = logging.getLogger("ocpp-server")
+        logger.error("Laravel error %s for %s: %s", r.status_code, url, r.text)
     r.raise_for_status()
     return r.json()
 
@@ -53,11 +82,14 @@ async def poll_command(station_code: str, connector: Optional[int]) -> Optional[
     params = {"station_code": station_code}
     if connector is not None:
         params["connector"] = connector
-    headers = {"X-OCPP-Key": OCPP_KEY}
+    # pilih key per-stasiun (fallback ke OCPP_KEY jika tidak ada di map)
+    key = _key_for_station(station_code, OCPP_KEY)
+    headers = {"X-OCPP-Key": key}
     url = f"{LARAVEL_BASE}/api/ocpp/commands/poll"
     r = await http.get(url, headers=headers, params=params)
     r.raise_for_status()
     return r.json()
+
 
 # ------------ ChargePoint class ------------
 class ChargePoint(CP16):
@@ -145,7 +177,7 @@ class ChargePoint(CP16):
             "timestamp": utcnow(),
             "raw": {"action": "BootNotification", **p},
         }))
-        return call_result.BootNotificationPayload(
+        return call_result.BootNotification(
             current_time=utcnow(),
             interval=30,
             status=RegistrationStatus.accepted,
@@ -153,13 +185,22 @@ class ChargePoint(CP16):
 
     @on('Authorize')
     async def on_authorize(self, **p):
-        id_tag = p.get("idTag") or ""
-        asyncio.create_task(self._safe_post("authorize", {
+        # ambil idTag dari payload OCPP (idTag camelCase) atau fallback ke id_tag snake_case
+        id_tag = p.get("idTag") or p.get("id_tag") or ""
+
+        body = {
             "station_code": self.cp_id,
+            # kirim dua-duanya supaya Laravel happy apapun rule-nya
             "idTag": id_tag,
+            "id_tag": id_tag,
             "raw": {"action": "Authorize", **p},
-        }))
-        return call_result.AuthorizePayload(id_tag_info={"status": "Accepted"})
+        }
+
+        asyncio.create_task(self._safe_post("authorize", body))
+
+        return call_result.Authorize(
+            id_tag_info={"status": "Accepted"}
+        )
 
     @on('StartTransaction')
     async def on_start_transaction(self, **p):
@@ -177,7 +218,7 @@ class ChargePoint(CP16):
             "timestamp": ts,
             "raw": {"action": "StartTransaction", **p},
         }))
-        return call_result.StartTransactionPayload(
+        return call_result.StartTransaction(
             transaction_id=tx_id,
             id_tag_info={"status": "Accepted"},
         )
@@ -194,7 +235,7 @@ class ChargePoint(CP16):
             "meterValue": meter_value,
             "raw": {"action": "MeterValues", **p},
         }))
-        return call_result.MeterValuesPayload()
+        return call_result.MeterValues()
 
     @on('StopTransaction')
     async def on_stop_transaction(self, **p):
@@ -213,7 +254,7 @@ class ChargePoint(CP16):
             "timestamp": ts,
             "raw": {"action": "StopTransaction", **p},
         }))
-        return call_result.StopTransactionPayload(
+        return call_result.StopTransaction(
             id_tag_info={"status": "Accepted"}
         )
 
@@ -231,7 +272,7 @@ class ChargePoint(CP16):
             "timestamp": ts,
             "raw": {"action": "StatusNotification", **p},
         }))
-        return call_result.StatusNotificationPayload()
+        return call_result.StatusNotification()
 
     @on('Heartbeat')
     async def on_heartbeat(self, **p):
@@ -240,7 +281,7 @@ class ChargePoint(CP16):
             "timestamp": utcnow(),
             "raw": {"action": "Heartbeat", **p},
         }))
-        return call_result.HeartbeatPayload(current_time=utcnow())
+        return call_result.Heartbeat(current_time=utcnow())
 
 # ------------ WebSocket entry ------------
 async def handler(websocket, path):
