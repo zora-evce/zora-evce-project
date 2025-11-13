@@ -14,7 +14,8 @@ return new class extends Migration
         Schema::create('transactionid_pool', function (Blueprint $table) {
             $table->id();
             $table->string("transactionId", 200);
-            $table->string("station_code", 200);
+            $table->integer("id_transaction");
+            $table->integer("station_id");
             $table->integer("connector_id");
             $table->integer("status");
             $table->timestamps();

@@ -111,4 +111,15 @@ class GlobalHelper {
         }
         return false;
     }
+
+    function formatPhoneToInternational($phone)
+    {
+        $phone = preg_replace('/\D/', '', $phone);
+
+        if (substr($phone, 0, 1) === '0') {
+            $phone = '62' . substr($phone, 1);
+        }
+
+        return $phone;
+    }
 }

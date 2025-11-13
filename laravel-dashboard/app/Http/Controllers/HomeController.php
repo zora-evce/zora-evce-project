@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\View\View;
@@ -12,57 +14,15 @@ use App\Models\Connector;
 use App\Models\Station;
 use App\Models\Tariff;
 use App\Models\WebhookLog;
+use App\Models\Transaction;
+use App\Models\RemoteCommand;
 
 class HomeController extends Controller
 {
     public function start($station_code, $connector_code)
     {
-    //     $response = Http::withHeaders([
-    //     'X-OCPP-Key' => 'ZORA_SUPER_SECRET',
-    //     'Content-Type' => 'application/json',
-    // ])->post('https://zora.apenable.com/api/ocpp/commands', [
-    //     'station_code' => 'Zora1',
-    //     'connector' => 1,
-    //     'command' => 'RemoteStartTransaction',
-    //     'payload' => [
-    //         'idTag' => 'TEST123'
-    //     ],
-    // ]);
-
-    // // Lihat hasil response
-    // if ($response->successful()) {
-    //     return response()->json([
-    //         'status' => 'success',
-    //         'data' => $response->json()
-    //     ]);
-    // } else {
-    //     return response()->json([
-    //         'status' => 'error',
-    //         'code' => $response->status(),
-    //         'body' => $response->body()
-    //     ]);
-    // }
-
-        $response = Http::withHeaders([
-        'X-OCPP-Key' => 'ZORA_SUPER_SECRET',
-        'Content-Type' => 'application/json',
-    ])->post('https://zora.apenable.com/api/ocpp/commands', [
-        'station_code' => 'Zora1',
-        'connector' => 1,
-        'command' => 'RemoteStopTransaction',
-        'payload' => [
-            'transactionId' => 3
-        ]
-    ]);
-
-    return response()->json([
-        'status' => $response->successful() ? 'success' : 'error',
-        'code' => $response->status(),
-        'body' => $response->json(),
-    ]);
-    die;
         $data = WebhookLog::where('payload->status', 'Available')->get();
-        
+
         try {
             $station = Station::where('code', $station_code)->first();
             $connector = Connector::where('connector_code', $connector_code)->first();
@@ -78,7 +38,7 @@ class HomeController extends Controller
                     'connector_code' => $connector_code,
                 ], 409);
             }
-            
+
             $payload = json_encode([
                 'station_code' => $station_code,
                 'connector_code' => $connector_code,
@@ -136,6 +96,57 @@ class HomeController extends Controller
             store_error_log($e);
             return response()->view('errors.500', [], 500);
         }
+    }
+
+    public function stop()
+    {
+        return view('home.stop');
+    }
+
+    public function stopAction(Request $request)
+    {
+        $data = $request->validate([
+            'transactionId' => ['required','string','max:50'],
+        ]);
+
+        $transaction = Transaction::where('transactionId', $data['transactionId'])->first();
+        if (! $transaction) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Transaction ID not found.',
+            ], 404);
+        }
+
+        // Update transaction flags
+        $transaction->manual_stop = 1;
+        $transaction->stop_time = Carbon::now();
+        $transaction->save();
+
+        // Enqueue RemoteStopTransaction command
+        $connector = $transaction->connector;
+        $payload = [];
+        if ($connector && isset($connector->idTag) && $connector->idTag) {
+            $payload['idTag'] = $connector->idTag;
+        }
+        RemoteCommand::create([
+            'station_id'   => $transaction->station_id,
+            'connector_id' => $transaction->connector_id,
+            'command'      => 'RemoteStopTransaction',
+            'payload'      => !empty($payload) ? json_encode($payload) : null,
+            'status'       => 'pending',
+        ]);
+
+        // Delete queued stop job if exists
+        if (!empty($transaction->id_job_stop)) {
+            DB::table('jobs')->where('id', $transaction->id_job_stop)->delete();
+            $transaction->id_job_stop = null;
+            $transaction->save();
+        }
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Force stop requested.',
+        ]);
     }
 }
 

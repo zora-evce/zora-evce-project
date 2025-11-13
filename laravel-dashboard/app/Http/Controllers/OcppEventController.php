@@ -7,6 +7,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\TransactionidPool;
+use App\Models\Transaction;
 use App\Jobs\EnqueueRemoteStopCommandJob;
 
 
@@ -138,8 +139,15 @@ class OcppEventController extends Controller
 
 					// SET JOBS TO STOP REMOTE
 					$delayMinutes = (int) $pool->transaction->tariff->tariff_value;
-                	EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $p->idTag)
+                	$job = EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $p->idTag)
                     							->delay(now()->addMinutes($delayMinutes));
+					$jobId = $job->getJobId(); 
+
+					// SET start_time and id_job_stop ON transactions
+					$transaction = Transaction::find($pool->id_transaction);
+					$transaction->start_time = date('Y-m-d H:i:s');
+					$transaction->id_job_stop = $jobId;
+					$transaction->save();
 	
 					return ['ok'=>true, 'session_id'=>$sessionId, 'log_id'=>$logId];
 				});
@@ -307,6 +315,11 @@ class OcppEventController extends Controller
 	            'created_at'       => now(),
 	            'updated_at'       => now(),
 	        ]);
+
+			// SET stop_time and id_job_stop ON transactions
+			$transaction = Transaction::where("transactionId", $p['transactionId']);
+			$transaction->stop_time = date('Y-m-d H:i:s');
+			$transaction->save();
 
 	        if ($sessionId) {
 	            DB::table('charging_sessions')->where('id',$sessionId)->update([

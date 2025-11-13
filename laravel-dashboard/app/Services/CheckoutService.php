@@ -4,7 +4,7 @@ namespace App\Services;
 use Midtrans\Snap;
 use Midtrans\Config;
 use App\Repositories\TransactionRepositoryInterface;
-use App\Models\TransactionidPoool;
+use App\Models\TransactionidPool;
 
 class CheckoutService
 {
@@ -66,6 +66,7 @@ class CheckoutService
         // Save transactionId to transactionid_pool
         $pool = new TransactionidPool;
         $pool->transactionId = $transactionId;
+        $pool->id_transaction = $transaction->id;
         $pool->station_id = $station_id;
         $pool->connector_id = $connector_id;
         $pool->status = 0;

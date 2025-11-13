@@ -21,19 +21,6 @@
         <style>
             /* Keep main container tall enough even if top text is removed */
             #contact .container { min-height: 80vh; }
-            /* Payment Success Modal */
-            #paymentSuccessModal {
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.8); z-index: 9999; display: none;
-                justify-content: center; align-items: center;
-            }
-            #paymentSuccessContent {
-                background: #fff; padding: 40px; border-radius: 12px; text-align: center;
-                max-width: 400px; margin: 0 auto;
-            }
-            #paymentSuccessContent h2 { color: #28a745; margin-bottom: 20px; }
-            #paymentSuccessContent p { margin-bottom: 20px; }
-            #countdownText { font-size: 18px; font-weight: bold; color: #007bff; }
         </style>
     </head>
     <body id="page-top">
@@ -159,16 +146,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Payment Success Modal -->
-                <div id="paymentSuccessModal">
-                    <div id="paymentSuccessContent">
-                        <h2>✅ Payment Success!</h2>
-                        <p>Your payment has been processed successfully.</p>
-                        <p id="countdownText">Redirecting to test page in 30 seconds...</p>
-                    </div>
-                </div>
-
             </div>
         </section>
         <!-- Footer-->
@@ -337,6 +314,11 @@
                 $(document).on("click", "#mainForm4 .btn-next", function(e){
                     e.preventDefault();
                     var $btn = $(this);
+                    function getQueryParam(name) {
+                        var params = new URLSearchParams(window.location.search);
+                        return params.get(name);
+                    }
+                    var sessionToken = getQueryParam('token');
                     var amount = computePaymentAmount();
                     if (!amount) { return; }
 
@@ -365,23 +347,44 @@
                         }
                     }).done(function(response){
                         if (response && response.snap_token && window.snap) {
+                            var orderId = response.transaction && response.transaction.midtrans_order_id
+                                ? response.transaction.midtrans_order_id
+                                : null;
+                            var pollIntervalId = null;
+                            function startPollingIfPossible() {
+                                if (!orderId) return;
+                                var statusUrl = "{{ route('zora.checkout.status', ['orderId' => 'PLACEHOLDER']) }}".replace('PLACEHOLDER', encodeURIComponent(orderId));
+                                pollIntervalId = setInterval(function(){
+                                    $.getJSON(statusUrl)
+                                        .done(function(res){
+                                            if (res && res.payment_status === 1) {
+                                                clearInterval(pollIntervalId);
+                                                var redirectUrl = "{{ route('zora.checkout.after') }}";
+                                                if (sessionToken) {
+                                                    redirectUrl += ("?token=" + encodeURIComponent(sessionToken));
+                                                }
+                                                window.location.href = redirectUrl;
+                                            }
+                                        })
+                                        .fail(function(){ /* ignore until next tick */ });
+                                }, 3000);
+                            }
                             window.snap.pay(response.snap_token, {
                                 onSuccess: function(result){
-                                    // Show payment success modal
-                                    $("#paymentSuccessModal").css("display", "flex");
-
-                                    window.location.href = "{{ route('zora.checkout.after') }}";
+                                    // Start polling for server-side settlement notification
+                                    startPollingIfPossible();
                                 },
                                 onPending: function(result){
-                                    alert("Menunggu pembayaran...");
+                                    alert("Waiting payment...");
+                                    startPollingIfPossible();
                                     $btn.prop("disabled", false).text("Pay");
                                 },
                                 onError: function(result){
-                                    alert("Terjadi error pembayaran!");
+                                    alert("Error on payment!");
                                     $btn.prop("disabled", false).text("Pay");
                                 },
                                 onClose: function(){
-                                    alert("Popup ditutup tanpa menyelesaikan pembayaran");
+                                    alert("Prompt closed without completing payment");
                                     $btn.prop("disabled", false).text("Pay");
                                 }
                             });
