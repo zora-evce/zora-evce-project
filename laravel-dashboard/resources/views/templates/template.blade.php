@@ -164,9 +164,45 @@
                         <li class="nav-item">
                             <a href="{{ route('cpo.dashboard') }}"
                                 class="nav-link">
+                                <i class="nav-icon fas fa-money-check"></i>
+                                <p>
+                                    Billing and Payment Informations
+                                </p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('cpo.dashboard') }}"
+                                class="nav-link">
+                                <i class="nav-icon fas fa-info-circle"></i>
+                                <p>
+                                    Supports
+                                </p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('cpo.dashboard') }}"
+                                class="nav-link">
                                 <i class="nav-icon fas fa-users"></i>
                                 <p>
                                     Accounts
+                                </p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('cpo.dashboard') }}"
+                                class="nav-link">
+                                <i class="nav-icon fas fa-user"></i>
+                                <p>
+                                    My Account
+                                </p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{{ route('cpo.dashboard') }}"
+                                class="nav-link">
+                                <i class="nav-icon fas fa-question-circle"></i>
+                                <p>
+                                    Help
                                 </p>
                             </a>
                         </li>

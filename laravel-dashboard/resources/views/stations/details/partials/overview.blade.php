@@ -1,29 +1,67 @@
 <div class="row g-4">
     <!-- Information Card -->
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm rounded-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-header bg-primary text-white text-center py-3">
                 <h5 class="card-title mb-0 fw-semibold">
                     Information
                 </h5>
             </div>
             <div class="card-body p-4 bg-white">
+                <div class="row">
+                    <img src="{{ asset('images/ev-charger-img.jpg') }}" alt="" class="img-fluid w-50 mx-auto d-block">
+                    <span class="position-absolute top-0 end-0 badge {{ $station->connectivity_status == 'online' ? 'bg-success' : 'bg-danger' }}">
+                        {{ $station->connectivity_status == 'online' ? 'ONLINE' : 'OFFLINE' }}
+                    </span>
+                </div>
                 <div class="mb-3 pb-2 border-bottom">
-                    <div class="d-flex justify-content-between">
-                        <span class="text-muted small text-uppercase fw-semibold">Address</span>
-                        <span class="fw-medium text-dark">{{ $station->address }}</span>
+                    <div class="row">
+                        <div class="col-4">
+                            <span class="text-muted small text-uppercase fw-semibold">Name</span>
+                        </div>
+                        <div class="col-8">
+                            <span class="fw-medium text-dark">{{ $station->name }}</span>
+                        </div>
                     </div>
                 </div>
                 <div class="mb-3 pb-2 border-bottom">
-                    <div class="d-flex justify-content-between">
-                        <span class="text-muted small text-uppercase fw-semibold">City</span>
-                        <span class="fw-medium text-dark">{{ $station->city_name }}</span>
+                    <div class="row">
+                        <div class="col-4">
+                            <span class="text-muted small text-uppercase fw-semibold">Code</span>
+                        </div>
+                        <div class="col-8">
+                            <span class="fw-medium text-dark">{{ $station->code }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="row">
+                        <div class="col-4">
+                            <span class="text-muted small text-uppercase fw-semibold">Address</span>
+                        </div>
+                        <div class="col-8">
+                            <span class="fw-medium text-dark">{{ $station->address }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="row">
+                        <div class="col-4">
+                            <span class="text-muted small text-uppercase fw-semibold">City</span>
+                        </div>
+                        <div class="col-8">
+                            <span class="fw-medium text-dark">{{ $station->city_name }}</span>
+                        </div>
                     </div>
                 </div>
                 <div>
-                    <div class="d-flex justify-content-between">
-                        <span class="text-muted small text-uppercase fw-semibold">Location Type</span>
-                        <span class="fw-medium text-dark">{{ $station->location_type_name }}</span>
+                    <div class="row">
+                        <div class="col-4">
+                            <span class="text-muted small text-uppercase fw-semibold">Location Type</span>
+                        </div>
+                        <div class="col-8">
+                            <span class="fw-medium text-dark">{{ $station->location_type_name }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -32,61 +70,119 @@
 
     <!-- Location Card -->
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm rounded-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-header bg-primary text-white text-center py-3">
                 <h5 class="card-title mb-0 fw-semibold">
                     Location
                 </h5>
             </div>
             <div class="card-body p-4 bg-white">
-                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3961.0180961933343!2d107.57396777585224!3d-6.888435467408043!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e68e778ac7176b7%3A0x6ebd62876b56957a!2sDHealth!5e0!3m2!1sen!2sid!4v1761833127385!5m2!1sen!2sid" width="380" height="380" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-                {{-- <div class="mb-3 pb-2 border-bottom">
-                    <div class="d-flex justify-content-between">
-                        <span class="text-muted small text-uppercase fw-semibold">Latitude</span>
-                        <span class="fw-medium text-dark">{{ $station->latitude }}</span>
-                    </div>
+                <div class="ratio ratio-1x1">
+                    <iframe
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3961.264535647068!2d107.62815717585183!3d-6.858865067105696!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e68e0b82dc93d87%3A0xf664c059175258b1!2sTaman%20Hutan%20Raya%20Ir.%20H.%20Djuanda!5e0!3m2!1sen!2sid!4v1762875505053!5m2!1sen!2sid"
+                        style="border:0;"
+                        width="100%"
+                        height="500"
+                        allowfullscreen=""
+                        loading="lazy"
+                        referrerpolicy="no-referrer-when-downgrade">
+                    </iframe>
                 </div>
-                <div class="mb-3 pb-2 border-bottom">
-                    <div class="d-flex justify-content-between">
-                        <span class="text-muted small text-uppercase fw-semibold">Longitude</span>
-                        <span class="fw-medium text-dark">{{ $station->longitude }}</span>
-                    </div>
-                </div>
-                <div>
-                    <div class="d-flex justify-content-between">
-                        <span class="text-muted small text-uppercase fw-semibold">Elevation</span>
-                        <span class="fw-medium text-dark">{{ $station->elevation ?? '—' }}</span>
-                    </div>
-                </div> --}}
             </div>
         </div>
     </div>
 
     <!-- Owner Information Card -->
     <div class="col-md-4">
-        <div class="card border-0 shadow-sm rounded-4">
+        <div class="card border-0 shadow-sm rounded-4 h-100">
             <div class="card-header bg-primary text-white text-center py-3">
                 <h5 class="card-title mb-0 fw-semibold">
                     Owner Information
                 </h5>
             </div>
             <div class="card-body p-4 bg-white">
+                <h6>Subscription</h6>
                 <div class="mb-3 pb-2 border-bottom">
-                    <div class="d-flex justify-content-between">
-                        <span class="text-muted small text-uppercase fw-semibold">Owner Name</span>
-                        <span class="fw-medium text-dark">{{ $station->owner_name }}</span>
+                    <div class="row">
+                        <div class="col-4">
+                            <span class="text-muted small text-uppercase fw-semibold">Name</span>
+                        </div>
+                        <div class="col-8">
+                            <span class="fw-medium text-dark">{{ $station->subscription_name }}</span>
+                        </div>
                     </div>
                 </div>
                 <div class="mb-3 pb-2 border-bottom">
-                    <div class="d-flex justify-content-between">
-                        <span class="text-muted small text-uppercase fw-semibold">Contact</span>
-                        <span class="fw-medium text-dark">{{ $station->owner_contact }}</span>
+                    <div class="row">
+                        <div class="col-4">
+                            <span class="text-muted small text-uppercase w-semibold">Start Date</span>
+                        </div>
+                        <div class="col-8">
+                            <span class="fw-medium text-dark">{{ $station->subscription_start_date }}</span>
+                        </div>
                     </div>
                 </div>
-                <div>
-                    <div class="d-flex justify-content-between">
-                        <span class="text-muted small text-uppercase fw-semibold">Email</span>
-                        <span class="fw-medium text-dark">{{ $station->owner_email }}</span>
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="row">
+                        <div class="col-4">
+                            <span class="text-muted small text-uppercase fw-semibold">End Date</span>
+                        </div>
+                        <div class="col-8">
+                            <span class="fw-medium text-dark">{{ $station->subscription_end_date }}</span>
+                        </div>
+                    </div>
+                </div>
+                <h6>Account</h6>
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="row">
+                        <div class="col-4">
+                            <span class="text-muted small text-uppercase fw-semibold">Name</span>
+                        </div>
+                        <div class="col-8">
+                            <span class="fw-medium text-dark">{{ $station->account_name }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="row">
+                        <div class="col-4">
+                            <span class="text-muted small text-uppercase fw-semibold">Contract Number</span>
+                        </div>
+                        <div class="col-8">
+                            <span class="fw-medium text-dark">{{ $station->account_contract_number }}</span>
+                        </div>
+                    </div>
+                </div>
+                <h6>Location Holder</h6>
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="row">
+                        <div class="col-4">
+                            <span class="text-muted small text-uppercase fw-semibold">Name</span>
+                        </div>
+                        <div class="col-8">
+                            <span class="fw-medium text-dark">{{ $station->location_holder_name }}</span>
+                        </div>
+                    </div>
+                </div>
+                <h6>Reseller</h6>
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="row">
+                        <div class="col-4">
+                            <span class="text-muted small text-uppercase fw-semibold">Name</span>
+                        </div>
+                        <div class="col-8">
+                            <span class="fw-medium text-dark">{{ $station->reseller_name }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3 pb-2 border-bottom">
+                    <div class="row">
+                        <div class="col-4">
+                            <span class="text-muted small text-uppercase fw-semibold">Contract Number</span>
+                        </div>
+                        <div class="col-8">
+                            <span class="fw-medium text-dark">{{ $station->reseller_contract_number }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -102,6 +198,7 @@
                 <thead class="table-light">
                     <tr>
                         <th style="width: 40px;">No</th>
+                        <th>Connector Code</th>
                         <th>Connector Number</th>
                         <th>Status</th>
                         <th>Power (KW)</th>
@@ -144,6 +241,12 @@
                     render: function(data, type, row, meta) {
                         return meta.row + 1;
                     }
+                },
+                {
+                    data: 'connector_code',
+                    name: 'Connector Code',
+                    searchable: true,
+                    orderable: true
                 },
                 {
                     data: 'connector_number',
