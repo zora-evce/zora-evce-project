@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class OcppEventController extends Controller
 {
@@ -54,9 +55,47 @@ class OcppEventController extends Controller
             'idTag'        => ['required','string','max:255'],
             'timestamp'    => ['nullable','date'],
         ]);
-        $stationId = $this->getStationIdOrCreate($p['station_code']);
-        $logId = $this->logWebhook('authorize', $p, ['ok'=>true], ['related_id'=>$stationId]);
-        return response()->json(['ok'=>true, 'log_id'=>$logId]);
+
+        $stationId  = $this->getStationIdOrCreate($p['station_code']);
+        $idTag      = $p['idTag'] ?? null;
+        $isAllowed  = true;
+        $cardStatus = 'unknown';
+
+        // Optional card validation: only enforce if RFID table exists
+        if ($idTag && Schema::hasTable('rfid_cards')) {
+            $query = DB::table('rfid_cards')->where('id_tag', $idTag);
+
+            if (Schema::hasColumn('rfid_cards', 'is_active')) {
+                $query->where('is_active', 1);
+            } elseif (Schema::hasColumn('rfid_cards', 'status')) {
+                $query->where('status', 'active');
+            }
+
+            $card = $query->first();
+
+            if (!$card) {
+                $isAllowed  = false;
+                $cardStatus = 'rejected';
+            } else {
+                $cardStatus = 'allowed';
+            }
+        }
+
+        $result = [
+            'ok'          => $isAllowed,
+            'card_status' => $cardStatus,
+        ];
+
+        // Debug log for authorize: see payload and decision in laravel.log
+        Log::info('OCPP authorize handled', [
+            'payload' => $p,
+            'result'  => $result,
+        ]);
+
+        $logId = $this->logWebhook('authorize', $p, $result, ['related_id'=>$stationId]);
+        $result['log_id'] = $logId;
+
+        return response()->json($result);
     }
 
     // ---------------------------------------------------------------------
@@ -131,6 +170,25 @@ class OcppEventController extends Controller
 	public function meterValues(Request $r)
 	{
 	    Log::info('OCPP meter-values request', ['json' => $r->all()]);
+
+            // Patch: normalize transactionId & meterValue from raw.* if root is empty
+            $payload = $r->all();
+            if (
+                (!isset($payload['transactionId']) || $payload['transactionId'] === null || $payload['transactionId'] === '')
+                && isset($payload['raw']['transaction_id'])
+            ) {
+                $payload['transactionId'] = (string) $payload['raw']['transaction_id'];
+            }
+
+            if (
+                (!isset($payload['meterValue']) || empty($payload['meterValue']))
+                && isset($payload['raw']['meter_value'])
+            ) {
+                $payload['meterValue'] = $payload['raw']['meter_value'];
+            }
+
+            // replace request data so validator & business logic see normalized fields
+            $r->replace($payload);
 
 	    $p = $this->validated($r, [
 	        'station_code'  => ['required','string','max:100'],
@@ -398,8 +456,38 @@ class OcppEventController extends Controller
     private function validated(Request $r, array $rules): array
     {
         $in = $r->all();
-        if (!isset($in['station_code']) && isset($in['stationCode'])) $in['station_code'] = $in['stationCode'];
-        if (!isset($in['connector']) && isset($in['connectorId']))    $in['connector']    = $in['connectorId'];
+        // Normalize request field names across different naming conventions and data types.
+        // station code alias
+        if (!isset($in['station_code']) && isset($in['stationCode'])) {
+            $in['station_code'] = $in['stationCode'];
+        }
+
+        // connector alias
+        if (!isset($in['connector']) && isset($in['connectorId'])) {
+            $in['connector'] = $in['connectorId'];
+        }
+        if (!isset($in['connector']) && isset($in['connector_id'])) {
+            $in['connector'] = $in['connector_id'];
+        }
+
+        // idTag alias
+        if (!isset($in['idTag']) && isset($in['id_tag'])) {
+            $in['idTag'] = $in['id_tag'];
+        }
+
+        // transactionId → cast ke string
+        if (isset($in['transactionId']) && is_numeric($in['transactionId'])) {
+            $in['transactionId'] = strval($in['transactionId']);
+        }
+
+        // meterValue alias
+        if (!isset($in['meterValue']) && isset($in['meter_value'])) {
+            $in['meterValue'] = $in['meter_value'];
+        }
+        if (!isset($in['meterValue']) && isset($in['meterValues'])) {
+            $in['meterValue'] = $in['meterValues'];
+        }
+
         return validator($in, $rules)->validate();
     }
 
