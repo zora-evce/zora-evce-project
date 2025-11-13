@@ -7,11 +7,15 @@ use App\Http\Controllers\Controller;
 use App\Models\LookupC;
 use App\Models\Stations;
 use App\Models\StationsV;
+use App\Traits\CardsTrait;
 use App\Traits\CommandsTrait;
+use App\Traits\ConfigurationTrait;
 use App\Traits\LocationTrait;
 use App\Traits\OverviewTrait;
 use App\Traits\SettingsTrait;
 use App\Traits\TariffTrait;
+use App\Traits\TechnicalInformationTrait;
+use App\Traits\TransactionsTrait;
 use Illuminate\Http\Request;
 
 class StationDetailsController extends Controller
@@ -21,6 +25,10 @@ class StationDetailsController extends Controller
     use SettingsTrait;
     use LocationTrait;
     use TariffTrait;
+    use CardsTrait;
+    use TransactionsTrait;
+    use TechnicalInformationTrait;
+    use ConfigurationTrait;
 
     public $station_id;
 
@@ -58,7 +66,7 @@ class StationDetailsController extends Controller
     public function loadTab(Request $request, $id, $tab)
     {
         $station = Stations::findOrFail($id);
-        $method = 'render' . ucfirst($tab);
+        $method = 'render' . ucfirst(str_replace(' ', '', ucwords(str_replace('_', ' ', $tab))));
 
         if (method_exists($this, $method)) {
             return $this->{$method}($tab, $station, $request);
