@@ -1,6 +1,6 @@
 <div class="row g-4">
     <div class="col-md-12">
-        <div class="card border-0 shadow-sm rounded-4">
+        {{-- <div class="card border-0 shadow-sm rounded-4">
             <div class="card-header d-flex justify-content-between align-items-center py-3"
                 data-toggle="collapse" data-target="#infoCardBodyCore" aria-expanded="false" aria-controls="infoCardBodyCore"
                 style="cursor: pointer;">
@@ -14,12 +14,12 @@
                     content
                 </div>
             </div>
-        </div>
+        </div> --}}
         <div class="card border-0 shadow-sm rounded-4">
             <div class="card-header d-flex justify-content-between align-items-center py-3"
                 data-toggle="collapse" data-target="#infoCardBodyTransaction" aria-expanded="false" aria-controls="infoCardBodyTransaction"
                 style="cursor: pointer;">
-                <h5 class="card-title mb-0 fw-semibold">Trasaction</h5>
+                <h5 class="card-title mb-0 fw-semibold">Transaction</h5>
                 <span class="ml-auto">
                     <i class="fas fa-plus"></i>
                 </span>
@@ -45,7 +45,7 @@
                 </div>
             </div>
         </div>
-        <div class="card border-0 shadow-sm rounded-4">
+        {{-- <div class="card border-0 shadow-sm rounded-4">
             <div class="card-header d-flex justify-content-between align-items-center py-3"
                 data-toggle="collapse" data-target="#infoCardBodyLocalList" aria-expanded="false" aria-controls="infoCardBodyLocalList"
                 style="cursor: pointer;">
@@ -59,6 +59,6 @@
                     content
                 </div>
             </div>
-        </div>
+        </div> --}}
     </div>
 </div>
