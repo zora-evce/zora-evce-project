@@ -101,68 +101,74 @@ class OcppEventController extends Controller
     // ---------------------------------------------------------------------
     // START TRANSACTION  (aligned to your schema)
     // ---------------------------------------------------------------------
-    public function startTransaction(Request $r)
-    {
-        Log::info('OCPP start-transaction request', ['json' => $r->all()]);
+	public function startTransaction(Request $r)
+	{
+		// Normalisasi + validasi basic payload
+		$payload = $this->validated($r, [
+			'station_code' => ['required', 'string'],
+			'connector'    => ['required', 'integer'],
+			'idTag'        => ['required', 'string'],
+			'meterStart'   => ['required'],
+			'timestamp'    => ['required', 'string'],
+			'raw'          => ['nullable', 'array'],
+		]);
 
-        $p = $this->validated($r, [
-            'station_code'  => ['required','string','max:100'],
-            'connector'     => ['required','integer','min:0'],
-            'transactionId' => ['required','string','max:100'],
-            'idTag'         => ['nullable','string','max:255'],
-            'meterStart'    => ['nullable','numeric'],
-            'timestamp'     => ['nullable','date'],
-        ]);
+		$stationCode = $payload['station_code'];
+		$connector   = (int) $payload['connector'];
+		$idTag       = $payload['idTag'];
 
-        $idk = $r->attributes->get('idempotency_key');
+		$stationId = $this->getStationIdOrCreate($stationCode);
+		$payload['station_id'] = $stationId;
 
-        try {
-            $res = DB::transaction(function () use ($p, $idk) {
-                if ($idk && $this->idempotentExists('start-transaction', $idk)) {
-                    Log::info('OCPP start-transaction idempotent hit', ['idempotency_key' => $idk]);
-                    return ['ok'=>true, 'idempotent'=>true];
-                }
+		$ok     = true;
+		$reason = null;
 
-                [$stationId, $connectorId] = $this->ensureStationAndConnector($p['station_code'], (int)$p['connector']);
+		// 1) Cek kartu di rfid_cards (global aktif?)
+		if (Schema::hasTable('rfid_cards')) {
+			$q = DB::table('rfid_cards')->where('id_tag', $idTag);
 
-                // charging_sessions (only existing columns)
-                $sessionId = DB::table('charging_sessions')->insertGetId([
-                    'station_id'   => $stationId,
-                    'connector_id' => $connectorId,
-                    'status'       => 'ongoing',
-                    'start_method' => 'webhook',
-                    'created_at'   => $this->ts($p['timestamp'] ?? null) ?? now(),
-                    'updated_at'   => now(),
-                ]);
+			if (Schema::hasColumn('rfid_cards', 'is_active')) {
+				$q->where('is_active', true);
+			}
 
-                // ocpp_start_transactions (matches your table)
-                DB::table('ocpp_start_transactions')->insert([
-                    'session_id'      => $sessionId,
-                    'station_id'      => $stationId,
-                    'connector_id'    => $connectorId,
-                    'id_tag'          => $p['idTag'] ?? null,
-                    'meter_start'     => isset($p['meterStart']) ? (int)$p['meterStart'] : null,
-                    'meter_start_kwh' => isset($p['meterStart']) ? ((float)$p['meterStart']/1000.0) : null,
-                    'timestamp'       => $this->ts($p['timestamp'] ?? null) ?? now(),
-                    'raw'             => json_encode($p),
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
-                ]);
+			$card = $q->first();
 
-                $logId = $this->logWebhook('start-transaction', $p, ['ok'=>true], [
-                    'related_id'      => $sessionId,
-                    'idempotency_key' => $idk,
-                ]);
+			if (!$card) {
+				$ok     = false;
+				$reason = 'card_not_registered';
+			}
+		}
 
-                return ['ok'=>true, 'session_id'=>$sessionId, 'log_id'=>$logId];
-            });
+		// 2) Cek binding kartu ↔ station ↔ connector
+		if ($ok && Schema::hasTable('rfid_card_connectors')) {
+			$exists = DB::table('rfid_card_connectors')
+				->where('id_tag', $idTag)
+				->where('station_code', $stationCode)
+				->where('connector', $connector)
+				->where('is_active', true)
+				->exists();
 
-            return response()->json($res);
-        } catch (\Throwable $e) {
-            Log::error('OCPP start-transaction failed', ['error' => $e->getMessage()]);
-            return response()->json(['ok'=>false, 'error'=>'server_error'], 500);
-        }
-    }
+			if (!$exists) {
+				$ok     = false;
+				$reason = 'connector_not_allowed_for_card';
+			}
+		}
+
+		$result = [
+			'ok'         => $ok,
+			'reason'     => $reason,
+			'station_id' => $stationId,
+			// sementara ini kita belum pakai transaction_id dari DB,
+			// jadi biarkan Python default ke 0 kalau tidak ada key ini.
+		];
+
+		// Catat log webhook (lihat fix di bawah supaya nggak error 500)
+		$log = $this->logWebhook('start-transaction', $payload, $result);
+
+		return response()->json(array_merge($result, [
+			'log_id' => $log->id ?? null,
+		]));
+	}
 
     // ---------------------------------------------------------------------
     // METER VALUES  (kept generic to likely schema)
