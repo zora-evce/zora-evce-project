@@ -102,13 +102,24 @@ class GlobalHelper {
                 'status' => 'pending',
             ]);
             // Dispatch the RemoteStopTransaction job after X minutes
-            if ($tariff && isset($tariff->tariff_value) && is_numeric($tariff->tariff_value) && $tariff->tariff_value > 0 && isset($connector->idTag)) {
-                $delayMinutes = (int) $tariff->tariff_value;
-                EnqueueRemoteStopCommandJob::dispatch($transaction->id, $connector->idTag)
-                    ->delay(now()->addMinutes($delayMinutes));
-            }
+            // if ($tariff && isset($tariff->tariff_value) && is_numeric($tariff->tariff_value) && $tariff->tariff_value > 0 && isset($connector->idTag)) {
+            //     $delayMinutes = (int) $tariff->tariff_value;
+            //     EnqueueRemoteStopCommandJob::dispatch($transaction->id, $connector->idTag)
+            //         ->delay(now()->addMinutes($delayMinutes));
+            // }
             return true;
         }
         return false;
+    }
+
+    function formatPhoneToInternational($phone)
+    {
+        $phone = preg_replace('/\D/', '', $phone);
+
+        if (substr($phone, 0, 1) === '0') {
+            $phone = '62' . substr($phone, 1);
+        }
+
+        return $phone;
     }
 }

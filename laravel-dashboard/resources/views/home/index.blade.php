@@ -21,19 +21,6 @@
         <style>
             /* Keep main container tall enough even if top text is removed */
             #contact .container { min-height: 80vh; }
-            /* Payment Success Modal */
-            #paymentSuccessModal {
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.8); z-index: 9999; display: none;
-                justify-content: center; align-items: center;
-            }
-            #paymentSuccessContent {
-                background: #fff; padding: 40px; border-radius: 12px; text-align: center;
-                max-width: 400px; margin: 0 auto;
-            }
-            #paymentSuccessContent h2 { color: #28a745; margin-bottom: 20px; }
-            #paymentSuccessContent p { margin-bottom: 20px; }
-            #countdownText { font-size: 18px; font-weight: bold; color: #007bff; }
         </style>
     </head>
     <body id="page-top">
@@ -159,16 +146,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Payment Success Modal -->
-                <div id="paymentSuccessModal">
-                    <div id="paymentSuccessContent">
-                        <h2>✅ Payment Success!</h2>
-                        <p>Your payment has been processed successfully.</p>
-                        <p id="countdownText">Redirecting to test page in 30 seconds...</p>
-                    </div>
-                </div>
-
             </div>
         </section>
         <!-- Footer-->
@@ -184,7 +161,8 @@
         <script src="{{ asset('templates/sb/js/scripts.js') }}"></script>
         <script src="https://cdn.startbootstrap.com/sb-forms-latest.js"></script>
         <!-- Midtrans Snap.js (Sandbox) -->
-        <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script>
+        {{-- <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script> --}}
+        <script type="text/javascript" src="https://app.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script>
 
         <script>
             $(document).ready(function(){
@@ -337,6 +315,11 @@
                 $(document).on("click", "#mainForm4 .btn-next", function(e){
                     e.preventDefault();
                     var $btn = $(this);
+                    function getQueryParam(name) {
+                        var params = new URLSearchParams(window.location.search);
+                        return params.get(name);
+                    }
+                    var sessionToken = getQueryParam('token');
                     var amount = computePaymentAmount();
                     if (!amount) { return; }
 
@@ -365,46 +348,44 @@
                         }
                     }).done(function(response){
                         if (response && response.snap_token && window.snap) {
+                            var orderId = response.transaction && response.transaction.midtrans_order_id
+                                ? response.transaction.midtrans_order_id
+                                : null;
+                            var pollIntervalId = null;
+                            function startPollingIfPossible() {
+                                if (!orderId) return;
+                                var statusUrl = "{{ route('zora.checkout.status', ['orderId' => 'PLACEHOLDER']) }}".replace('PLACEHOLDER', encodeURIComponent(orderId));
+                                pollIntervalId = setInterval(function(){
+                                    $.getJSON(statusUrl)
+                                        .done(function(res){
+                                            if (res && res.payment_status === 1) {
+                                                clearInterval(pollIntervalId);
+                                                var redirectUrl = "{{ route('zora.checkout.after') }}";
+                                                if (sessionToken) {
+                                                    redirectUrl += ("?token=" + encodeURIComponent(sessionToken));
+                                                }
+                                                window.location.href = redirectUrl;
+                                            }
+                                        })
+                                        .fail(function(){ /* ignore until next tick */ });
+                                }, 3000);
+                            }
                             window.snap.pay(response.snap_token, {
                                 onSuccess: function(result){
-                                    // Show payment success modal
-                                    $("#paymentSuccessModal").css("display", "flex");
-
-                                    // Trigger OCPP RemoteStartTransaction call
-                                    $.ajax({
-                                        url: "https://zora.apenable.com/api/ocpp/commands",
-                                        method: "POST",
-                                        headers: { "X-OCPP-Key": "ZORA_SUPER_SECRET" },
-                                        contentType: "application/json",
-                                        data: JSON.stringify({
-                                            station_code: "Zora1",
-                                            connector: 1,
-                                            command: "RemoteStartTransaction",
-                                            payload: { idTag: "TEST123" }
-                                        })
-                                    }).always(function(){
-                                        // Start 30s countdown then redirect to /teststop
-                                        var remaining = 30;
-                                        var timer = setInterval(function(){
-                                            // $("#countdownText").text("Redirecting to test page in " + remaining + " seconds...");
-                                            remaining -= 1;
-                                            if (remaining <= 0) {
-                                                clearInterval(timer);
-                                                window.location.href = "/teststop";
-                                            }
-                                        }, 1000);
-                                    });
+                                    // Start polling for server-side settlement notification
+                                    startPollingIfPossible();
                                 },
                                 onPending: function(result){
-                                    alert("Menunggu pembayaran...");
+                                    alert("Waiting payment...");
+                                    startPollingIfPossible();
                                     $btn.prop("disabled", false).text("Pay");
                                 },
                                 onError: function(result){
-                                    alert("Terjadi error pembayaran!");
+                                    alert("Error on payment!");
                                     $btn.prop("disabled", false).text("Pay");
                                 },
                                 onClose: function(){
-                                    alert("Popup ditutup tanpa menyelesaikan pembayaran");
+                                    alert("Prompt closed without completing payment");
                                     $btn.prop("disabled", false).text("Pay");
                                 }
                             });

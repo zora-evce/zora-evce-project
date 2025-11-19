@@ -6,6 +6,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\TransactionidPool;
+use App\Models\Transaction;
+use App\Jobs\EnqueueRemoteStopCommandJob;
+
 
 class OcppEventController extends Controller
 {
@@ -77,52 +81,83 @@ class OcppEventController extends Controller
 
         $idk = $r->attributes->get('idempotency_key');
 
-        try {
-            $res = DB::transaction(function () use ($p, $idk) {
-                if ($idk && $this->idempotentExists('start-transaction', $idk)) {
-                    Log::info('OCPP start-transaction idempotent hit', ['idempotency_key' => $idk]);
-                    return ['ok'=>true, 'idempotent'=>true];
-                }
+		// GET transactionId from pool
+		$pool = TransactionidPool::with('transaction.tariff')
+			->where('station_code', $p['station_code'])
+			->where('connector_id', $p['connector'])
+			->where('status', 0)
+			->orderBy('id', 'desc')
+			->first();
 
-                [$stationId, $connectorId] = $this->ensureStationAndConnector($p['station_code'], (int)$p['connector']);
 
-                // charging_sessions (only existing columns)
-                $sessionId = DB::table('charging_sessions')->insertGetId([
-                    'station_id'   => $stationId,
-                    'connector_id' => $connectorId,
-                    'status'       => 'ongoing',
-                    'start_method' => 'webhook',
-                    'created_at'   => $this->ts($p['timestamp'] ?? null) ?? now(),
-                    'updated_at'   => now(),
-                ]);
+		if ($pool) {
+			try {
+				// OVERWRITE transactionId from OCPP
+				$p['transactionId'] = $pool->transactionId;
 
-                // ocpp_start_transactions (matches your table)
-                DB::table('ocpp_start_transactions')->insert([
-                    'session_id'      => $sessionId,
-                    'station_id'      => $stationId,
-                    'connector_id'    => $connectorId,
-                    'id_tag'          => $p['idTag'] ?? null,
-                    'meter_start'     => isset($p['meterStart']) ? (int)$p['meterStart'] : null,
-                    'meter_start_kwh' => isset($p['meterStart']) ? ((float)$p['meterStart']/1000.0) : null,
-                    'timestamp'       => $this->ts($p['timestamp'] ?? null) ?? now(),
-                    'raw'             => json_encode($p),
-                    'created_at'      => now(),
-                    'updated_at'      => now(),
-                ]);
+				$res = DB::transaction(function () use ($p, $idk) {
+					if ($idk && $this->idempotentExists('start-transaction', $idk)) {
+						Log::info('OCPP start-transaction idempotent hit', ['idempotency_key' => $idk]);
+						return ['ok'=>true, 'idempotent'=>true];
+					}
+	
+					[$stationId, $connectorId] = $this->ensureStationAndConnector($p['station_code'], (int)$p['connector']);
+	
+					// charging_sessions (only existing columns)
+					$sessionId = DB::table('charging_sessions')->insertGetId([
+						'station_id'   => $stationId,
+						'connector_id' => $connectorId,
+						'status'       => 'ongoing',
+						'start_method' => 'webhook',
+						'created_at'   => $this->ts($p['timestamp'] ?? null) ?? now(),
+						'updated_at'   => now(),
+					]);
+	
+					// ocpp_start_transactions (matches your table)
+					DB::table('ocpp_start_transactions')->insert([
+						'session_id'      => $sessionId,
+						'station_id'      => $stationId,
+						'connector_id'    => $connectorId,
+						'id_tag'          => $p['idTag'] ?? null,
+						'meter_start'     => isset($p['meterStart']) ? (int)$p['meterStart'] : null,
+						'meter_start_kwh' => isset($p['meterStart']) ? ((float)$p['meterStart']/1000.0) : null,
+						'timestamp'       => $this->ts($p['timestamp'] ?? null) ?? now(),
+						'raw'             => json_encode($p),
+						'created_at'      => now(),
+						'updated_at'      => now(),
+					]);
+	
+					// UPDATE STATUS used IN TABLE transactionid_pool
+					$updatepool = TransactionidPool::find($pool->id);
+					$updatepool->status = 1;
+					$updatepool->save();
+	
+					$logId = $this->logWebhook('start-transaction', $p, ['ok'=>true], [
+						'related_id'      => $sessionId,
+						'idempotency_key' => $idk,
+					]);
 
-                $logId = $this->logWebhook('start-transaction', $p, ['ok'=>true], [
-                    'related_id'      => $sessionId,
-                    'idempotency_key' => $idk,
-                ]);
+					// SET JOBS TO STOP REMOTE
+					$delayMinutes = (int) $pool->transaction->tariff->tariff_value;
+                	$job = EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $p->idTag)
+                    							->delay(now()->addMinutes($delayMinutes));
+					$jobId = $job->getJobId(); 
 
-                return ['ok'=>true, 'session_id'=>$sessionId, 'log_id'=>$logId];
-            });
-
-            return response()->json($res);
-        } catch (\Throwable $e) {
-            Log::error('OCPP start-transaction failed', ['error' => $e->getMessage()]);
-            return response()->json(['ok'=>false, 'error'=>'server_error'], 500);
-        }
+					// SET start_time and id_job_stop ON transactions
+					$transaction = Transaction::find($pool->id_transaction);
+					$transaction->start_time = date('Y-m-d H:i:s');
+					$transaction->id_job_stop = $jobId;
+					$transaction->save();
+	
+					return ['ok'=>true, 'session_id'=>$sessionId, 'log_id'=>$logId];
+				});
+	
+				return response()->json($res);
+			} catch (\Throwable $e) {
+				Log::error('OCPP start-transaction failed', ['error' => $e->getMessage()]);
+				return response()->json(['ok'=>false, 'error'=>'server_error'], 500);
+			}
+		}
     }
 
     // ---------------------------------------------------------------------
@@ -280,6 +315,11 @@ class OcppEventController extends Controller
 	            'created_at'       => now(),
 	            'updated_at'       => now(),
 	        ]);
+
+			// SET stop_time and id_job_stop ON transactions
+			$transaction = Transaction::where("transactionId", $p['transactionId']);
+			$transaction->stop_time = date('Y-m-d H:i:s');
+			$transaction->save();
 
 	        if ($sessionId) {
 	            DB::table('charging_sessions')->where('id',$sessionId)->update([

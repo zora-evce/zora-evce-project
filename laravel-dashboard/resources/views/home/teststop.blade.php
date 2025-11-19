@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Test Stop Transaction</title>
+        <title>After Checkout</title>
         <meta name="csrf-token" content="{{ csrf_token() }}" />
         <link href="{{ asset('templates/sb/css/styles.css') }}" rel="stylesheet" />
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -17,8 +17,10 @@
     </head>
     <body>
         <div class="card">
-            <h3>Remote Stop Transaction</h3>
-            <label for="transactionId">Transaction ID</label>
+            <h3>After Transaction</h3>
+            <p>Thank you for purchasing, your charging will automatically stop in <span id="x_minute">X</span> Minutes</p>
+            <p>However, you can manually stop by inserting your Transaction ID Below</p>
+            <label for="transactionId">Transaction ID : </label>
             <input type="text" id="transactionId" placeholder="Enter transactionId" />
             <button id="stopBtn" class="btn btn-primary btn-md">Stop</button>
         </div>

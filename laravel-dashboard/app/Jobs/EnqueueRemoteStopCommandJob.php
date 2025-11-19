@@ -11,15 +11,17 @@ class EnqueueRemoteStopCommandJob implements ShouldQueue
 {
     use Queueable;
 
-    protected $transactionId;
+    protected $stationId;
+    protected $connectorId;
     protected $idTag;
 
     /**
      * Create a new job instance.
      */
-    public function __construct($transactionId, $idTag)
+    public function __construct($stationId, $connectorId, $idTag)
     {
-        $this->transactionId = $transactionId;
+        $this->stationId = $stationId;
+        $this->connectorId = $connectorId;
         $this->idTag = $idTag;
     }
 
@@ -28,18 +30,12 @@ class EnqueueRemoteStopCommandJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $transaction = Transaction::find($this->transactionId);
-        if (!$transaction) return;
-        $station = $transaction->station;
-        $connector = $transaction->connector;
-        if ($station && $connector && $this->idTag) {
-            RemoteCommand::create([
-                'station_id' => $station->id,
-                'connector_id' => $connector->id,
-                'command' => 'RemoteStopTransaction',
-                'payload' => json_encode(['idTag' => $this->idTag]),
-                'status' => 'pending',
-            ]);
-        }
+        RemoteCommand::create([
+            'station_id' => $this->stationId,
+            'connector_id' => $this->connectorId,
+            'command' => 'RemoteStopTransaction',
+            'payload' => json_encode(['idTag' => $this->idTag]),
+            'status' => 'pending',
+        ]);
     }
 }

@@ -3,11 +3,12 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Services\CheckoutService;
-use Midtrans\Config;
-use Midtrans\Snap;
 use App\Models\Transaction;
-use App\Models\RemoteCommand;
 use App\Helpers\GlobalHelper;
+use App\Mail\PaymentReceipt;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use App\Models\SessionToken;
 
 class PaymentController extends Controller
 {
@@ -66,24 +67,112 @@ class PaymentController extends Controller
             return response()->json(['message' => 'transaction not found'], 404);
         }
 
-        // contoh mapping status midtrans -> local
+        $shouldEnqueueRemoteStart = false;
+        $shouldSendReceipt = false;
+
         if ($request->transaction_status === 'settlement' || $request->transaction_status === 'capture') {
-            $transaction->payment_status = '200';
-            $transaction->save();
-
-            // After successful payment, enqueue RemoteStartTransaction command via Helper
-            GlobalHelper::enqueueRemoteStartCommand($transaction);
-
+            $transaction->payment_status = '1';
+            $shouldEnqueueRemoteStart = true;
+            $shouldSendReceipt = true;
         } elseif ($request->transaction_status === 'deny' || $request->transaction_status === 'cancel') {
-            $transaction->status = 'failed';
+            // $transaction->status = 'failed';
+            $transaction->payment_status = '3';
         } elseif ($request->transaction_status === 'expire') {
-            $transaction->status = 'expired';
+            // $transaction->status = 'expired';
+            $transaction->payment_status = '5';
         } else {
-            $transaction->status = $request->transaction_status;
+            // $transaction->status = $request->transaction_status;
+            $transaction->payment_status = '7';
         }
 
         $transaction->save();
 
+        if ($shouldEnqueueRemoteStart) {
+            // After successful payment, enqueue RemoteStartTransaction command via Helper
+            GlobalHelper::enqueueRemoteStartCommand($transaction);
+        }
+
+        if ($shouldSendReceipt && $transaction->email && (int) ($transaction->email_status ?? 0) !== 1) {
+            try {
+                Mail::to($transaction->email)->send(new PaymentReceipt($transaction));
+                $transaction->email_status = 1;
+                $transaction->save();
+            } catch (\Throwable $exception) {
+                Log::error('Failed to send payment receipt email.', [
+                    'transaction_id' => $transaction->id,
+                    'order_id' => $transaction->midtrans_order_id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+
+            // try {
+            //     $phone = GlobalHelper::formatPhoneToInternational($transaction->phone);
+            //     $customer_name = $transaction->name;
+            //     $station_name = $transaction->station->name;
+            //     $connector_number = $transaction->connector_id;
+            //     $start_time = date("Y-m-d H:i");
+            //     $amount = number_format($transaction->executed_price, 0, ',', '.');
+            //     $company_name = "Zora";
+
+            //     $wa = Http::withToken(env('WHATSAPP_TOKEN'))
+            //             ->post('https://graph.facebook.com/v18.0/' . env('WHATSAPP_PHONE_ID') . '/messages', [
+            //                 'messaging_product' => 'whatsapp',
+            //                 'to' => $phone,
+            //                 'type' => 'text',
+            //                 'text' => [
+            //                     'body' => "Hello {$customer_name},\n\n".
+            //                             "Your payment for the EV charging session has been *successfully received*. ⚡\n\n".
+            //                             "🔋 *Transaction Details:*\n".
+            //                             "• Station: {$station_name}\n".
+            //                             "• Connector: {$connector_number}\n".
+            //                             "• Start time: {$start_time}\n".
+            //                             "• Total payment: Rp{$amount}\n\n".
+            //                             "You can now start your charging session via the app or directly at the station.\n\n".
+            //                             "Thank you for choosing {$company_name}! 🌱\n\n".
+            //                             "—\n".
+            //                             "_This is an automated message. Please do not reply._"
+            //                 ]
+            //             ]);
+            // } catch (\Throwable $exception) {
+            //     Log::error('Failed to send payment receipt whatsapp.', [
+            //         'transaction_id' => $transaction->id,
+            //         'order_id' => $transaction->midtrans_order_id,
+            //         'error' => $exception->getMessage(),
+            //     ]);
+            // }
+        }
+
         return response()->json(['message' => 'ok']);
+    }
+
+    // simple status endpoint for client polling by Midtrans order_id
+    public function status(string $orderId)
+    {
+        $transaction = Transaction::where('midtrans_order_id', $orderId)->first();
+        if (!$transaction) {
+            return response()->json(['exists' => false], 404);
+        }
+        return response()->json([
+            'exists' => true,
+            'payment_status' => (int) ($transaction->payment_status ?? 0),
+        ]);
+    }
+
+    // post-payment thank you page
+    public function after()
+    {
+        // If token is passed, delete it from session_tokens table
+        $token = request('token');
+        if ($token) {
+            try {
+                SessionToken::where('token', $token)->delete();
+            } catch (\Throwable $e) {
+                Log::warning('Failed deleting session token on post-payment page', [
+                    'token' => substr($token, 0, 16) . '...',
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+        return view('home.after');
     }
 }

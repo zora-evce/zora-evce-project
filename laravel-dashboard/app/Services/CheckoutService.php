@@ -4,6 +4,7 @@ namespace App\Services;
 use Midtrans\Snap;
 use Midtrans\Config;
 use App\Repositories\TransactionRepositoryInterface;
+use App\Models\TransactionidPool;
 
 class CheckoutService
 {
@@ -24,9 +25,7 @@ class CheckoutService
     {
         // --------------------
         // 1. Generate unique transactionId (4-char random, no collision)
-        do {
-            $transactionId = substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 4);
-        } while (\App\Models\Transaction::where('transactionId', $transactionId)->exists());
+        $transactionId = substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 4);
 
         // 2. Get station and connector (you may need to adapt these if more info needed from $data)
         $station_id = $data['station_id'] ?? null;
@@ -60,9 +59,19 @@ class CheckoutService
             'stop_time'         => null,
         ]);
 
-        $orderId = 'ORDER-' . $transaction->id . '-' . time();
+        $orderId = 'ZOR-' . $transaction->id . '-' . time();
         $transaction->midtrans_order_id = $orderId;
         $transaction->save();
+
+        // Save transactionId to transactionid_pool
+        $pool = new TransactionidPool;
+        $pool->transactionId = $transactionId;
+        $pool->id_transaction = $transaction->id;
+        $pool->station_id = $station_id;
+        $pool->connector_id = $connector_id;
+        $pool->status = 0;
+
+        $pool->save();
 
         // --------------------
         // Prepare params for Midtrans
