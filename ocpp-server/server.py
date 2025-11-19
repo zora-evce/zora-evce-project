@@ -140,9 +140,9 @@ class ChargePoint(CP16):
                         id_tag = payload.get("idTag") or payload.get("id_tag") or "CARD"
                         connector_id = norm.get("connector") or payload.get("connectorId")
                         if connector_id is not None:
-                            req = call.RemoteStartTransaction(id_tag=id_tag, connector_id=int(connector_id))
+                            req = call.RemoteStartTransactionPayload(id_tag=id_tag, connector_id=int(connector_id))
                         else:
-                            req = call.RemoteStartTransaction(id_tag=id_tag)
+                            req = call.RemoteStartTransactionPayload(id_tag=id_tag)
                         await self.call(req)
 
                     elif name == "RemoteStopTransaction":
@@ -152,7 +152,7 @@ class ChargePoint(CP16):
                             tx = int(tx_raw)
                         except Exception:
                             tx = 0
-                        req = call.RemoteStopTransaction(transaction_id=tx)
+                        req = call.RemoteStopTransactionPayload(transaction_id=tx)
                         await self.call(req)
 
                 await asyncio.sleep(POLL_SEC)
