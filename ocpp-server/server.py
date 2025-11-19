@@ -1,16 +1,21 @@
 import asyncio
 import logging
 import os
+from dotenv import load_dotenv
 from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import urlparse, parse_qs
 
 import httpx
 from websockets.server import serve
+load_dotenv(dotenv_path='.env', override=True)
 from ocpp.routing import on
 from ocpp.v16 import ChargePoint as CP16
 from ocpp.v16.enums import RegistrationStatus, Action
 from ocpp.v16 import call_result, call
+
+# 🔧 bring in the normalizer
+from ocpp_bridge import _normalize_remote_cmd
 
 # ------------ Config ------------
 LARAVEL_BASE = os.getenv("LARAVEL_BASE", "https://zora.apenable.com")
@@ -27,31 +32,64 @@ log = logging.getLogger("ocpp-server")
 # httpx async client (module-level; closed on process exit)
 http = httpx.AsyncClient(timeout=10.0, verify=True)
 
+# --- Key selection helpers ---
+_OCPP_MAP = None
+def _parse_key_map():
+    global _OCPP_MAP
+    if _OCPP_MAP is not None:
+        return _OCPP_MAP
+    raw = os.getenv("OCPP_KEY_MAP","").strip()
+    m = {}
+    if raw:
+        # format: A=keyA,B=keyB
+        for pair in raw.split(","):
+            if "=" in pair:
+                k,v = pair.split("=",1)
+                m[k.strip()] = v.strip()
+    _OCPP_MAP = m
+    return _OCPP_MAP
+
+def _key_for_station(station_code: str, default_key: str):
+    m = _parse_key_map()
+    return m.get(station_code, default_key or "")
+
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 # ------------ Helpers ------------
 async def post_laravel(path: str, payload: dict) -> dict:
     url = f"{LARAVEL_BASE}/api/ocpp/{path.lstrip('/')}"
+    st = (payload or {}).get("station_code") or ""
+    key = _key_for_station(st, OCPP_KEY)
     headers = {
         "Content-Type": "application/json",
-        "Accept": "application/json",          # <-- add this
-        "X-OCPP-Key": OCPP_KEY,
+        "Accept": "application/json",
+        "X-OCPP-Key": key,
     }
     r = await http.post(url, headers=headers, json=payload)
+    if r.status_code >= 400:
+        import logging
+        logger = logging.getLogger("ocpp-server")
+        logger.error("Laravel error %s for %s: %s", r.status_code, url, r.text)
     r.raise_for_status()
     return r.json()
 
 async def poll_command(station_code: str, connector: Optional[int]) -> Optional[dict]:
+    """
+    Returns the RAW JSON from Laravel (not just the inner 'command'),
+    so we can normalize field names robustly.
+    """
     params = {"station_code": station_code}
     if connector is not None:
         params["connector"] = connector
-    headers = {"X-OCPP-Key": OCPP_KEY}
+    # pilih key per-stasiun (fallback ke OCPP_KEY jika tidak ada di map)
+    key = _key_for_station(station_code, OCPP_KEY)
+    headers = {"X-OCPP-Key": key}
     url = f"{LARAVEL_BASE}/api/ocpp/commands/poll"
     r = await http.get(url, headers=headers, params=params)
     r.raise_for_status()
-    data = r.json()
-    return data.get("command")
+    return r.json()
+
 
 # ------------ ChargePoint class ------------
 class ChargePoint(CP16):
@@ -61,6 +99,12 @@ class ChargePoint(CP16):
         self._running = True
         self._poller_task = None
         self._tx_seq = 0
+
+        # hasil Authorize terakhir dari backend
+        self._last_auth = None  # {"id_tag": str, "ok": bool, "card_status": str, "time": str}
+
+        # sesi aktif per connector: connector_id -> {"tx_id": int, "id_tag": str, "started_at": str}
+        self._active_sessions = {}
 
     async def start_poller(self):
         if self._poller_task is None or self._poller_task.done():
@@ -80,18 +124,37 @@ class ChargePoint(CP16):
         connector_hint = None
         while self._running:
             try:
-                cmd = await poll_command(self.cp_id, connector_hint)
-                if cmd:
-                    name = cmd.get("command")
-                    payload = cmd.get("payload") or {}
+                raw = await poll_command(self.cp_id, connector_hint)
+                if raw:
+                    log.info("poll raw: %s", raw)
+                norm = _normalize_remote_cmd(raw) if raw else None
+
+                if norm and norm.get("name"):
+                    name = norm["name"]
+                    payload = norm.get("payload") or {}
+                    # Keep/learn connector hint if present
+                    if norm.get("connector") is not None:
+                        connector_hint = norm["connector"]
+
                     if name == "RemoteStartTransaction":
-                        id_tag = payload.get("idTag") or "CARD"
-                        req = call.RemoteStartTransactionPayload(id_tag=id_tag)
+                        id_tag = payload.get("idTag") or payload.get("id_tag") or "CARD"
+                        connector_id = norm.get("connector") or payload.get("connectorId")
+                        if connector_id is not None:
+                            req = call.RemoteStartTransaction(id_tag=id_tag, connector_id=int(connector_id))
+                        else:
+                            req = call.RemoteStartTransaction(id_tag=id_tag)
                         await self.call(req)
+
                     elif name == "RemoteStopTransaction":
-                        tx = int(payload.get("transactionId") or 0)
-                        req = call.RemoteStopTransactionPayload(transaction_id=tx)
+                        # Laravel might send 'transactionId' (str or int)
+                        tx_raw = payload.get("transactionId") or payload.get("transaction_id") or 0
+                        try:
+                            tx = int(tx_raw)
+                        except Exception:
+                            tx = 0
+                        req = call.RemoteStopTransaction(transaction_id=tx)
                         await self.call(req)
+
                 await asyncio.sleep(POLL_SEC)
             except Exception as e:
                 log.warning("poll/send command error: %s", e)
@@ -120,30 +183,137 @@ class ChargePoint(CP16):
             "timestamp": utcnow(),
             "raw": {"action": "BootNotification", **p},
         }))
-        return call_result.BootNotificationPayload(
+        return call_result.BootNotification(
             current_time=utcnow(),
-            interval=300,
+            interval=30,
             status=RegistrationStatus.accepted,
         )
 
     @on('Authorize')
     async def on_authorize(self, **p):
-        id_tag = p.get("idTag") or ""
-        asyncio.create_task(self._safe_post("authorize", {
+        # ambil idTag dari payload OCPP (idTag camelCase) atau fallback ke id_tag snake_case
+        id_tag = p.get("idTag") or p.get("id_tag") or ""
+
+        body = {
             "station_code": self.cp_id,
+            # kirim dua-duanya supaya Laravel happy apapun rule-nya
             "idTag": id_tag,
+            "id_tag": id_tag,
             "raw": {"action": "Authorize", **p},
-        }))
-        return call_result.AuthorizePayload(id_tag_info={"status": "Accepted"})
+        }
+
+        ok = False
+        card_status = "unknown"
+
+        try:
+            # tanya Laravel dan ikut keputusannya
+            resp = await post_laravel("authorize", body)
+            ok = bool(resp.get("ok", False))
+            card_status = (resp.get("card_status") or "unknown").lower()
+        except Exception as e:
+            log.exception("Authorize -> Laravel error for %s: %s", self.cp_id, e)
+            ok = False
+            card_status = "error"
+
+        # simpan ke state lokal
+        self._last_auth = {
+            "id_tag": id_tag,
+            "ok": ok,
+            "card_status": card_status,
+            "time": utcnow(),
+        }
+
+        # mapping card_status backend -> status OCPP
+        if not ok:
+            status = "Invalid"
+        else:
+            if card_status in ("allowed", "active", "unknown", ""):
+                status = "Accepted"
+            elif card_status in ("rejected", "blocked"):
+                status = "Blocked"
+            else:
+                status = "Accepted"
+
+        return call_result.Authorize(
+            id_tag_info={"status": status}
+        )
 
     @on('StartTransaction')
     async def on_start_transaction(self, **p):
         connector_id = int(p.get("connectorId") or 1)
-        id_tag = p.get("idTag") or ""
-        meter_start = int(p.get("meterStart") or 0)
+        id_tag = p.get("idTag") or p.get("id_tag") or ""
+        meter_start = int(p.get("meterStart") or p.get("meter_start") or 0)
         ts = p.get("timestamp") or utcnow()
+
+        # 1) cek hasil Authorize terakhir (kartu bener & di-allow)
+        authorized_by_auth = False
+        if self._last_auth:
+            last = self._last_auth
+            if last.get("ok") and (last.get("id_tag") or "") == id_tag:
+                authorized_by_auth = True
+
+        # default: anggap allowed dulu, nanti backend yang ngunci per-connector
+        connector_allowed = True
+        backend_reason = None
+
+        # 2) tanya Laravel: apakah kartu ini boleh di station+connector ini?
+        body = {
+            "station_code": self.cp_id,
+            "connector": connector_id,
+            "transactionId": "",  # kita isi nanti kalau di-allow
+            "idTag": id_tag or None,
+            "meterStart": meter_start,
+            "timestamp": ts,
+            # kalau nanti kita mau passing info "denied" dari sini, bisa diisi
+        }
+
+        try:
+            resp = await post_laravel("start-transaction", body)
+            connector_allowed = bool(resp.get("ok", True))
+            backend_reason = resp.get("reason")
+        except Exception as e:
+            log.exception("StartTransaction -> Laravel error for %s: %s", self.cp_id, e)
+            # terserah mau fail-open atau fail-closed
+            connector_allowed = False
+            backend_reason = "laravel_error"
+
+        # 3) final decision = Authorize OK AND connector_allowed
+        if not (authorized_by_auth and connector_allowed):
+            log.warning(
+                "StartTransaction DENIED for %s: connector=%s idTag=%r "
+                "auth_ok=%s backend_ok=%s backend_reason=%r",
+                self.cp_id, connector_id, id_tag,
+                authorized_by_auth, connector_allowed, backend_reason
+            )
+
+            # kirim ulang ke Laravel hanya sebagai log denied (opsional)
+            deny_body = {
+                "station_code": self.cp_id,
+                "connector": connector_id,
+                "transactionId": "0",
+                "idTag": id_tag or None,
+                "meterStart": meter_start,
+                "timestamp": ts,
+                "denied": True,
+                "raw": {"action": "StartTransaction", **p},
+            }
+            asyncio.create_task(self._safe_post("start-transaction", deny_body))
+
+            return call_result.StartTransaction(
+                transaction_id=0,
+                id_tag_info={"status": "Invalid"},
+            )
+
+        # 4) allowed → buat transaksi lokal & catat sesi aktif
         tx_id = self._next_tx_id()
-        asyncio.create_task(self._safe_post("start-transaction", {
+        self._active_sessions[connector_id] = {
+            "tx_id": tx_id,
+            "id_tag": id_tag,
+            "started_at": ts,
+        }
+
+        # kirim event normal ke Laravel
+        ok_body = {
             "station_code": self.cp_id,
             "connector": connector_id,
             "transactionId": str(tx_id),
@@ -151,8 +321,10 @@ class ChargePoint(CP16):
             "meterStart": meter_start,
             "timestamp": ts,
             "raw": {"action": "StartTransaction", **p},
-        }))
-        return call_result.StartTransactionPayload(
+        }
+        asyncio.create_task(self._safe_post("start-transaction", ok_body))
+
+        return call_result.StartTransaction(
             transaction_id=tx_id,
             id_tag_info={"status": "Accepted"},
         )
@@ -169,26 +341,48 @@ class ChargePoint(CP16):
             "meterValue": meter_value,
             "raw": {"action": "MeterValues", **p},
         }))
-        return call_result.MeterValuesPayload()
+        return call_result.MeterValues()
 
     @on('StopTransaction')
     async def on_stop_transaction(self, **p):
+        connector_id = int(p.get("connectorId") or 1)
         tx_id = int(p.get("transactionId") or 0)
-        meter_stop = int(p.get("meterStop") or 0)
+        meter_stop = int(p.get("meterStop") or p.get("meter_stop") or 0)
         ts = p.get("timestamp") or utcnow()
         reason = p.get("reason")
-        id_tag = p.get("idTag")
+        id_tag = p.get("idTag") or p.get("id_tag")
+
+        session = self._active_sessions.get(connector_id)
+        mismatch_id_tag = False
+
+        if session:
+            if tx_id == 0:
+                tx_id = session.get("tx_id") or 0
+
+            active_tag = session.get("id_tag")
+            if id_tag and active_tag and id_tag != active_tag:
+                mismatch_id_tag = True
+                log.warning(
+                    "StopTransaction with DIFFERENT card on %s: connector=%s active=%r stop=%r",
+                    self.cp_id, connector_id, active_tag, id_tag
+                )
+
         asyncio.create_task(self._safe_post("stop-transaction", {
             "station_code": self.cp_id,
-            "connector": p.get("connectorId") or 1,
+            "connector": connector_id,
             "transactionId": str(tx_id),
             "idTag": id_tag,
             "meterStop": meter_stop,
             "reason": reason,
             "timestamp": ts,
+            "mismatch_id_tag": mismatch_id_tag,
             "raw": {"action": "StopTransaction", **p},
         }))
-        return call_result.StopTransactionPayload(
+
+        if session:
+            self._active_sessions.pop(connector_id, None)
+
+        return call_result.StopTransaction(
             id_tag_info={"status": "Accepted"}
         )
 
@@ -206,7 +400,7 @@ class ChargePoint(CP16):
             "timestamp": ts,
             "raw": {"action": "StatusNotification", **p},
         }))
-        return call_result.StatusNotificationPayload()
+        return call_result.StatusNotification()
 
     @on('Heartbeat')
     async def on_heartbeat(self, **p):
@@ -215,7 +409,7 @@ class ChargePoint(CP16):
             "timestamp": utcnow(),
             "raw": {"action": "Heartbeat", **p},
         }))
-        return call_result.HeartbeatPayload(current_time=utcnow())
+        return call_result.Heartbeat(current_time=utcnow())
 
 # ------------ WebSocket entry ------------
 async def handler(websocket, path):
@@ -253,9 +447,9 @@ async def handler(websocket, path):
     try:
         log.info("Starting OCPP listener for %s ...", cp_id)
         await asyncio.gather(
-            charge_point.start(),       # OCPP router (from CP16)
-            charge_point.start_poller(),# our command poller
-            websocket.wait_closed(),    # keep task alive
+            charge_point.start(),        # OCPP router (from CP16)
+            charge_point.start_poller(), # our command poller
+            websocket.wait_closed(),     # keep task alive
         )
         log.info("OCPP listener finished for %s", cp_id)
     finally:
@@ -264,7 +458,7 @@ async def handler(websocket, path):
 
 async def main():
     log.info("OCPP server starting on %s:%d", LISTEN_HOST, LISTEN_PORT)
-    async with serve(handler, LISTEN_HOST, LISTEN_PORT, subprotocols=["ocpp1.6"]):
+    async with serve(handler, LISTEN_HOST, LISTEN_PORT, subprotocols=["ocpp1.6"], ping_interval=None, ping_timeout=None, close_timeout=120):
         await asyncio.Future()  # run forever
 
 if __name__ == "__main__":
