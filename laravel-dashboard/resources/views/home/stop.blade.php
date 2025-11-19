@@ -1,6 +1,4 @@
-@extends('templates.template')
 
-@section('content')
 <div class="container mt-5">
 	<div class="row justify-content-center">
 		<div class="col-md-6">
@@ -20,7 +18,6 @@
 	</div>
 </div>
 
-@push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
@@ -74,7 +71,5 @@ document.addEventListener('DOMContentLoaded', function(){
 	});
 });
 </script>
-@endpush
-@endsection
 
 
