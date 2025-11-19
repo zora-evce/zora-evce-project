@@ -100,6 +100,12 @@ class ChargePoint(CP16):
         self._poller_task = None
         self._tx_seq = 0
 
+        # hasil Authorize terakhir dari backend
+        self._last_auth = None  # {"id_tag": str, "ok": bool, "card_status": str, "time": str}
+
+        # sesi aktif per connector: connector_id -> {"tx_id": int, "id_tag": str, "started_at": str}
+        self._active_sessions = {}
+
     async def start_poller(self):
         if self._poller_task is None or self._poller_task.done():
             self._running = True
@@ -196,20 +202,118 @@ class ChargePoint(CP16):
             "raw": {"action": "Authorize", **p},
         }
 
-        asyncio.create_task(self._safe_post("authorize", body))
+        ok = False
+        card_status = "unknown"
+
+        try:
+            # tanya Laravel dan ikut keputusannya
+            resp = await post_laravel("authorize", body)
+            ok = bool(resp.get("ok", False))
+            card_status = (resp.get("card_status") or "unknown").lower()
+        except Exception as e:
+            log.exception("Authorize -> Laravel error for %s: %s", self.cp_id, e)
+            ok = False
+            card_status = "error"
+
+        # simpan ke state lokal
+        self._last_auth = {
+            "id_tag": id_tag,
+            "ok": ok,
+            "card_status": card_status,
+            "time": utcnow(),
+        }
+
+        # mapping card_status backend -> status OCPP
+        if not ok:
+            status = "Invalid"
+        else:
+            if card_status in ("allowed", "active", "unknown", ""):
+                status = "Accepted"
+            elif card_status in ("rejected", "blocked"):
+                status = "Blocked"
+            else:
+                status = "Accepted"
 
         return call_result.Authorize(
-            id_tag_info={"status": "Accepted"}
+            id_tag_info={"status": status}
         )
 
     @on('StartTransaction')
     async def on_start_transaction(self, **p):
         connector_id = int(p.get("connectorId") or 1)
-        id_tag = p.get("idTag") or ""
-        meter_start = int(p.get("meterStart") or 0)
+        id_tag = p.get("idTag") or p.get("id_tag") or ""
+        meter_start = int(p.get("meterStart") or p.get("meter_start") or 0)
         ts = p.get("timestamp") or utcnow()
+
+        # 1) cek hasil Authorize terakhir (kartu bener & di-allow)
+        authorized_by_auth = False
+        if self._last_auth:
+            last = self._last_auth
+            if last.get("ok") and (last.get("id_tag") or "") == id_tag:
+                authorized_by_auth = True
+
+        # default: anggap allowed dulu, nanti backend yang ngunci per-connector
+        connector_allowed = True
+        backend_reason = None
+
+        # 2) tanya Laravel: apakah kartu ini boleh di station+connector ini?
+        body = {
+            "station_code": self.cp_id,
+            "connector": connector_id,
+            "transactionId": "",  # kita isi nanti kalau di-allow
+            "idTag": id_tag or None,
+            "meterStart": meter_start,
+            "timestamp": ts,
+            # kalau nanti kita mau passing info "denied" dari sini, bisa diisi
+        }
+
+        try:
+            resp = await post_laravel("start-transaction", body)
+            connector_allowed = bool(resp.get("ok", True))
+            backend_reason = resp.get("reason")
+        except Exception as e:
+            log.exception("StartTransaction -> Laravel error for %s: %s", self.cp_id, e)
+            # terserah mau fail-open atau fail-closed
+            connector_allowed = False
+            backend_reason = "laravel_error"
+
+        # 3) final decision = Authorize OK AND connector_allowed
+        if not (authorized_by_auth and connector_allowed):
+            log.warning(
+                "StartTransaction DENIED for %s: connector=%s idTag=%r "
+                "auth_ok=%s backend_ok=%s backend_reason=%r",
+                self.cp_id, connector_id, id_tag,
+                authorized_by_auth, connector_allowed, backend_reason
+            )
+
+            # kirim ulang ke Laravel hanya sebagai log denied (opsional)
+            deny_body = {
+                "station_code": self.cp_id,
+                "connector": connector_id,
+                "transactionId": "0",
+                "idTag": id_tag or None,
+                "meterStart": meter_start,
+                "timestamp": ts,
+                "denied": True,
+                "raw": {"action": "StartTransaction", **p},
+            }
+            asyncio.create_task(self._safe_post("start-transaction", deny_body))
+
+            return call_result.StartTransaction(
+                transaction_id=0,
+                id_tag_info={"status": "Invalid"},
+            )
+
+        # 4) allowed → buat transaksi lokal & catat sesi aktif
         tx_id = self._next_tx_id()
-        asyncio.create_task(self._safe_post("start-transaction", {
+        self._active_sessions[connector_id] = {
+            "tx_id": tx_id,
+            "id_tag": id_tag,
+            "started_at": ts,
+        }
+
+        # kirim event normal ke Laravel
+        ok_body = {
             "station_code": self.cp_id,
             "connector": connector_id,
             "transactionId": str(tx_id),
@@ -217,7 +321,9 @@ class ChargePoint(CP16):
             "meterStart": meter_start,
             "timestamp": ts,
             "raw": {"action": "StartTransaction", **p},
-        }))
+        }
+        asyncio.create_task(self._safe_post("start-transaction", ok_body))
+
         return call_result.StartTransaction(
             transaction_id=tx_id,
             id_tag_info={"status": "Accepted"},
@@ -239,21 +345,43 @@ class ChargePoint(CP16):
 
     @on('StopTransaction')
     async def on_stop_transaction(self, **p):
+        connector_id = int(p.get("connectorId") or 1)
         tx_id = int(p.get("transactionId") or 0)
-        meter_stop = int(p.get("meterStop") or 0)
+        meter_stop = int(p.get("meterStop") or p.get("meter_stop") or 0)
         ts = p.get("timestamp") or utcnow()
         reason = p.get("reason")
-        id_tag = p.get("idTag")
+        id_tag = p.get("idTag") or p.get("id_tag")
+
+        session = self._active_sessions.get(connector_id)
+        mismatch_id_tag = False
+
+        if session:
+            if tx_id == 0:
+                tx_id = session.get("tx_id") or 0
+
+            active_tag = session.get("id_tag")
+            if id_tag and active_tag and id_tag != active_tag:
+                mismatch_id_tag = True
+                log.warning(
+                    "StopTransaction with DIFFERENT card on %s: connector=%s active=%r stop=%r",
+                    self.cp_id, connector_id, active_tag, id_tag
+                )
+
         asyncio.create_task(self._safe_post("stop-transaction", {
             "station_code": self.cp_id,
-            "connector": p.get("connectorId") or 1,
+            "connector": connector_id,
             "transactionId": str(tx_id),
             "idTag": id_tag,
             "meterStop": meter_stop,
             "reason": reason,
             "timestamp": ts,
+            "mismatch_id_tag": mismatch_id_tag,
             "raw": {"action": "StopTransaction", **p},
         }))
+
+        if session:
+            self._active_sessions.pop(connector_id, None)
+
         return call_result.StopTransaction(
             id_tag_info={"status": "Accepted"}
         )
