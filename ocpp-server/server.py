@@ -183,7 +183,7 @@ class ChargePoint(CP16):
             "timestamp": utcnow(),
             "raw": {"action": "BootNotification", **p},
         }))
-        return call_result.BootNotification(
+        return call_result.BootNotificationPayload(
             current_time=utcnow(),
             interval=30,
             status=RegistrationStatus.accepted,
@@ -234,7 +234,7 @@ class ChargePoint(CP16):
             else:
                 status = "Accepted"
 
-        return call_result.Authorize(
+        return call_result.AuthorizePayload(
             id_tag_info={"status": status}
         )
 
@@ -299,7 +299,7 @@ class ChargePoint(CP16):
             }
             asyncio.create_task(self._safe_post("start-transaction", deny_body))
 
-            return call_result.StartTransaction(
+            return call_result.StartTransactionPayload(
                 transaction_id=0,
                 id_tag_info={"status": "Invalid"},
             )
@@ -324,7 +324,7 @@ class ChargePoint(CP16):
         }
         asyncio.create_task(self._safe_post("start-transaction", ok_body))
 
-        return call_result.StartTransaction(
+        return call_result.StartTransactionPayload(
             transaction_id=tx_id,
             id_tag_info={"status": "Accepted"},
         )
@@ -341,7 +341,7 @@ class ChargePoint(CP16):
             "meterValue": meter_value,
             "raw": {"action": "MeterValues", **p},
         }))
-        return call_result.MeterValues()
+        return call_result.MeterValuesPayload()
 
     @on('StopTransaction')
     async def on_stop_transaction(self, **p):
@@ -382,7 +382,7 @@ class ChargePoint(CP16):
         if session:
             self._active_sessions.pop(connector_id, None)
 
-        return call_result.StopTransaction(
+        return call_result.StopTransactionPayload(
             id_tag_info={"status": "Accepted"}
         )
 
@@ -400,7 +400,7 @@ class ChargePoint(CP16):
             "timestamp": ts,
             "raw": {"action": "StatusNotification", **p},
         }))
-        return call_result.StatusNotification()
+        return call_result.StatusNotificationPayload()
 
     @on('Heartbeat')
     async def on_heartbeat(self, **p):
@@ -409,7 +409,7 @@ class ChargePoint(CP16):
             "timestamp": utcnow(),
             "raw": {"action": "Heartbeat", **p},
         }))
-        return call_result.Heartbeat(current_time=utcnow())
+        return call_result.HeartbeatPayload(current_time=utcnow())
 
 # ------------ WebSocket entry ------------
 async def handler(websocket, path):
