@@ -43,6 +43,11 @@
 </head>
 <body>
     <div class="container">
+        <div class="col-lg-8 col-xl-6 text-center">
+            <img src="{{ asset('images/logo-white.png') }}" alt="" style="display:block; margin: 0 auto;width:40%">
+            <hr class="divider" />
+            <br>
+        </div>
         <h1>Payment Receipt</h1>
         <p>Hello {{ $transaction->name ?? 'Customer' }},</p>
         <p>Thank you for your payment. Here are your transaction details:</p>
@@ -67,11 +72,7 @@
                 </tr>
                 <tr>
                     <th>Connector</th>
-                    <td>{{ optional($transaction->connector)->connector_id ?? '-' }}</td>
-                </tr>
-                <tr>
-                    <th>Tariff</th>
-                    <td>{{ optional($transaction->tariff)->tariff_code ?? '-' }}</td>
+                    <td>{{ optional($transaction->connector)->connector_number ?? '-' }}</td>
                 </tr>
                 <tr>
                     <th>Payment Time</th>

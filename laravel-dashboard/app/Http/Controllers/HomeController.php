@@ -123,9 +123,11 @@ class HomeController extends Controller
         // Enqueue RemoteStopTransaction command
         $connector = $transaction->connector;
         $payload = [];
-        if ($connector && isset($connector->idTag) && $connector->idTag) {
-            $payload['idTag'] = $connector->idTag;
-        }
+        // if ($connector && isset($connector->idTag) && $connector->idTag) {
+        //     $payload['idTag'] = $connector->idTag;
+        // }
+        $payload['transactionId'] = $transaction->transactionId;
+
         RemoteCommand::create([
             'station_id'   => $transaction->station_id,
             'connector_id' => $transaction->connector_id,
