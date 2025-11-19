@@ -25,7 +25,8 @@ class CheckoutService
     {
         // --------------------
         // 1. Generate unique transactionId (4-char random, no collision)
-        $transactionId = substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 4);
+        // $transactionId = substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 4);
+        $transactionId = rand(1000, 9999);
 
         // 2. Get station and connector (you may need to adapt these if more info needed from $data)
         $station_id = $data['station_id'] ?? null;
