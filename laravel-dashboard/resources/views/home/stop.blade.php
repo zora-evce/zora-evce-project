@@ -1,3 +1,4 @@
+<meta name="csrf-token" content="{{ csrf_token() }}" />
 
 <div class="container mt-5">
 	<div class="row justify-content-center">
