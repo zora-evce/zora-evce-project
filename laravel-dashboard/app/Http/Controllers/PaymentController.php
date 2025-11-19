@@ -92,7 +92,7 @@ class PaymentController extends Controller
             GlobalHelper::enqueueRemoteStartCommand($transaction);
         }
 
-        if ($shouldSendReceipt && $transaction->email && (int) ($transaction->email_status ?? 0) !== 1) {
+        if ($shouldSendReceipt) {
             try {
                 Mail::to($transaction->email)->send(new PaymentReceipt($transaction));
                 $transaction->email_status = 1;
