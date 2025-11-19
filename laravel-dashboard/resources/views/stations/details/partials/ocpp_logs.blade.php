@@ -4,32 +4,31 @@
         <div class="card border-0 shadow-sm rounded-4">
             <div class="card-header bg-primary text-white text-center py-3">
                 <h5 class="card-title mb-0 fw-semibold">
-                    Transactions
+                    OCPP Logs
                 </h5>
             </div>
             <div class="card-body p-4 bg-white">
-                <div class="row g-4">
-                    <div class="col-md-12">
-                        <div class="table-responsive">
-                            <table id="auditTable" class="table table-hover align-middle">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th style="width: 30px;">No</th>
-                                        <th style="width: 30px;">Chargin Station ID</th>
-                                        <th>Transaction ID</th>
-                                        <th>Connector ID</th>
-                                        <th>Address</th>
-                                        <th>Payment Status</th>
-                                        <th>Start Time</th>
-                                        <th>Stop Time</th>
-                                        <th>Total Time</th>
-                                        <th>Total Cost</th>
-                                        <th style="width: 80px;"><i class="fas fa-cogs"></i></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                </tbody>
-                            </table>
+                <div class="card-body p-4 bg-white">
+                    <div class="row g-4">
+                        <div class="col-md-12">
+                            <div class="table-responsive">
+                                <table id="auditTable" class="table table-hover align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 30px;">No</th>
+                                            <th style="width: 30px;">Chargin Station Code</th>
+                                            <th>Type</th>
+                                            <th>Vendor</th>
+                                            <th>Model</th>
+                                            <th>Firmware</th>
+                                            <th>Timestamp</th>
+                                            <th style="width: 80px;"><i class="fas fa-cogs"></i></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -42,8 +41,6 @@
 <script>
     $(function() {
         let stationId = "{{ $station_id }}";
-        console.log(stationId);
-
         let table = $("#auditTable").DataTable({
             responsive: true,
             lengthChange: true,
@@ -52,7 +49,7 @@
             processing: true,
             serverSide: true,
             ajax: {
-                url: '{{ route("cpo.stations.details.get-transactions") }}',
+                url: '{{ route("cpo.stations.details.get-ocpp-logs") }}',
                 type: 'GET',
                 data: function(d) {
                     d.station_id = stationId;
@@ -67,56 +64,38 @@
                     }
                 },
                 {
-                    data: 'code',
-                    name: 'Chargin Station ID',
+                    data: 'station_code',
+                    name: 'Chargin Station Code',
                     searchable: true,
                     orderable: true
                 },
                 {
-                    data: 'transactionId',
-                    name: 'Transaction ID',
+                    data: 'type',
+                    name: 'Type',
                     searchable: true,
                     orderable: true
                 },
                 {
-                    data: 'connector_id',
-                    name: 'Connector ID',
+                    data: 'vendor',
+                    name: 'Vendor',
                     searchable: true,
                     orderable: true
                 },
                 {
-                    data: 'address',
-                    name: 'Address',
+                    data: 'model',
+                    name: 'Model',
                     searchable: true,
                     orderable: true
                 },
                 {
-                    data: 'payment_status_name',
-                    name: 'Payment Status',
+                    data: 'firmware',
+                    name: 'Firmware',
                     searchable: true,
                     orderable: true
                 },
                 {
-                    data: 'start_time',
-                    name: 'Start Time',
-                    searchable: true,
-                    orderable: true
-                },
-                {
-                    data: 'stop_time',
-                    name: 'Stop Time',
-                    searchable: true,
-                    orderable: true
-                },
-                {
-                    data: 'total_time',
-                    name: 'Total Time',
-                    searchable: true,
-                    orderable: true
-                },
-                {
-                    data: 'total_cost',
-                    name: 'Total Cost',
+                    data: 'device_timestamp',
+                    name: 'Timestamp',
                     searchable: true,
                     orderable: true
                 },

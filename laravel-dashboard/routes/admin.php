@@ -18,6 +18,14 @@ Route::group(['prefix' => 'stations'], function () {
         Route::get('/', [StationDetailsController::class, 'indexDetails'])->name('stations.details');
         Route::get('/get-connectors', [StationDetailsController::class, 'getConnectors'])->name('stations.details.get-connectors');
         Route::get('/{id}/tab/{tab}', [StationDetailsController::class, 'loadTab'])->name('stations.details.tab');
+        Route::get('/get-transactions', [StationDetailsController::class, 'getDataTransactions'])->name('stations.details.get-transactions');
+        Route::get('/get-ocpp-logs', [StationDetailsController::class, 'getDataOcppLogs'])->name('stations.details.get-ocpp-logs');
+        Route::group(['prefix' => 'tariff'], function () {
+            Route::post('/save-tariff', [StationDetailsController::class, 'saveTariff'])->name('stations.details.tariff.save-tariff');
+        });
+        Route::group(['prefix' => 'settings'], function () {
+            Route::get('/download-qr', [StationDetailsController::class, 'downloadQr'])->name('stations.details.settings.download-qr');
+        });
     });
 });
 Route::group(['prefix' => 'transactions'], function () {

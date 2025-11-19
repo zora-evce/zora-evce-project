@@ -11,6 +11,7 @@ use App\Traits\CardsTrait;
 use App\Traits\CommandsTrait;
 use App\Traits\ConfigurationTrait;
 use App\Traits\LocationTrait;
+use App\Traits\OcppLogsTrait;
 use App\Traits\OverviewTrait;
 use App\Traits\SettingsTrait;
 use App\Traits\TariffTrait;
@@ -29,6 +30,7 @@ class StationDetailsController extends Controller
     use TransactionsTrait;
     use TechnicalInformationTrait;
     use ConfigurationTrait;
+    use OcppLogsTrait;
 
     public $station_id;
 
