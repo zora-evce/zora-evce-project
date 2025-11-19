@@ -209,3 +209,49 @@
     margin-right: 5px;  /* Adds space between label and dropdown */
     white-space: nowrap; /* Prevents "Show" and "entries" from splitting */
 }
+.form-control:focus {
+    border-color: var(--zora) !important;
+    box-shadow: 0 0 0 0.15rem rgba(2, 60, 97, 0.2) !important;
+}
+.btn-outline-primary {
+    color: var(--zora) !important;
+    border-color: var(--zora) !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus {
+    color: #fff !important;
+    background-color: var(--zora) !important;
+    border-color: var(--zora-dark) !important;
+}
+.btn-primary,
+.btn-danger,
+.btn-secondary {
+    height: 38px;
+    padding: 0 16px;
+    font-weight: 500;
+    border-radius: 8px;
+}
+
+.btn-danger {
+    background-color: #b91c1c !important;
+    border-color: #b91c1c !important;
+}
+.btn-danger:hover {
+    background-color: #7f1d1d !important;
+}
+.action-card select.form-control {
+    border-radius: 8px;
+    padding: 4px 10px;
+    height: 36px;
+}
+.action-card input.form-control {
+    border-radius: 8px;
+    height: 36px;
+}
+.action-card:hover {
+    box-shadow: 0 10px 30px rgba(2, 60, 97, 0.15) !important;
+}
+.badge-step {
+    background: linear-gradient(135deg, var(--zora), var(--zora-dark)) !important;
+}

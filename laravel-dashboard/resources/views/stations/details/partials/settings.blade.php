@@ -91,6 +91,25 @@
         </div>
     </div>
 </div>
+<div class="row g-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-primary text-white text-center py-3">
+                <h5 class="card-title mb-0 fw-semibold">
+                    QR Code
+                </h5>
+            </div>
+            <div class="card-body p-4 bg-white">
+                <div class="text-center">
+                    {{ $qr }}
+                </div>
+            </div>
+            <div class="card-footer text center">
+                <a href="{{ route('cpo.stations.details.settings.download-qr', ['station_id' => $station_id, 'station_code' => $station_code]) }}" class="btn btn-primary"><i class="fas fa-download mr-2"></i><span>Download QR</span></a>
+            </div>
+        </div>
+    </div>
+</div>
 <script>
     $(function() {
         $('.selectLocationType').select2();

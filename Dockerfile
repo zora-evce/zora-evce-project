@@ -10,8 +10,13 @@ RUN apt-get update && apt-get install -y \
     git \
     unzip \
     curl \
+    libmagickwand-dev --no-install-recommends \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) gd pdo pdo_pgsql zip
+
+# Install Imagick
+RUN pecl install imagick \
+    && docker-php-ext-enable imagick
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -29,14 +34,8 @@ RUN chown -R www-data:www-data /var/www/html \
 # Copy application files
 COPY . .
 
-# Install dependencies using Composer
-# RUN composer install
-
-# Generate Laravel application key
-# RUN php artisan key:generate
-
 # Expose the PHP-FPM port
 EXPOSE 9000
 
-# Run the PHP-FPM process
+# Run PHP-FPM
 CMD ["php-fpm"]
