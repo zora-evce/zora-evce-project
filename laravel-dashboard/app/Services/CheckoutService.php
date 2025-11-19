@@ -59,7 +59,7 @@ class CheckoutService
             'stop_time'         => null,
         ]);
 
-        $orderId = 'ORDER-' . $transaction->id . '-' . time();
+        $orderId = 'ZOR-' . $transaction->id . '-' . time();
         $transaction->midtrans_order_id = $orderId;
         $transaction->save();
 

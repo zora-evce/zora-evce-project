@@ -21,8 +21,6 @@ class HomeController extends Controller
 {
     public function start($station_code, $connector_code)
     {
-        $data = WebhookLog::where('payload->status', 'Available')->get();
-
         try {
             $station = Station::where('code', $station_code)->first();
             $connector = Connector::where('connector_code', $connector_code)->first();

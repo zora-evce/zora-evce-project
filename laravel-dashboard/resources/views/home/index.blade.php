@@ -161,7 +161,8 @@
         <script src="{{ asset('templates/sb/js/scripts.js') }}"></script>
         <script src="https://cdn.startbootstrap.com/sb-forms-latest.js"></script>
         <!-- Midtrans Snap.js (Sandbox) -->
-        <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script>
+        {{-- <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script> --}}
+        <script type="text/javascript" src="https://app.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script>
 
         <script>
             $(document).ready(function(){
