@@ -86,7 +86,7 @@
 
         <p>If you have any questions, feel free to reply to this email.</p>
         <p>You can force stop the charging by visiting the link below:</p>
-        <p><a href="{{ route('stop') }}">{{ route('stop') }}</a></p>
+        <p><a href="{{ route('zora.stop') }}">{{ route('zora.stop') }}</a></p>
 
         <p class="footer">
             &copy; {{ date('Y') }} {{ config('app.name', 'Zora EVCE') }}. All rights reserved.
