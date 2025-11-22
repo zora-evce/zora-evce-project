@@ -27,12 +27,12 @@ class PaymentController extends Controller
     public function checkout(Request $request)
     {
         $data = $request->only([
-            'quantity',
-            'name', 'email', 'phone_number', 'station_id', 'connector_id', 'tariff_code'
+            'quantity', 'duration', 'name', 'email', 'phone_number', 'station_id', 'connector_id', 'tariff_code'
         ]);
 
         $result = $this->checkoutService->processCheckout([
             'quantity'        => $data['quantity'] ?? null,
+            'duration'        => $data['duration'] ?? null,
             'customer_name'   => $data['name'] ?? null,
             'customer_email'  => $data['email'] ?? null,
             'customer_phone'  => $data['phone_number'] ?? null,

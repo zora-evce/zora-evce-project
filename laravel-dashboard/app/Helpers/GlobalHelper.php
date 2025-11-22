@@ -122,4 +122,43 @@ class GlobalHelper {
 
         return $phone;
     }
+
+    public static function generateDailyUniqueCode()
+    {
+        do {
+            // generate 5 digit
+            $code = random_int(10000, 99999);
+
+            // cek apakah code sudah dipakai hari ini
+            $exists = \App\Models\Transaction::whereDate('created_at', today())
+                ->where('transactionId', $code)
+                ->exists();
+
+        } while ($exists);
+
+        return $code;
+    }
+
+    public static function phoneConvert($number)
+    {
+        // Hapus semua karakter non-digit
+        $number = preg_replace('/\D/', '', $number);
+
+        // Jika sudah mulai 62
+        if (strpos($number, '62') === 0) {
+            return $number;
+        }
+
+        // Jika mulai 0 → ganti 62
+        if (strpos($number, '0') === 0) {
+            return '62' . substr($number, 1);
+        }
+
+        // Jika tanpa 0 & 62 (misal 812xxxx)
+        if (strpos($number, '8') === 0) {
+            return '62' . $number;
+        }
+
+        return $number; // fallback
+    }
 }

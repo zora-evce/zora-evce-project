@@ -7,6 +7,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use App\Services\QontakService;
+use App\Helpers\GlobalHelper;
 
 class OcppEventController extends Controller
 {
@@ -352,6 +354,19 @@ class OcppEventController extends Controller
 	                'updated_at' => now(),
 	            ]);
 	        }
+
+			// SEND WA
+			$phone = GlobalHelper::phoneConvert($transaction->phone);
+			$qontak = new QontakService();
+
+			$qontak->sendWhatsApp($phone, [
+				"name"            => $transaction->name,
+				"duration"        => $transaction->duration.' Hour(s)',
+				"price"           => $transaction->executed_price / ($transaction->duration * 60).'/Minute',
+				"total_price"     => $transaction->executed_price,
+				"tax"             => $transaction->tax,
+				"price_after_tax" => $transaction->total_price,
+			]);
 
 	        $logId = $this->logWebhook('stop-transaction', $p, ['ok'=>true], [
 	            'related_id'      => $sessionId,

@@ -5,6 +5,7 @@ use Midtrans\Snap;
 use Midtrans\Config;
 use App\Repositories\TransactionRepositoryInterface;
 use App\Models\TransactionidPool;
+use App\Helpers\GlobalHelper;
 
 class CheckoutService
 {
@@ -26,10 +27,11 @@ class CheckoutService
         // --------------------
         // 1. Generate unique transactionId (4-char random, no collision)
         // $transactionId = substr(str_shuffle('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'), 0, 4);
-        $transactionId = rand(1000, 9999);
+        $transactionId = GlobalHelper::generateDailyUniqueCode();
 
         // 2. Get station and connector (you may need to adapt these if more info needed from $data)
         $station_id = $data['station_id'] ?? null;
+        $duration = $data['duration'] ?? null;
         $connector_id = $data['connector_id'] ?? null;
         $tariff_code = $data['tariff_code'] ?? null;
 
@@ -38,6 +40,14 @@ class CheckoutService
         if ($tariff_code) {
             $tariff = \App\Models\Tariff::where('tariff_code', $tariff_code)->first();
             $executed_price = $tariff ? $tariff->tariff_price : 0;
+            $executed_price = $executed_price * ($duration * 60);
+            $tax = 0;
+            
+            if (!empty($tariff->tax_rate)) {
+                $tax = ($tariff->tax_rate / 100) * $executed_price;
+            }
+
+            $total_price = $executed_price + $tax;
         }
 
         // 4. Save Transaction as per the requirement
@@ -50,6 +60,9 @@ class CheckoutService
             'connector_id'      => $connector_id,
             'tariff_code'       => $tariff_code,
             'executed_price'    => $executed_price,
+            'tax'               => $tax,
+            'total_price'       => $total_price,
+            'duration'          => $duration,
             // midtrans_order_id to be filled after making order_id
             'midtrans_order_id' => null,
             'email_status'      => 0,
@@ -60,7 +73,7 @@ class CheckoutService
             'stop_time'         => null,
         ]);
 
-        $orderId = 'ZOR-' . $transaction->id . '-' . time();
+        $orderId = 'ZOR-' . $transactionId . '-' . time();
         $transaction->midtrans_order_id = $orderId;
         $transaction->save();
 
@@ -79,7 +92,7 @@ class CheckoutService
         $params = [
             'transaction_details' => [
                 'order_id'      => $orderId,
-                'gross_amount'  => (float)($executed_price), // enforced from backend
+                'gross_amount'  => (float)($total_price), // enforced from backend
             ],
             'customer_details' => [
                 'first_name'    => $data['customer_name'] ?? 'Customer',

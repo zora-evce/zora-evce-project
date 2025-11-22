@@ -106,15 +106,34 @@
                             <div class="mb-3">
                                 <label for="duration" class="form-label">Duration</label>
                                 <select id="duration" name="duration" class="form-select">
-                                    @foreach(($products ?? []) as $product)
-                                    @php
-                                        $minutes = (int) (data_get($product, 'tariff_value', 0));
-                                    @endphp
-                                        <option value="{{ $minutes }}">{{ $minutes }} Minutes</option>
-                                    @endforeach
+                                    <option value="1">1 Hour</option>
+                                    <option value="2">2 Hours</option>
+                                    <option value="3">3 Hours</option>
+                                    <option value="4">4 Hours</option>
+                                    <option value="5">5 Hours</option>
+                                    <option value="6">6 Hours</option>
+                                    <option value="7">7 Hours</option>
+                                    <option value="8">8 Hours</option>
+                                    <option value="9">9 Hours</option>
+                                    <option value="10">10 Hours</option>
+                                    <option value="11">11 Hours</option>
+                                    <option value="12">12 Hours</option>
+                                    <option value="13">13 Hours</option>
+                                    <option value="14">14 Hours</option>
+                                    <option value="15">15 Hours</option>
+                                    <option value="16">16 Hours</option>
+                                    <option value="17">17 Hours</option>
+                                    <option value="18">18 Hours</option>
+                                    <option value="19">19 Hours</option>
+                                    <option value="20">20 Hours</option>
+                                    <option value="21">21 Hours</option>
+                                    <option value="22">22 Hours</option>
+                                    <option value="23">23 Hours</option>
+                                    <option value="24">24 Hours</option>
                                 </select>
                             </div>
                             <div class="text-danger small d-none" id="durationError">Please select a duration.</div>
+                            <p><i>Tariff : {{ $products->tariff_price }} / {{ $products->tariff_type }}</i></p>
                         </div>
                         <br>
                         <div class="d-flex justify-content-between">
@@ -134,7 +153,15 @@
                                     <span id="summaryDuration">-</span>
                                 </div>
                                 <div class="d-flex justify-content-between">
-                                    <span>Price</span>
+                                    <span>Subtotal</span>
+                                    <span id="summarySubtotal">-</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span>Tax</span>
+                                    <span id="summaryTax">-</span>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span>Total Price</span>
                                     <span id="summaryPrice">-</span>
                                 </div>
                             </div>
@@ -161,8 +188,8 @@
         <script src="{{ asset('templates/sb/js/scripts.js') }}"></script>
         <script src="https://cdn.startbootstrap.com/sb-forms-latest.js"></script>
         <!-- Midtrans Snap.js (Sandbox) -->
-        {{-- <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script> --}}
-        <script type="text/javascript" src="https://app.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script>
+        <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script>
+        {{-- <script type="text/javascript" src="https://app.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script> --}}
 
         <script>
             $(document).ready(function(){
@@ -173,19 +200,9 @@
                 var form4 = $("#mainForm4");
                 var stepperItems = $(".stepper-wrapper .stepper-item");
 
-                var PRODUCTS = @json(($products ?? collect())->map(function($p){
-                    return [
-                        'value' => (int) ($p->tariff_value ?? 0),
-                        'price' => (int) ($p->tariff_price ?? 0),
-                    ];
-                }));
-                var durationToPrice = {};
-                (PRODUCTS || []).forEach(function(p){
-                    if (p && p.value) {
-                        durationToPrice[p.value] = p.price || 0;
-                    }
-                });
-                // Prices from backend are final (tax-included)
+                var TARIFF_PRICE_PER_MINUTE = {{ (int) ($products->tariff_price ?? 0) }};
+                var TAX_RATE = {{ (float) ($products->tax_rate ?? 0) }};
+                var MINUTES_PER_HOUR = 60;
 
                 function formatRupiah(value) {
                     return "Rp " + Number(value).toLocaleString("id-ID");
@@ -295,20 +312,45 @@
                     evaluateStepState(3);
                 });
 
-                function updatePaymentSummary() {
+                function getDurationHours() {
                     var durationVal = $("#duration").val();
-                    var durationMinutes = durationVal ? parseInt(durationVal, 10) : null;
-                    var price = durationMinutes ? (durationToPrice[durationMinutes] || 0) : 0;
+                    return durationVal ? parseInt(durationVal, 10) : null;
+                }
 
-                    $("#summaryDuration").text(durationMinutes ? (durationMinutes + " Minutes") : "-");
-                    $("#summaryPrice").text(price ? formatRupiah(price) : "-");
+                function calculatePrice(hours) {
+                    if (!hours || !TARIFF_PRICE_PER_MINUTE) {
+                        return {
+                            subtotal: 0,
+                            tax: 0,
+                            total: 0
+                        };
+                    }
+
+                    var totalMinutes = hours * MINUTES_PER_HOUR;
+                    var subtotal = totalMinutes * TARIFF_PRICE_PER_MINUTE;
+                    var tax = TAX_RATE > 0 ? Math.round(subtotal * (TAX_RATE / 100)) : 0;
+
+                    return {
+                        subtotal: subtotal,
+                        tax: tax,
+                        total: subtotal + tax
+                    };
+                }
+
+                function updatePaymentSummary() {
+                    var durationHours = getDurationHours();
+                    var price = calculatePrice(durationHours);
+
+                    $("#summaryDuration").text(durationHours ? (durationHours + " Hours") : "-");
+                    $("#summarySubtotal").text(price.subtotal ? formatRupiah(price.subtotal) : "-");
+                    $("#summaryTax").text(price.tax ? formatRupiah(price.tax) : (TAX_RATE > 0 ? "Rp 0" : "-"));
+                    $("#summaryPrice").text(price.total ? formatRupiah(price.total) : "-");
                 }
 
                 function computePaymentAmount() {
-                    var durationVal = $("#duration").val();
-                    var durationMinutes = durationVal ? parseInt(durationVal, 10) : null;
-                    var price = durationMinutes ? (durationToPrice[durationMinutes] || 0) : 0;
-                    return price;
+                    var durationHours = getDurationHours();
+                    var price = calculatePrice(durationHours);
+                    return price.total;
                 }
 
                 // Pay button handler (Midtrans Snap)
@@ -337,14 +379,7 @@
                             phone_number: $("#phone").val(),
                             station_id: {{ $station->id }},
                             connector_id: {{ $connector->id }},
-                            tariff_code: (function(){
-                                var val = $("#duration").val();
-                                var code = null;
-                                @foreach(($products ?? []) as $product)
-                                    if ({{ (int)($product->tariff_value) }} == val) code = '{{ $product->tariff_code }}';
-                                @endforeach
-                                return code;
-                            })()
+                            tariff_code: "{{ $products->tariff_code }}",
                         }
                     }).done(function(response){
                         if (response && response.snap_token && window.snap) {
