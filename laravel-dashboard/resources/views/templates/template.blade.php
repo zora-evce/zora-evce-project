@@ -312,18 +312,16 @@
             toastr.success(login_success);
         }
 
-        $('.action-save').on('click', function(e) {
+        $(document).on("click", ".action-save", function(e) {
             e.preventDefault();
             let form = $(this).closest('form');
             Swal.fire({
-                title: 'Perhatian!',
-                text: "Apakah anda akan menyimpan data?",
+                title: 'Attention!',
+                text: "Are you sure you want to save this?",
                 type: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Simpan',
-                cancelButtonText: "Batal"
+                confirmButtonText: 'Save',
+                cancelButtonText: "Cancel"
             }).then((result) => {
                 if (result.value) {
                     form.submit();
@@ -331,19 +329,17 @@
             });
         });
 
-        $('.action-delete').on('click', function(e) {
+        $(document).on("click", ".action-delete", function(e) {
             e.preventDefault();
             let form = $(this).closest('form');
             Swal.fire({
                 icon: 'warning',
-                title: 'Perhatian!',
-                text: "Apakah anda akan menghapus data?",
+                title: 'Warning!',
+                text: "Are you sure you want to delete this?",
                 type: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Hapus',
-                cancelButtonText: "Batal"
+                confirmButtonText: 'Save',
+                cancelButtonText: "Cancel"
             }).then((result) => {
                 if (result.value) {
                     const form = e.target.closest('form');

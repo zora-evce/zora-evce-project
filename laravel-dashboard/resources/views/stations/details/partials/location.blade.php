@@ -9,15 +9,15 @@
             </div>
             <div class="card-body p-4 bg-white">
                 <div class="form-group">
-                    <label for="chargingStationName">City</label>
-                    <select class="form-control select2 selectLocationType" id="locationType" name="location_type_id" style="width: 100%;">
+                    <label class="form-label" for="chargingStationName">City</label>
+                    <select class="form-control form-control-sm select2 selectLocationType" id="locationType" name="location_type_id" style="width: 100%;">
                         <option value="0">Bandung</option>
                         <option value="1">Jakarta</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="locationType">Country</label>
-                    <select class="form-control select2 selectLocationType" id="locationType" name="location_type_id" style="width: 100%;">
+                    <label class="form-label" for="locationType">Country</label>
+                    <select class="form-control form-control-sm select2 selectLocationType" id="locationType" name="location_type_id" style="width: 100%;">
                         <option value="0">Indonesia</option>
                         <option value="1">Malaysia</option>
                     </select>
@@ -25,38 +25,38 @@
                 <div class="row">
                     <div class="col-md-8">
                         <div class="form-group">
-                            <label for="chargingStationName">Zipcode</label>
-                            <input type="email" class="form-control" id="chargingStationName" placeholder="">
+                            <label class="form-label" for="chargingStationName">Zipcode</label>
+                            <input type="email" class="form-control form-control-sm" id="chargingStationName" placeholder="">
                         </div>
                     </div>
                     <div class="col-md-4">
                         <div class="form-group">
-                            <label for="chargingStationName">No</label>
-                            <input type="email" class="form-control" id="chargingStationName" placeholder="">
+                            <label class="form-label" for="chargingStationName">No</label>
+                            <input type="email" class="form-control form-control-sm" id="chargingStationName" placeholder="">
                         </div>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="chargingStationName">Street</label>
-                    <textarea class="form-control"></textarea>
+                    <label class="form-label" for="chargingStationName">Street</label>
+                    <textarea class="form-control form-control-sm"></textarea>
                 </div>
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="chargingStationName">Latitude</label>
-                            <input type="email" class="form-control" id="chargingStationName" placeholder="">
+                            <label class="form-label" for="chargingStationName">Latitude</label>
+                            <input type="email" class="form-control form-control-sm" id="chargingStationName" placeholder="">
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="chargingStationName">Longitude</label>
-                            <input type="email" class="form-control" id="chargingStationName" placeholder="">
+                            <label class="form-label" for="chargingStationName">Longitude</label>
+                            <input type="email" class="form-control form-control-sm" id="chargingStationName" placeholder="">
                         </div>
                     </div>
                 </div>
             </div>
             <div class="card-footer">
-                <button type="submit" class="btn btn-primary"><i class="fas fa-save mr-2"></i><span>Save</span></button>
+                <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-save mr-2"></i><span>Save</span></button>
             </div>
         </div>
     </div>

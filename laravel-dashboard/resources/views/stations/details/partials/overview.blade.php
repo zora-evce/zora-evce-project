@@ -262,7 +262,9 @@
                     render: function(data, type, row) {
                         let status = row.status;
                         if (status == 'available') {
-                            return `<a class="btn btn-success btn-xs action-detail">Available</a>`;
+                            return `<a class="btn btn-success btn-xs action-detail">${status}</a>`;
+                        } else {
+                            return `<a class="btn btn-warning btn-xs action-detail">${status}</a>`;
                         }
                     }
                 },
