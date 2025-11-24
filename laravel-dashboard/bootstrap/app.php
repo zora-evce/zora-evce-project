@@ -12,31 +12,44 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         then: function () {
 
-            $host = request()->getHost();
-            $appDomain = config('app.domain', 'localhost'); // mebi.co.id
+            $root = config('app.domain'); // e.g. mebi.co.id
 
-            $adminDomain = "cpo.$appDomain";
-            $clientDomain = "zora.$appDomain";
+            // =====================================================
+            // PRODUCTION DOMAINS (Traefik → cpo.mebi.co.id / zora.mebi.co.id)
+            // =====================================================
 
-            $isIpOrLocal = ($host === 'localhost' || filter_var($host, FILTER_VALIDATE_IP));
+            Route::middleware('web')
+                ->domain("cpo.$root")
+                ->name('cpo.')
+                ->group(base_path('routes/admin.php'));
 
-            if (!$isIpOrLocal) {
+            Route::middleware('web')
+                ->domain("zora.$root")
+                ->name('zora.')
+                ->group(base_path('routes/web.php'));
 
-                // ADMIN → cpo.mebi.co.id
-                Route::middleware('web')
-                    ->domain($adminDomain)
-                    ->name('cpo.')
-                    ->group(base_path('routes/admin.php'));
 
-                // USER → zora.mebi.co.id
-                Route::middleware('web')
-                    ->domain($clientDomain)
-                    ->name('zora.')
-                    ->group(base_path('routes/web.php'));
+            // =====================================================
+            // LOCAL CUSTOM SUBDOMAIN (cpo.localhost / zora.localhost)
+            // =====================================================
 
-            } else {
+            Route::middleware('web')
+                ->domain("cpo.localhost")
+                ->name('cpo.')
+                ->group(base_path('routes/admin.php'));
 
-                // Localhost mode
+            Route::middleware('web')
+                ->domain("zora.localhost")
+                ->name('zora.')
+                ->group(base_path('routes/web.php'));
+
+
+            // =====================================================
+            // LOCAL ROOT (localhost/cpo/login)
+            // =====================================================
+
+            if (request()->getHost() === 'localhost') {
+
                 Route::middleware('web')
                     ->prefix('cpo')
                     ->name('cpo.')
@@ -46,21 +59,25 @@ return Application::configure(basePath: dirname(__DIR__))
                     ->prefix('zora')
                     ->name('zora.')
                     ->group(base_path('routes/web.php'));
-
-                // Default route
-                Route::middleware('web')
-                    ->group(base_path('routes/web.php'));
             }
         }
     )
+
     ->withMiddleware(function (Middleware $middleware): void {
-        // $middleware->append(\App\Http\Middleware\MidtransConfig::class);
+
+        // Dynamic Asset URL — penting untuk multi-domain & Traefik
         $middleware->append(\App\Http\Middleware\DynamicAssetUrl::class);
+
+        // Contoh: tambahan middleware lain jika dipakai
+        // $middleware->append(\App\Http\Middleware\MidtransConfig::class);
+
         $middleware->validateCsrfTokens(except: [
             'checkout/notification',
         ]);
     })
+
     ->withExceptions(function (Exceptions $exceptions): void {
         //
-    })->create();
+    })
 
+    ->create();
