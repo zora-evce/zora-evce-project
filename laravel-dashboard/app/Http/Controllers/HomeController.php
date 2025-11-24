@@ -30,10 +30,10 @@ class HomeController extends Controller
             }
 
             // CHECK IF CONNECTOR ACTIVE
-            if ($connector->status !== 'available') {
+            if (!in_array($connector->status, ['available', 'preparing'])) {
                 return response()->view('errors.connector_inactive', [
-                    'station_code' => $station_code,
-                    'connector_code' => $connector_code,
+                    'station_code' => $station->name,
+                    'connector_code' => $connector->connector_number,
                 ], 409);
             }
 
@@ -80,9 +80,10 @@ class HomeController extends Controller
             }
 
             // GET PRODUCTS
-            $products = Tariff::where('tariff_type', 'duration')
+            $products = Tariff::where('tariff_type', 'minute')
+                                ->where('tariff_id', $station->tariff_id)
                                 ->where('active', 1)
-                                ->get();
+                                ->first();
 
             return view('home.index', [
                 'station' => $station ?? null,

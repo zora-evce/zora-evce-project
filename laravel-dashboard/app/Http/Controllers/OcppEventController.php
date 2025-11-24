@@ -7,6 +7,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use App\Services\QontakService;
+use App\Helpers\GlobalHelper;
 
 class OcppEventController extends Controller
 {
@@ -352,6 +354,30 @@ class OcppEventController extends Controller
 	                'updated_at' => now(),
 	            ]);
 	        }
+
+			// SEND WA
+			$isSendWA = env('IS_SEND_WA');
+
+			if ($isSendWA) {
+				$phone = GlobalHelper::phoneConvert($transaction->phone);
+				$qontak = new QontakService();
+	
+				try {
+					$qontak->sendWhatsApp($phone, [
+						"name"            => $transaction->name,
+						"order_id"        => $transaction->midtrans_order_id,
+					]);
+	
+					DB::table('transactions')->where('id',$transaction->id)->update([
+						'wa_status'  => 1,
+					]);
+				} catch (\Throwable $exception) {
+					Log::error('Failed to send whatsapp.', [
+						"name"            => $transaction->name,
+						"order_id"        => $transaction->midtrans_order_id,
+					]);
+				}
+			}
 
 	        $logId = $this->logWebhook('stop-transaction', $p, ['ok'=>true], [
 	            'related_id'      => $sessionId,

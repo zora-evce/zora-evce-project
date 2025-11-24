@@ -23,7 +23,10 @@ class Transaction extends BaseModel
         'manual_stop',
         'start_time',
         'stop_time',
-        'id_job_stop'
+        'id_job_stop',
+        'tax',
+        'total_price',
+        'duration'
         // timestamps auto-set
     ];
 
