@@ -42,7 +42,7 @@
                             <input type="text" class="form-control" id="filter_name" placeholder=".">
                         </div>
                         <div class="col-md-2">
-                            <label for="filter_name" class="form-label">Connecator ID</label>
+                            <label for="filter_name" class="form-label">Connector ID</label>
                             <input type="text" class="form-control" id="filter_name" placeholder=".">
                         </div>
                         <div class="col-md-2">

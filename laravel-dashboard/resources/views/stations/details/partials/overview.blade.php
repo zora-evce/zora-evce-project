@@ -189,7 +189,14 @@
         </div>
     </div>
 </div>
-
+<br>
+<div class="row g-4">
+    <div class="col-md-12">
+        <button type="button" class="btn btn-sm btn-primary" id="btn_register_new_connector" data-toggle="modal" data-target="#registerConnectorModal"><i class="fas fa-plus mr-2"></i>Register New Connector</button>
+        <button type="button" class="btn btn-sm btn-primary" id="btn_add"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
+    </div>
+</div>
+@include('stations.details.partials.modal.register-connector-modal')
 <!-- Connectors Table -->
 <div class="row mt-4">
     <div class="col-12">
@@ -262,7 +269,9 @@
                     render: function(data, type, row) {
                         let status = row.status;
                         if (status == 'available') {
-                            return `<a class="btn btn-success btn-xs action-detail">Available</a>`;
+                            return `<a class="btn btn-success btn-xs action-detail">${status}</a>`;
+                        } else {
+                            return `<a class="btn btn-warning btn-xs action-detail">${status}</a>`;
                         }
                     }
                 },

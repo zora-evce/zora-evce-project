@@ -15,7 +15,7 @@ trait SettingsTrait
         $station_code = $station->code;
         $data = null;
         $url = self::getUrlQr($station_id, $station_code);
-        $qr = self::generateQr($url);
+        $qr = !empty($url) ? self::generateQr($url) : null;
         return view('stations.details.partials.' . $tab, get_defined_vars());
     }
 
@@ -79,7 +79,10 @@ trait SettingsTrait
     {
         $connector = Connectors::where('station_id', $station_id)->first();
         $base_url_qr = env('BASE_URL_QR', 'http://zora.mebi.co.id');
-        $url = $base_url_qr . '/start' . '/' . $station_code . '/' . $connector->connector_code;
+        $url = null;
+        if (!empty($station_code) && !empty($connector->connector_code)) {
+            $url = $base_url_qr . '/start' . '/' . $station_code . '/' . $connector->connector_code;
+        }
         return $url;
     }
 }

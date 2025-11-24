@@ -35,11 +35,11 @@
                     <div class="row g-4">
                         <div class="col-md-2">
                             <label for="filter_name" class="form-label">Station Name</label>
-                            <input type="text" class="form-control" id="filter_name" placeholder="Search by name...">
+                            <input type="text" class="form-control form-control-sm" id="filter_name" placeholder="Search by name...">
                         </div>
                         <div class="col-md-2">
                             <label for="filter_status" class="form-label">Status</label>
-                            <select class="form-control" id="filter_status" style="width: 100%;">
+                            <select class="form-control form-control-sm" id="filter_status" style="width: 100%;">
                                 <option value="">All Statuses</option>
                                 <option value="available">Available</option>
                                 <option value="unavailable">Unavailable</option>
@@ -49,7 +49,7 @@
                         </div>
                         <div class="col-md-2">
                             <label for="filter_roaming" class="form-label">Roaming Type</label>
-                            <select class="form-control" id="filter_roaming" style="width: 100%;">
+                            <select class="form-control form-control-sm" id="filter_roaming" style="width: 100%;">
                                 <option value="">All Types</option>
                                 {{-- These should ideally be populated from your DB via Blade --}}
                                 <option value="1">Public</option>
@@ -58,7 +58,7 @@
                         </div>
                         <div class="col-md-2">
                             <label for="filter_city" class="form-label">City</label>
-                            <select class="form-control" id="filter_city" style="width: 100%;">
+                            <select class="form-control form-control-sm" id="filter_city" style="width: 100%;">
                                 <option value="">Select a City</option>
                             </select>
                         </div>
@@ -66,9 +66,11 @@
                     <br>
                     <div class="row g-4">
                         <div class="col-md-12">
+                            <div id="colvis-container" style="display: inline-block; margin-left: 5px; vertical-align: middle;"></div>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button>
-                            <div id="colvis-container" style="display: inline-block; margin-left: 5px; vertical-align: middle;"></div>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn_register_new_station" data-toggle="modal" data-target="#registerStationModal"><i class="fas fa-plus mr-2"></i>Register New Station</button>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn_add"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
                         </div>
                     </div>
                     <br>
@@ -121,6 +123,7 @@
             <!-- /.modal-dialog -->
         </div>
     </section>
+    @include('stations.partials.register-station-modal')
     <script>
         // Standard Select2 for Status
         const $filterStatus = $('#filter_status').select2({
@@ -148,7 +151,7 @@
             buttons: [
                 {
                     extend: 'colvis',
-                    text: '<i class="fas fa-columns"></i> Columns', // Your custom button
+                    text: '<i class="fas fa-columns mr-2"></i>Columns', // Your custom button
                     className: 'btn-sm btn-primary'
                 }
             ],
@@ -245,6 +248,8 @@
                 },
                 {
                     data: null,
+                    searchable: false,
+                    orderable: false,
                     render: function(data, type, row) {
                         let stationId = row.id;
                         return `
