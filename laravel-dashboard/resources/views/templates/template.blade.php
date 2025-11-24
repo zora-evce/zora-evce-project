@@ -81,11 +81,11 @@
                     <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
                         <!-- User image -->
                         <!-- Menu Body -->
-                        <li class="user-body" style="background-color:#2693a2;color:#fff">
+                        <li class="user-body" style="background-color:#012b46;color:#fff">
                             <div class="row">
                                 <div class="col-12 text-center">
                                     <p>
-                                        Test Role
+                                        {{ (Auth::user()->id_role == 1) ? 'Admin' : 'Partner' }} / {{ Auth::user()->name }}
                                     </p>
                                 </div>
                             </div>
@@ -93,8 +93,11 @@
                         </li>
                         <!-- Menu Footer-->
                         <li class="user-footer">
-                            <a href="#" class="btn btn-sm btn-success">Change Password</a>
-                            <a href="#" class="btn btn-sm btn-danger float-right">Sign Out</a>
+                            <a href="{{ route('cpo.change-password') }}" class="btn btn-sm btn-primary">Change Password</a>
+                            <form action="{{ route('cpo.logout') }}" method="POST" class="d-inline">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-danger float-right">Sign Out</button>
+                            </form>
                         </li>
                     </ul>
                 </li>
@@ -180,8 +183,8 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('cpo.dashboard') }}"
-                                class="nav-link">
+                            <a href="{{ route('cpo.users') }}"
+                                class="nav-link {{ Route::is('cpo.users*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-users"></i>
                                 <p>
                                     Accounts
@@ -311,6 +314,25 @@
         if (login_success) {
             toastr.success(login_success);
         }
+
+        // Global AJAX error handler for session expiration
+        $(document).ajaxError(function(event, xhr, settings) {
+            if (xhr.status === 401 || xhr.status === 403) {
+                // Session expired or unauthorized
+                let response = xhr.responseJSON;
+                if (response && response.redirect) {
+                    toastr.error(response.message || 'Session expired. Please login again.');
+                    setTimeout(function() {
+                        window.location.href = response.redirect;
+                    }, 1500);
+                } else {
+                    toastr.error('Session expired. Please login again.');
+                    setTimeout(function() {
+                        window.location.href = '{{ route("cpo.login") }}';
+                    }, 1500);
+                }
+            }
+        });
 
         $(document).on("click", ".action-save", function(e) {
             e.preventDefault();
