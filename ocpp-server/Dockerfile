@@ -1,5 +1,5 @@
 # Use a lightweight Python base image
-FROM python:3.12-slim
+FROM python:3.12.3-slim
 
 # Environment settings for cleaner logs and faster startup
 ENV PYTHONUNBUFFERED=1 \
@@ -16,12 +16,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install Python dependencies (including httpx)
 RUN pip install --no-cache-dir \
-    websockets \
+    websockets==11.0.3 \
     python-dotenv \
     psycopg2-binary \
-    httpx \
-    uvloop \
-    ocpp==0.8.1
+    httpx==0.27.2 \
+    uvloop==0.19.0 \
+    #ocpp==0.8.1 \
+    ocpp==0.19.0 \
+    aiohttp \
+    jsonschema==4.17.3
 
 # Copy all source code from your project folder into the container
 COPY . /app
