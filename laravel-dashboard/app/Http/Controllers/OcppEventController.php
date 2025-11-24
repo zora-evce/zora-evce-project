@@ -356,17 +356,28 @@ class OcppEventController extends Controller
 	        }
 
 			// SEND WA
-			$phone = GlobalHelper::phoneConvert($transaction->phone);
-			$qontak = new QontakService();
+			$isSendWA = env('IS_SEND_WA');
 
-			$qontak->sendWhatsApp($phone, [
-				"name"            => $transaction->name,
-				"duration"        => $transaction->duration.' Hour(s)',
-				"price"           => $transaction->executed_price / ($transaction->duration * 60).'/Minute',
-				"total_price"     => $transaction->executed_price,
-				"tax"             => $transaction->tax,
-				"price_after_tax" => $transaction->total_price,
-			]);
+			if ($isSendWA) {
+				$phone = GlobalHelper::phoneConvert($transaction->phone);
+				$qontak = new QontakService();
+	
+				try {
+					$qontak->sendWhatsApp($phone, [
+						"name"            => $transaction->name,
+						"order_id"        => $transaction->midtrans_order_id,
+					]);
+	
+					DB::table('transactions')->where('id',$transaction->id)->update([
+						'wa_status'  => 1,
+					]);
+				} catch (\Throwable $exception) {
+					Log::error('Failed to send whatsapp.', [
+						"name"            => $transaction->name,
+						"order_id"        => $transaction->midtrans_order_id,
+					]);
+				}
+			}
 
 	        $logId = $this->logWebhook('stop-transaction', $p, ['ok'=>true], [
 	            'related_id'      => $sessionId,

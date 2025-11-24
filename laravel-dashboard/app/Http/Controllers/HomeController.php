@@ -32,8 +32,8 @@ class HomeController extends Controller
             // CHECK IF CONNECTOR ACTIVE
             if (!in_array($connector->status, ['available', 'preparing'])) {
                 return response()->view('errors.connector_inactive', [
-                    'station_code' => $station_code,
-                    'connector_code' => $connector_code,
+                    'station_code' => $station->name,
+                    'connector_code' => $connector->connector_number,
                 ], 409);
             }
 
