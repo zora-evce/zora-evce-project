@@ -1,22 +1,83 @@
 version: '3.8'
 
 services:
-# Nginx Service for the second instance
+
+  # ============================
+  # TRAEFIK: Reverse Proxy + SSL
+  # ============================
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=admin@mebi.co.id"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+
+    volumes:
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+    networks:
+      - laravel_network
+
+
+  # ============================
+  # NGINX LARAVEL
+  # ============================
   nginx_stag:
     image: nginx:alpine
     container_name: zora_laravel_nginx_stag
     restart: unless-stopped
-    ports:
-      - "80:80"  # Second instance on port 8081
-    volumes:
-      - ./laravel-dashboard/:/var/www/html
-      - ./docker-compose/nginx/default.conf:/etc/nginx/conf.d/default.conf
-    networks:
-      - laravel_network_stag
     depends_on:
       - php_stag
+    volumes:
+      - ./laravel-dashboard:/var/www/html
+      - ./docker-compose/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - laravel_network
 
-  # PHP-FPM Service for the second instance
+    labels:
+      - "traefik.enable=true"
+
+      # Zora → zora.mebi.co.id
+      - "traefik.http.routers.zora.rule=Host(`zora.mebi.co.id`)"
+      - "traefik.http.routers.zora.entrypoints=websecure"
+      - "traefik.http.routers.zora.tls.certresolver=myresolver"
+      - "traefik.http.services.zora.loadbalancer.server.port=80"
+
+      # Redirect HTTP -> HTTPS
+      - "traefik.http.routers.zora-http.rule=Host(`zora.mebi.co.id`)"
+      - "traefik.http.routers.zora-http.entrypoints=web"
+      - "traefik.http.routers.zora-http.middlewares=redirecthttps"
+      - "traefik.http.middlewares.redirecthttps.redirectscheme.scheme=https"
+
+
+      # CPO → cpo.mebi.co.id
+      - "traefik.http.routers.cpo.rule=Host(`cpo.mebi.co.id`)"
+      - "traefik.http.routers.cpo.entrypoints=websecure"
+      - "traefik.http.routers.cpo.tls.certresolver=myresolver"
+      - "traefik.http.services.cpo.loadbalancer.server.port=80"
+
+      # Redirect HTTP -> HTTPS
+      - "traefik.http.routers.cpo-http.rule=Host(`cpo.mebi.co.id`)"
+      - "traefik.http.routers.cpo-http.entrypoints=web"
+      - "traefik.http.routers.cpo-http.middlewares=redirecthttps"
+
+
+  # ============================
+  # PHP-FPM
+  # ============================
   php_stag:
     build:
       context: .
@@ -26,7 +87,7 @@ services:
     volumes:
       - ./laravel-dashboard:/var/www/html
     networks:
-      - laravel_network_stag
+      - laravel_network
 
 # Server OCPP
   ocpp_server_stag:

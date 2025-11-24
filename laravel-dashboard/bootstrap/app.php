@@ -11,9 +11,10 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function () {
-            $host = request()->getHost();
 
+            $host = request()->getHost();
             $appDomain = config('app.domain', 'localhost'); // mebi.co.id
+
             $adminDomain = "cpo.$appDomain";
             $clientDomain = "zora.$appDomain";
 
@@ -35,7 +36,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
             } else {
 
-                // Local development
+                // Localhost mode
                 Route::middleware('web')
                     ->prefix('cpo')
                     ->name('cpo.')
@@ -46,6 +47,9 @@ return Application::configure(basePath: dirname(__DIR__))
                     ->name('zora.')
                     ->group(base_path('routes/web.php'));
 
+                // Default route
+                Route::middleware('web')
+                    ->group(base_path('routes/web.php'));
             }
         }
     )
