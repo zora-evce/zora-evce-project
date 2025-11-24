@@ -29,3 +29,6 @@ Route::prefix('ocpp')
         Route::post('/commands/ack',  [RemoteCommandController::class, 'ack']);
         Route::get('/commands/poll',  [RemoteCommandController::class, 'poll']);
     });
+
+Route::post('ocpp/stop-by-transaction', [\App\Http\Controllers\RemoteCommandController::class, 'stopByTransactionId'])
+    ->middleware(\App\Http\Middleware\VerifyOcppKey::class);

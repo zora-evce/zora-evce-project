@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class RemoteCommandController extends Controller
 {
@@ -113,6 +114,100 @@ class RemoteCommandController extends Controller
         }
 
         return response()->json(['ok' => (bool)$updated]);
+    }
+    /**
+     * Endpoint untuk stop charging berdasarkan transactionId (kode untuk customer).
+     *
+     * POST /api/ocpp/stop-by-transaction
+     * Body: { "transactionId": "84122" }
+     *
+     * Catatan:
+     *  - transactionId di sini = transactionid_pool.transactionId (kode pendek)
+     *  - id_transaction di transactionid_pool = OCPP transactionId yang harus dikirim ke charger
+     */
+    public function stopByTransactionId(Request $request)
+    {
+        // 1) Validasi input
+        $data = $request->validate([
+            'transactionId' => ['required'],
+        ]);
+
+        // Kode transaksi yang dimasukkan customer (misal 84122)
+        $txCode = (string) $data['transactionId'];
+
+        // 2) Cari di transactionid_pool
+        $pool = DB::table('transactionid_pool')
+            ->where('transactionId', $txCode)
+            ->first();
+
+        if (! $pool) {
+            return response()->json([
+                'ok'      => false,
+                'error'   => 'transaction_code_not_found',
+                'message' => "Transaction code {$txCode} not found",
+            ], 404);
+        }
+
+        // Ambil mapping ke session/transaction sebenarnya
+        $stationId   = $pool->station_id ?? null;
+        $connectorId = $pool->connector_id ?? null;
+        $ocppTxId    = $pool->id_transaction ?? null; // ini yang akan dikirim ke charger
+
+        if (! $stationId) {
+            return response()->json([
+                'ok'      => false,
+                'error'   => 'pool_missing_station',
+                'message' => 'transactionid_pool row does not have station_id',
+            ], 400);
+        }
+
+        if (! $ocppTxId) {
+            return response()->json([
+                'ok'      => false,
+                'error'   => 'pool_missing_transaction',
+                'message' => 'transactionid_pool row does not have id_transaction (OCPP transactionId)',
+            ], 400);
+        }
+
+        // 3) Ambil station_code untuk info / log
+        $station = DB::table('stations')->where('id', $stationId)->first();
+        if (! $station) {
+            return response()->json([
+                'ok'      => false,
+                'error'   => 'station_not_found',
+                'message' => "Station for pool row not found (id={$stationId})",
+            ], 404);
+        }
+
+        $stationCode = $station->code ?? $station->station_code ?? null;
+
+        // 4) Enqueue RemoteStopTransaction ke remote_commands
+        $now = now();
+
+        $remoteCommandId = DB::table('remote_commands')->insertGetId([
+            'station_id'   => $stationId,
+            'connector_id' => $connectorId,
+            'command'      => 'RemoteStopTransaction',
+            'payload'      => json_encode([
+                // ini yang akan dibaca Python lalu dikirim ke charger
+                'transactionId'  => (int) $ocppTxId,
+                // simpan juga kode eksternal untuk referensi/log
+                'transactionCode' => $txCode,
+            ]),
+            'status'       => 'pending',
+            'created_at'   => $now,
+            'updated_at'   => $now,
+        ]);
+
+        return response()->json([
+            'ok'                  => true,
+            'remote_command_id'   => $remoteCommandId,
+            'transactionCode'     => $txCode,
+            'ocpp_transaction_id' => (int) $ocppTxId,
+            'station_id'          => $stationId,
+            'station_code'        => $stationCode,
+            'connector_id'        => $connectorId,
+        ]);
     }
 
     private function validated(Request $r, array $rules): array

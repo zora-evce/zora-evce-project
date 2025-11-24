@@ -106,6 +106,9 @@ class ChargePoint(CP16):
         # sesi aktif per connector: connector_id -> {"tx_id": int, "id_tag": str, "started_at": str}
         self._active_sessions = {}
 
+        # transactionId terakhir yang aktif (dipakai untuk fallback RemoteStop)
+        self.active_transaction_id = None
+
     async def start_poller(self):
         if self._poller_task is None or self._poller_task.done():
             self._running = True
@@ -138,38 +141,114 @@ class ChargePoint(CP16):
 
                     if name == "RemoteStartTransaction":
                         id_tag = payload.get("idTag") or payload.get("id_tag") or "CARD"
-                        # default-kan ke connector 1 kalau tidak ada info lain
-                        connector_id = norm.get("connector") or payload.get("connectorId") or 1
-                        req = call.RemoteStartTransactionPayload(
-                            id_tag=id_tag,
-                            connector_id=int(connector_id)
-                        )
-                        await self.call(req)
+                        connector_id = norm.get("connector") or payload.get("connectorId")
 
-                    elif name == "RemoteStopTransaction":
-                        # Laravel might send 'transactionId' (str or int)
-                        tx_raw = payload.get("transactionId") or payload.get("transaction_id") or 0
+                        # simpan transaction_id dari Laravel (session_id)
+                        tx_id = norm.get("transaction_id") or payload.get("transactionId")
+                        self.active_transaction_id = tx_id
+
+                        # Build request OCPP
+                        if connector_id is not None:
+                            req = call.RemoteStartTransaction(
+                                id_tag=id_tag,
+                                connector_id=int(connector_id)
+                            )
+                        else:
+                            req = call.RemoteStartTransaction(id_tag=id_tag)
+
+                        # id baris di tabel remote_commands (hasil _normalize_remote_cmd)
+                        cmd_id = norm.get("id")
+
                         try:
-                            tx = int(tx_raw)
-                        except Exception:
-                            tx = 0
-                        req = call.RemoteStopTransactionPayload(transaction_id=tx)
-                        await self.call(req)
+                            await self.call(req)
+                            # kirim ACK "sent" ke Laravel
+                            if cmd_id:
+                                asyncio.create_task(
+                                    self._ack_remote_command(
+                                        cmd_id,
+                                        "sent",
+                                        "RemoteStartTransaction dispatched"
+                                    )
+                                )
+                        except Exception as e:
+                            log.warning("Failed to send RemoteStartTransaction: %s", e)
+                            if cmd_id:
+                                asyncio.create_task(
+                                    self._ack_remote_command(
+                                        cmd_id,
+                                        "error",
+                                        str(e)
+                                    )
+                                )
+                    elif name == "RemoteStopTransaction":
+                        # Ambil transactionId dari payload atau dari state aktif
+                        tx_id = payload.get("transactionId") \
+                                 or payload.get("transaction_id") \
+                                 or self.active_transaction_id
+
+                        if not tx_id:
+                            log.error("RemoteStopTransaction missing transaction_id")
+                            continue
+
+                        req = call.RemoteStopTransaction(
+                            transaction_id=int(tx_id)
+                        )
+
+                        cmd_id = norm.get("id")
+
+                        try:
+                            await self.call(req)
+                            # kirim ACK "sent" ke Laravel
+                            if cmd_id:
+                                asyncio.create_task(
+                                    self._ack_remote_command(
+                                        cmd_id,
+                                        "sent",
+                                        f"RemoteStopTransaction dispatched (tx_id={tx_id})"
+                                    )
+                                )
+                        except Exception as e:
+                            log.warning("Failed to send RemoteStopTransaction: %s", e)
+                            if cmd_id:
+                                asyncio.create_task(
+                                    self._ack_remote_command(
+                                        cmd_id,
+                                        "error",
+                                        str(e)
+                                    )
+                                )
 
                 await asyncio.sleep(POLL_SEC)
             except Exception as e:
                 log.warning("poll/send command error: %s", e)
                 await asyncio.sleep(POLL_SEC)
 
-    def _next_tx_id(self) -> int:
-        self._tx_seq += 1
-        return self._tx_seq
+    #def _next_tx_id(self) -> int:
+        #self._tx_seq += 1
+        #return self._tx_seq
 
     async def _safe_post(self, endpoint: str, body: dict):
         try:
             await post_laravel(endpoint, body)
         except Exception as e:
             log.exception("%s post failed: %s", endpoint, e)
+
+    async def _ack_remote_command(self, cmd_id: int, status: str, detail: Optional[str] = None):
+        """
+        Kirim ACK ke Laravel untuk remote_commands.
+        status: "sent", "error", "cancelled", dll (ikuti yang dipakai Laravel).
+        """
+        body = {
+            "id": cmd_id,
+            "status": status,
+            "detail": detail,
+            # penting: station_code dipakai untuk pilih X-OCPP-Key yg benar
+            "station_code": self.cp_id,
+        }
+        try:
+            await post_laravel("commands/ack", body)
+        except Exception as e:
+            log.exception("commands/ack failed for %s: %s", cmd_id, e)
 
     @on('BootNotification')
     async def on_boot_notification(self, **p):
@@ -239,97 +318,6 @@ class ChargePoint(CP16):
             id_tag_info={"status": status}
         )
 
-    @on('StartTransaction')
-    async def on_start_transaction(self, **p):
-        connector_id = int(p.get("connectorId") or 1)
-        id_tag = p.get("idTag") or p.get("id_tag") or ""
-        meter_start = int(p.get("meterStart") or p.get("meter_start") or 0)
-        ts = p.get("timestamp") or utcnow()
-
-        # 1) cek hasil Authorize terakhir (kartu bener & di-allow)
-        authorized_by_auth = False
-        if self._last_auth:
-            last = self._last_auth
-            if last.get("ok") and (last.get("id_tag") or "") == id_tag:
-                authorized_by_auth = True
-
-        # default: anggap allowed dulu, nanti backend yang ngunci per-connector
-        connector_allowed = True
-        backend_reason = None
-
-        # 2) tanya Laravel: apakah kartu ini boleh di station+connector ini?
-        body = {
-            "station_code": self.cp_id,
-            "connector": connector_id,
-            "transactionId": "",  # kita isi nanti kalau di-allow
-            "idTag": id_tag or None,
-            "meterStart": meter_start,
-            "timestamp": ts,
-            # kalau nanti kita mau passing info "denied" dari sini, bisa diisi
-        }
-
-        try:
-            resp = await post_laravel("start-transaction", body)
-            connector_allowed = bool(resp.get("ok", True))
-            backend_reason = resp.get("reason")
-        except Exception as e:
-            log.exception("StartTransaction -> Laravel error for %s: %s", self.cp_id, e)
-            # terserah mau fail-open atau fail-closed
-            connector_allowed = False
-            backend_reason = "laravel_error"
-
-        # 3) final decision = Authorize OK AND connector_allowed
-        # 3) final decision = Authorize OK AND connector_allowed
-        if not connector_allowed:
-            log.warning(
-                "StartTransaction DENIED for %s: connector=%s idTag=%r "
-                "auth_ok=%s backend_ok=%s backend_reason=%r",
-                self.cp_id, connector_id, id_tag,
-                authorized_by_auth, connector_allowed, backend_reason
-            )
-
-            # kirim ulang ke Laravel hanya sebagai log denied (opsional)
-            deny_body = {
-                "station_code": self.cp_id,
-                "connector": connector_id,
-                "transactionId": "0",
-                "idTag": id_tag or None,
-                "meterStart": meter_start,
-                "timestamp": ts,
-                "denied": True,
-                "raw": {"action": "StartTransaction", **p},
-            }
-            asyncio.create_task(self._safe_post("start-transaction", deny_body))
-
-            return call_result.StartTransactionPayload(
-                transaction_id=0,
-                id_tag_info={"status": "Invalid"},
-            )
-
-        # 4) allowed → buat transaksi lokal & catat sesi aktif
-        tx_id = self._next_tx_id()
-        self._active_sessions[connector_id] = {
-            "tx_id": tx_id,
-            "id_tag": id_tag,
-            "started_at": ts,
-        }
-
-        # kirim event normal ke Laravel
-        ok_body = {
-            "station_code": self.cp_id,
-            "connector": connector_id,
-            "transactionId": str(tx_id),
-            "idTag": id_tag,
-            "meterStart": meter_start,
-            "timestamp": ts,
-            "raw": {"action": "StartTransaction", **p},
-        }
-        asyncio.create_task(self._safe_post("start-transaction", ok_body))
-
-        return call_result.StartTransactionPayload(
-            transaction_id=tx_id,
-            id_tag_info={"status": "Accepted"},
-        )
 
     @on('MeterValues')
     async def on_meter_values(self, **p):
