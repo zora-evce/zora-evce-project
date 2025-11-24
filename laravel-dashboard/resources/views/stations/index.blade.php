@@ -69,7 +69,7 @@
                             <div id="colvis-container" style="display: inline-block; margin-left: 5px; vertical-align: middle;"></div>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button>
-                            <button type="button" class="btn btn-sm btn-primary" id="btn_add" data-toggle="modal" data-target="#addStationModal"><i class="fas fa-plus mr-2"></i>Add Station</button>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn_register_new_station" data-toggle="modal" data-target="#registerStationModal"><i class="fas fa-plus mr-2"></i>Register New Station</button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_add"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
                         </div>
                     </div>
@@ -123,7 +123,7 @@
             <!-- /.modal-dialog -->
         </div>
     </section>
-    @include('stations.partials.add-station-modal')
+    @include('stations.partials.register-station-modal')
     <script>
         // Standard Select2 for Status
         const $filterStatus = $('#filter_status').select2({

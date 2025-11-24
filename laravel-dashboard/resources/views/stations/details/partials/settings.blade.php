@@ -105,7 +105,7 @@
                 </div>
             </div>
             <div class="card-footer text center">
-                <a href="{{ route('cpo.stations.details.settings.download-qr', ['station_id' => $station_id, 'station_code' => $station_code]) }}" class="btn btn-sm btn-primary"><i class="fas fa-download mr-2"></i><span>Download QR</span></a>
+                <a type="button" href="{{ route('cpo.stations.details.settings.download-qr', ['station_id' => $station_id, 'station_code' => $station_code]) }}" class="btn btn-sm btn-primary" {{ empty($qr) ? 'disabled' : '' }}><i class="fas fa-download mr-2"></i><span>Download QR</span></a>
             </div>
         </div>
     </div>

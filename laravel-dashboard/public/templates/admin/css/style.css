@@ -15,6 +15,7 @@
     --zora-light: #eef5fa;
     --zora-border: #d4dce3;
     --zora-text: #334255;
+    --zora-disabled: #7aa0bb;
 }
 
 /* Buttons */
@@ -44,6 +45,18 @@
 /* Optional: remove Bootstrap’s default blue glow entirely */
 .btn-primary:focus {
     outline: none !important;
+}
+
+.btn-primary.disabled,
+.btn-primary:disabled,
+.btn-primary[disabled],
+.btn-primary[aria-disabled="true"] {
+    background-color: var(--zora-disabled) !important;
+    border-color: var(--zora-disabled) !important;
+    color: #eef3f7 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    opacity: 1 !important;
 }
 
 /* Pagination */
