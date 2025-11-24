@@ -138,11 +138,12 @@ class ChargePoint(CP16):
 
                     if name == "RemoteStartTransaction":
                         id_tag = payload.get("idTag") or payload.get("id_tag") or "CARD"
-                        connector_id = norm.get("connector") or payload.get("connectorId")
-                        if connector_id is not None:
-                            req = call.RemoteStartTransactionPayload(id_tag=id_tag, connector_id=int(connector_id))
-                        else:
-                            req = call.RemoteStartTransactionPayload(id_tag=id_tag)
+                        # default-kan ke connector 1 kalau tidak ada info lain
+                        connector_id = norm.get("connector") or payload.get("connectorId") or 1
+                        req = call.RemoteStartTransactionPayload(
+                            id_tag=id_tag,
+                            connector_id=int(connector_id)
+                        )
                         await self.call(req)
 
                     elif name == "RemoteStopTransaction":
@@ -278,7 +279,8 @@ class ChargePoint(CP16):
             backend_reason = "laravel_error"
 
         # 3) final decision = Authorize OK AND connector_allowed
-        if not (authorized_by_auth and connector_allowed):
+        # 3) final decision = Authorize OK AND connector_allowed
+        if not connector_allowed:
             log.warning(
                 "StartTransaction DENIED for %s: connector=%s idTag=%r "
                 "auth_ok=%s backend_ok=%s backend_reason=%r",
