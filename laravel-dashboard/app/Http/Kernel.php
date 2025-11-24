@@ -30,6 +30,9 @@ class Kernel extends HttpKernel
         // Common aliases you may use (minimal set)
         'throttle'    => \Illuminate\Routing\Middleware\ThrottleRequests::class,
 
+        // Authentication middleware
+        'auth'        => \App\Http\Middleware\Authenticate::class,
+
         // Our custom API key checks
         'ocpp.key'    => \App\Http\Middleware\VerifyOcppKey::class,
         'charger.key' => \App\Http\Middleware\VerifyChargerKey::class,
@@ -39,6 +42,7 @@ class Kernel extends HttpKernel
      * Route middleware (for older Laravel versions / compatibility).
      */
     protected $routeMiddleware = [
+        // 'auth'        => \App\Http\Middleware\Authenticate::class,
         'ocpp.key'    => \App\Http\Middleware\VerifyOcppKey::class,
         'charger.key' => \App\Http\Middleware\VerifyChargerKey::class,
     ];
