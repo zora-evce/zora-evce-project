@@ -13,44 +13,39 @@ return Application::configure(basePath: dirname(__DIR__))
         then: function () {
             $host = request()->getHost();
 
+            $appDomain = config('app.domain', 'localhost'); // mebi.co.id
+            $adminDomain = "cpo.$appDomain";
+            $clientDomain = "zora.$appDomain";
+
             $isIpOrLocal = ($host === 'localhost' || filter_var($host, FILTER_VALIDATE_IP));
 
             if (!$isIpOrLocal) {
-                // --- DOMAIN-BASED ROUTING ---
-                $appUrlHost = parse_url(config('app.url'), PHP_URL_HOST) ?: 'localhost';
 
-                $adminDomain = 'cpo.' . $appUrlHost;
-                $clientDomain = 'zora.' . $appUrlHost;
-                $rootDomain = $appUrlHost;
-
+                // ADMIN → cpo.mebi.co.id
                 Route::middleware('web')
-                     ->domain($adminDomain)
-                     ->name('cpo.')
-                     ->group(base_path('routes/admin.php'));
+                    ->domain($adminDomain)
+                    ->name('cpo.')
+                    ->group(base_path('routes/admin.php'));
 
-                // Route::middleware('web')
-                //      ->domain($rootDomain)
-                //      ->group(base_path('routes/web.php'));
-
+                // USER → zora.mebi.co.id
                 Route::middleware('web')
-                     ->domain($clientDomain)
-                     ->name('zora.')
-                     ->group(base_path('routes/web.php'));
+                    ->domain($clientDomain)
+                    ->name('zora.')
+                    ->group(base_path('routes/web.php'));
 
             } else {
-                // --- IP-BASED (PREFIX) ROUTING ---
+
+                // Local development
                 Route::middleware('web')
-                     ->prefix('cpo')
-                     ->name('cpo.')
-                     ->group(base_path('routes/admin.php'));
+                    ->prefix('cpo')
+                    ->name('cpo.')
+                    ->group(base_path('routes/admin.php'));
 
                 Route::middleware('web')
-                     ->prefix('zora')
-                     ->name('zora.')
-                     ->group(base_path('routes/web.php'));
+                    ->prefix('zora')
+                    ->name('zora.')
+                    ->group(base_path('routes/web.php'));
 
-                Route::middleware('web')
-                     ->group(base_path('routes/web.php'));
             }
         }
     )
