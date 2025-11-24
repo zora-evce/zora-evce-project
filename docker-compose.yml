@@ -46,18 +46,14 @@ services:
     labels:
       - "traefik.enable=true"
 
-      # Router
       - "traefik.http.routers.zora.rule=Host(`zora.mebi.co.id`)"
       - "traefik.http.routers.zora.entrypoints=websecure"
       - "traefik.http.routers.zora.tls.certresolver=myresolver"
 
-      # Force HTTPS
-      - "traefik.http.routers.zora-http.rule=Host(`zora.mebi.co.id`)"
-      - "traefik.http.routers.zora-http.entrypoints=web"
-      - "traefik.http.routers.zora-http.middlewares=redirecthttps"
-      - "traefik.http.middlewares.redirecthttps.redirectscheme.scheme=https"
+      # Force Traefik to send correct Host header
+      - "traefik.http.routers.zora.middlewares=keep-zora-host"
+      - "traefik.http.middlewares.keep-zora-host.headers.customrequestheaders.Host=zora.mebi.co.id"
 
-      # Service Port
       - "traefik.http.services.zora.loadbalancer.server.port=80"
 
 
