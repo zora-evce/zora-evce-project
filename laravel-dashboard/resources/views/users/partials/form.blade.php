@@ -36,14 +36,20 @@
 
     <div class="form-group" id="partner-group" style="display: none;">
         <label for="partner_id">Partner <span class="text-danger">*</span></label>
-        <select class="form-control @error('partner_id') is-invalid @enderror" id="partner_id" name="partner_id">
-            <option value="">Select Partner</option>
-            @foreach($partners ?? [] as $partner)
-                <option value="{{ $partner->partner_id }}" {{ old('partner_id', $user->partner_id ?? '') == $partner->partner_id ? 'selected' : '' }}>
-                    {{ $partner->partner_name }} ({{ $partner->partner_code }})
-                </option>
-            @endforeach
-        </select>
+        @if(isset($account_id) && $account_id)
+            <input type="hidden" id="partner_id" name="partner_id" value="{{ $account_id }}">
+            <input type="text" class="form-control" value="Account ID: {{ $account_id }}" readonly>
+            <small class="form-text text-muted">Partner ID is automatically set to Account ID</small>
+        @else
+            <select class="form-control @error('partner_id') is-invalid @enderror" id="partner_id" name="partner_id">
+                <option value="">Select Partner</option>
+                @foreach($partners ?? [] as $partner)
+                    <option value="{{ $partner->partner_id }}" {{ old('partner_id', $user->partner_id ?? '') == $partner->partner_id ? 'selected' : '' }}>
+                        {{ $partner->partner_name }} ({{ $partner->partner_code }})
+                    </option>
+                @endforeach
+            </select>
+        @endif
         @error('partner_id')
             <div class="invalid-feedback">{{ $message }}</div>
         @enderror
@@ -82,11 +88,17 @@
         var role = $('#id_role').val();
         if (role == '2') { // Partner role
             $('#partner-group').show();
-            $('#partner_id').prop('required', true);
+            var partnerInput = $('#partner_id');
+            if (partnerInput.is('select')) {
+                partnerInput.prop('required', true);
+            }
         } else {
             $('#partner-group').hide();
-            $('#partner_id').prop('required', false);
-            $('#partner_id').val('');
+            var partnerInput = $('#partner_id');
+            if (partnerInput.is('select')) {
+                partnerInput.prop('required', false);
+                partnerInput.val('');
+            }
         }
     }
 

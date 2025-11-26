@@ -18,80 +18,9 @@
     </div>
     <section class="content">
         <div class="container-fluid">
+            <!-- Account Information Card -->
             <div class="row g-4">
-                <!-- User Information Card -->
-                <div class="col-md-6">
-                    <div class="card border-0 shadow-sm rounded-4">
-                        <div class="card-header bg-primary text-white text-center py-3">
-                            <h5 class="card-title mb-0 fw-semibold">
-                                <i class="fas fa-user me-2"></i>User Information
-                            </h5>
-                        </div>
-                        <div class="card-body p-4 bg-white">
-                            <div class="mb-3 pb-2 border-bottom">
-                                <div class="row">
-                                    <div class="col-4">
-                                        <span class="text-muted small text-uppercase fw-semibold">Name</span>
-                                    </div>
-                                    <div class="col-8">
-                                        <span class="fw-medium text-dark">{{ $user->name ?? '-' }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mb-3 pb-2 border-bottom">
-                                <div class="row">
-                                    <div class="col-4">
-                                        <span class="text-muted small text-uppercase fw-semibold">Email</span>
-                                    </div>
-                                    <div class="col-8">
-                                        <span class="fw-medium text-dark">{{ $user->email ?? '-' }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mb-3 pb-2 border-bottom">
-                                <div class="row">
-                                    <div class="col-4">
-                                        <span class="text-muted small text-uppercase fw-semibold">Role</span>
-                                    </div>
-                                    <div class="col-8">
-                                        @if($user->id_role == 1)
-                                            <span class="badge badge-primary">Admin</span>
-                                        @elseif($user->id_role == 2)
-                                            <span class="badge badge-info">Partner</span>
-                                        @else
-                                            <span class="badge badge-secondary">Unknown</span>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mb-3 pb-2 border-bottom">
-                                <div class="row">
-                                    <div class="col-4">
-                                        <span class="text-muted small text-uppercase fw-semibold">Partner ID</span>
-                                    </div>
-                                    <div class="col-8">
-                                        <span class="fw-medium text-dark">{{ $user->partner_id ?? '-' }}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="mb-3 pb-2 border-bottom">
-                                <div class="row">
-                                    <div class="col-4">
-                                        <span class="text-muted small text-uppercase fw-semibold">Created At</span>
-                                    </div>
-                                    <div class="col-8">
-                                        <span class="fw-medium text-dark">
-                                            {{ $user->created_at ? $user->created_at->format('Y-m-d H:i:s') : '-' }}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Account Information Card -->
-                <div class="col-md-6">
+                <div class="col-md-12">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-header bg-info text-white text-center py-3">
                             <h5 class="card-title mb-0 fw-semibold">
@@ -103,15 +32,13 @@
                                 @php
                                     $accountArray = $account->toArray();
                                 @endphp
-                                @foreach($accountArray as $key => $value)
-                                    @if(!in_array($key, ['deleted_at', 'created_at', 'updated_at']) && $value !== null)
-                                        <div class="mb-3 pb-2 border-bottom">
-                                            <div class="row">
-                                                <div class="col-4">
+                                <div class="row">
+                                    @foreach($accountArray as $key => $value)
+                                        @if(!in_array($key, ['deleted_at', 'created_at', 'updated_at']) && $value !== null)
+                                            <div class="col-md-4 mb-3">
+                                                <div class="pb-2 border-bottom">
                                                     <span class="text-muted small text-uppercase fw-semibold">{{ ucwords(str_replace('_', ' ', $key)) }}</span>
-                                                </div>
-                                                <div class="col-8">
-                                                    <span class="fw-medium text-dark">
+                                                    <div class="fw-medium text-dark mt-1">
                                                         @if(is_bool($value))
                                                             {{ $value ? 'Yes' : 'No' }}
                                                         @elseif(is_array($value))
@@ -119,19 +46,16 @@
                                                         @else
                                                             {{ $value }}
                                                         @endif
-                                                    </span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    @endif
-                                @endforeach
+                                        @endif
+                                    @endforeach
+                                </div>
                             @else
                                 <div class="text-center py-4">
                                     <i class="fas fa-exclamation-circle text-muted fa-3x mb-3"></i>
-                                    <p class="text-muted mb-0">No account information found for this user.</p>
-                                    @if(!$user->partner_id)
-                                        <small class="text-muted">This user does not have a partner_id assigned.</small>
-                                    @endif
+                                    <p class="text-muted mb-0">No account information found.</p>
                                 </div>
                             @endif
                         </div>
@@ -139,8 +63,7 @@
                 </div>
             </div>
 
-            <!-- Stations Section -->
-            @if($account)
+            <!-- Section 1: Stations -->
             <div class="row g-4 mt-2">
                 <div class="col-md-12">
                     <div class="card border-0 shadow-sm rounded-4">
@@ -223,7 +146,88 @@
                     </div>
                 </div>
             </div>
-            @endif
+
+            <!-- Section 2: CRUD Users -->
+            <div class="row g-4 mt-2">
+                <div class="col-md-12">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-header bg-primary text-white py-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0 fw-semibold">
+                                    <i class="fas fa-users me-2"></i>Users
+                                </h5>
+                                <button type="button" class="btn btn-light btn-sm" id="btn-add-user">
+                                    <i class="fas fa-plus"></i> Add User
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body p-4 bg-white">
+                            <div class="table-responsive">
+                                <table id="usersTable" class="table table-hover align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 30px;">No</th>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Role</th>
+                                            <th>Created At</th>
+                                            <th style="width: 150px;"><i class="fas fa-cogs"></i></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if($users && $users->count() > 0)
+                                            @foreach($users as $index => $user)
+                                                <tr>
+                                                    <td>{{ $index + 1 }}</td>
+                                                    <td>{{ $user->name ?? '-' }}</td>
+                                                    <td>{{ $user->email ?? '-' }}</td>
+                                                    <td>
+                                                        @if($user->id_role == 1)
+                                                            <span class="badge badge-primary">Admin</span>
+                                                        @elseif($user->id_role == 2)
+                                                            <span class="badge badge-info">Partner</span>
+                                                        @else
+                                                            <span class="badge badge-secondary">Unknown</span>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @if($user->created_at)
+                                                            {{ $user->created_at->format('Y-m-d H:i:s') }}
+                                                        @else
+                                                            -
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group align-items-center" role="group">
+                                                            <a href="#" class="btn btn-primary btn-sm action-edit" data-id="{{ $user->id }}">
+                                                                <i class="fas fa-edit"></i>
+                                                            </a>
+                                                            <form action="{{ route('cpo.users.destroy', $user->id) }}" method="POST" class="d-inline action-delete-form">
+                                                                @csrf
+                                                                @method('DELETE')
+                                                                <button type="submit" class="btn btn-danger btn-sm action-delete">
+                                                                    <i class="fas fa-trash"></i>
+                                                                </button>
+                                                            </form>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        @else
+                                            <tr>
+                                                <td colspan="6" class="text-center py-4">
+                                                    <i class="fas fa-users text-muted fa-3x mb-3"></i>
+                                                    <p class="text-muted mb-0">No users found for this account.</p>
+                                                </td>
+                                            </tr>
+                                        @endif
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Back Button -->
             <div class="row mt-4">
@@ -234,6 +238,189 @@
                 </div>
             </div>
         </div>
-    </section>
-@endsection
 
+        <!-- Modal for Add/Edit User -->
+        <div class="modal fade" id="modal-form">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title" id="modal-title">Add User</h4>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="modal-body">
+                        <!-- Form will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Add User button click event
+        $('#btn-add-user').on('click', function() {
+            let accountId = {{ $account->account_id }};
+            $('#modal-title').text('Add User');
+            let createUrl = '{{ route("cpo.users.create") }}?account_id=' + accountId;
+            $('#modal-body').load(createUrl, function() {
+                // Automatically set role to Partner (2) and show partner field
+                $('#id_role').val('2').trigger('change');
+                $('#modal-form').modal('show');
+            });
+        });
+
+        // Edit User button click event
+        $(document).on('click', '.action-edit', function(e) {
+            e.preventDefault();
+            let userId = $(this).data('id');
+            let editUrl = '{{ route("cpo.users.edit", ":id") }}'.replace(':id', userId);
+            $('#modal-title').text('Edit User');
+            $('#modal-body').load(editUrl, function() {
+                $('#modal-form').modal('show');
+            });
+        });
+
+        // Handle form submission via AJAX
+        $(document).on('submit', '#user-form', function(e) {
+            e.preventDefault();
+            let form = $(this);
+            let accountId = {{ $account->account_id }};
+
+            Swal.fire({
+                title: 'Warning!',
+                text: "Are you sure want to save this data?",
+                type: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Save',
+                cancelButtonText: "Cancel"
+            }).then((result) => {
+                if (result.value) {
+                    let formData = form.serialize();
+                    let url = form.attr('action');
+                    let method = form.find('input[name="_method"]').val() || 'POST';
+
+                    // Remove previous error messages
+                    $('.alert-danger').remove();
+                    $('.is-invalid').removeClass('is-invalid');
+                    $('.invalid-feedback').remove();
+
+                    $.ajax({
+                        url: url,
+                        type: method,
+                        data: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                $('#modal-form').modal('hide');
+                                toastr.success(response.message || 'Operation successful');
+                                setTimeout(function() {
+                                    location.reload();
+                                }, 1000);
+                            }
+                        },
+                        error: function(xhr) {
+                            if (xhr.status === 401 || xhr.status === 403) {
+                                let response = xhr.responseJSON;
+                                if (response && response.redirect) {
+                                    toastr.error(response.message || 'Session expired. Please login again.');
+                                    setTimeout(function() {
+                                        window.location.href = response.redirect;
+                                    }, 1500);
+                                } else {
+                                    toastr.error('Session expired. Please login again.');
+                                    setTimeout(function() {
+                                        window.location.href = '{{ route("cpo.login") }}';
+                                    }, 1500);
+                                }
+                            } else if (xhr.status === 422) {
+                                let errors = xhr.responseJSON.errors;
+                                let errorHtml = '<div class="alert alert-danger"><ul class="mb-0">';
+                                $.each(errors, function(key, value) {
+                                    errorHtml += '<li>' + value[0] + '</li>';
+                                    let field = form.find('[name="' + key + '"]');
+                                    field.addClass('is-invalid');
+                                    field.after('<div class="invalid-feedback">' + value[0] + '</div>');
+                                });
+                                errorHtml += '</ul></div>';
+                                $('#modal-body').prepend(errorHtml);
+                                $('#modal-body').scrollTop(0);
+                            } else {
+                                toastr.error('An error occurred. Please try again.');
+                            }
+                        }
+                    });
+                }
+            });
+        });
+
+        // Reset modal on close
+        $('#modal-form').on('hidden.bs.modal', function() {
+            $('#modal-body').html('');
+            $('.alert-danger').remove();
+        });
+
+        // Handle delete user with confirmation
+        $(document).on('submit', '.action-delete-form', function(e) {
+            e.preventDefault();
+            let form = $(this);
+            let userName = form.closest('tr').find('td:eq(1)').text() || 'this user';
+
+            Swal.fire({
+                title: 'Are you sure?',
+                text: `Do you want to delete ${userName}? This action cannot be undone!`,
+                type: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, delete it!',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.value) {
+                    $.ajax({
+                        url: form.attr('action'),
+                        type: 'POST',
+                        data: form.serialize(),
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        success: function(response) {
+                            toastr.success('User deleted successfully');
+                            setTimeout(function() {
+                                location.reload();
+                            }, 1000);
+                        },
+                        error: function(xhr) {
+                            if (xhr.status === 401 || xhr.status === 403) {
+                                let response = xhr.responseJSON;
+                                if (response && response.redirect) {
+                                    toastr.error(response.message || 'Session expired. Please login again.');
+                                    setTimeout(function() {
+                                        window.location.href = response.redirect;
+                                    }, 1500);
+                                } else if (response && response.message) {
+                                    toastr.error(response.message);
+                                } else {
+                                    toastr.error('Session expired. Please login again.');
+                                    setTimeout(function() {
+                                        window.location.href = '{{ route("cpo.login") }}';
+                                    }, 1500);
+                                }
+                            } else {
+                                let errorMessage = 'An error occurred while deleting the user.';
+                                if (xhr.responseJSON && xhr.responseJSON.message) {
+                                    errorMessage = xhr.responseJSON.message;
+                                }
+                                toastr.error(errorMessage);
+                            }
+                        }
+                    });
+                }
+            });
+        });
+    </script>
+@endsection
