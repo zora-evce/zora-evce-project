@@ -9,6 +9,11 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use App\Services\QontakService;
 use App\Helpers\GlobalHelper;
+use App\Models\TransactionidPool;
+use App\Models\Transaction;
+use App\Jobs\EnqueueRemoteStopCommandJob;
+
+
 
 class OcppEventController extends Controller
 {
@@ -109,6 +114,7 @@ class OcppEventController extends Controller
 		$payload = $this->validated($r, [
 			'station_code' => ['required', 'string'],
 			'connector'    => ['required', 'integer'],
+            'transactionId' => ['required','string','max:100'],
 			'idTag'        => ['required', 'string'],
 			'meterStart'   => ['required'],
 			'timestamp'    => ['required', 'string'],
@@ -125,51 +131,85 @@ class OcppEventController extends Controller
 		$ok     = true;
 		$reason = null;
 
-		// 1) Cek kartu di rfid_cards (global aktif?)
-		if (Schema::hasTable('rfid_cards')) {
-			$q = DB::table('rfid_cards')->where('id_tag', $idTag);
+        $pool = TransactionidPool::with('transaction.tariff')
+			->where('station_code', $payload['station_code'])
+			->where('connector_id', $payload['connector'])
+			->where('status', 0)
+			->orderBy('id', 'desc')
+			->first();
 
-			if (Schema::hasColumn('rfid_cards', 'is_active')) {
-				$q->where('is_active', true);
+        if ($pool) {
+            try {
+                // OVERWRITE transactionId from OCPP
+				$payload['transactionId'] = $pool->transactionId;
+                // 1) Cek kartu di rfid_cards (global aktif?)
+                if (Schema::hasTable('rfid_cards')) {
+                    $q = DB::table('rfid_cards')->where('id_tag', $idTag);
+
+                    if (Schema::hasColumn('rfid_cards', 'is_active')) {
+                        $q->where('is_active', true);
+                    }
+
+                    $card = $q->first();
+
+                    if (!$card) {
+                        $ok     = false;
+                        $reason = 'card_not_registered';
+                    }
+                }
+
+                // 2) Cek binding kartu ↔ station ↔ connector
+                if ($ok && Schema::hasTable('rfid_card_connectors')) {
+                    $exists = DB::table('rfid_card_connectors')
+                        ->where('id_tag', $idTag)
+                        ->where('station_code', $stationCode)
+                        ->where('connector', $connector)
+                        ->where('is_active', true)
+                        ->exists();
+
+                    if (!$exists) {
+                        $ok     = false;
+                        $reason = 'connector_not_allowed_for_card';
+                    }
+                }
+
+                // UPDATE STATUS used IN TABLE transactionid_pool
+                $updatepool = TransactionidPool::find($pool->id);
+                $updatepool->status = 1;
+                $updatepool->save();
+
+                // SET JOBS TO STOP REMOTE
+                $delayMinutes = (int) $pool->transaction->tariff->tariff_value;
+                $job = EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $p->idTag)
+                                            ->delay(now()->addMinutes($delayMinutes));
+                $jobId = $job->getJobId();
+
+                // SET start_time and id_job_stop ON transactions
+                $transaction = Transaction::find($pool->id_transaction);
+                $transaction->start_time = date('Y-m-d H:i:s');
+                $transaction->id_job_stop = $jobId;
+                $transaction->save();
+
+                $result = [
+                    'ok'         => $ok,
+                    'reason'     => $reason,
+                    'station_id' => $stationId,
+                    // sementara ini kita belum pakai transaction_id dari DB,
+                    // jadi biarkan Python default ke 0 kalau tidak ada key ini.
+                ];
+
+                // Catat log webhook (lihat fix di bawah supaya nggak error 500)
+                $log = $this->logWebhook('start-transaction', $payload, $result);
+
+                return response()->json(array_merge($result, [
+                    'log_id' => $log->id ?? null,
+                ]));
+            } catch (\Throwable $e) {
+				Log::error('OCPP start-transaction failed', ['error' => $e->getMessage()]);
+				return response()->json(['ok'=>false, 'error'=>'server_error'], 500);
 			}
 
-			$card = $q->first();
-
-			if (!$card) {
-				$ok     = false;
-				$reason = 'card_not_registered';
-			}
-		}
-
-		// 2) Cek binding kartu ↔ station ↔ connector
-		if ($ok && Schema::hasTable('rfid_card_connectors')) {
-			$exists = DB::table('rfid_card_connectors')
-				->where('id_tag', $idTag)
-				->where('station_code', $stationCode)
-				->where('connector', $connector)
-				->where('is_active', true)
-				->exists();
-
-			if (!$exists) {
-				$ok     = false;
-				$reason = 'connector_not_allowed_for_card';
-			}
-		}
-
-		$result = [
-			'ok'         => $ok,
-			'reason'     => $reason,
-			'station_id' => $stationId,
-			// sementara ini kita belum pakai transaction_id dari DB,
-			// jadi biarkan Python default ke 0 kalau tidak ada key ini.
-		];
-
-		// Catat log webhook (lihat fix di bawah supaya nggak error 500)
-		$log = $this->logWebhook('start-transaction', $payload, $result);
-
-		return response()->json(array_merge($result, [
-			'log_id' => $log->id ?? null,
-		]));
+        }
 	}
 
     // ---------------------------------------------------------------------
@@ -355,19 +395,24 @@ class OcppEventController extends Controller
 	            ]);
 	        }
 
+            // SET stop_time and id_job_stop ON transactions
+			$transaction = Transaction::where("transactionId", $p['transactionId']);
+			$transaction->stop_time = date('Y-m-d H:i:s');
+			$transaction->save();
+
 			// SEND WA
 			$isSendWA = env('IS_SEND_WA');
 
 			if ($isSendWA) {
 				$phone = GlobalHelper::phoneConvert($transaction->phone);
 				$qontak = new QontakService();
-	
+
 				try {
 					$qontak->sendWhatsApp($phone, [
 						"name"            => $transaction->name,
 						"order_id"        => $transaction->midtrans_order_id,
 					]);
-	
+
 					DB::table('transactions')->where('id',$transaction->id)->update([
 						'wa_status'  => 1,
 					]);
