@@ -59,6 +59,17 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'checkout/notification',
         ]);
+        $middleware->redirectGuestsTo(function ($request) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Please login.',
+                    'redirect' => route('cpo.login'),
+                ], 401);
+            }
+
+            return route('cpo.login');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

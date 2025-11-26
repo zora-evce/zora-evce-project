@@ -219,7 +219,7 @@
                         <p>Enter your Transaction ID to request a force stop.</p>
                         <div class="form-group">
                             <label for="transactionId">Transaction ID</label>
-                            <input type="text" id="transactionId" class="form-control" placeholder="e.g. ABCD">
+                            <input type="text" id="transactionId" class="form-control" placeholder="e.g. 12345">
                         </div>
                         <button id="forceStopBtn" class="error-button">Force Stop</button>
                         <div id="forceStopMsg" style="display:none;"></div>

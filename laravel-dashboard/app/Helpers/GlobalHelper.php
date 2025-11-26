@@ -90,8 +90,8 @@ class GlobalHelper {
         if ($connector && isset($connector->idTag)) {
             $payload['idTag'] = $connector->idTag;
         }
-        if ($tariff && isset($tariff->tariff_value)) {
-            $payload['tariff_value'] = $tariff->tariff_value;
+        if ($tariff && isset($tariff->tariff_price)) {
+            $payload['tariff_value'] = $tariff->tariff_price;
         }
         if ($station && $connector && !empty($payload)) {
             RemoteCommand::create([
