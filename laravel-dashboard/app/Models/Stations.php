@@ -32,11 +32,11 @@ class Stations extends BaseModel
     ];
 
     public $rules = [
-        'code' => 'required',
-        'name' => 'required',
-        'brand_id' => 'required',
-        'vendor_id' => 'required',
-        'model_id' => 'required'
+        'code' => 'sometimes|required',
+        'name' => 'sometimes|required',
+        'brand_id' => 'sometimes|required',
+        'vendor_id' => 'sometimes|required',
+        'model_id' => 'sometimes|required'
     ];
 
     public $customMessages = [

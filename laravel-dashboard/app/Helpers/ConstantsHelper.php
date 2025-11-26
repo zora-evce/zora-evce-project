@@ -16,4 +16,7 @@ class ConstantsHelper {
     const PAYMENT_STATUS_FAILED = 3;
     const PAYMENT_STATUS_EXPIRED = 4;
 
+    // Lookup Type
+    const LOCATION_TYPE = 'location_type';
+
 }

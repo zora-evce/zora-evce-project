@@ -41,6 +41,7 @@ Route::middleware(['auth'])->group(function () {
             });
             Route::group(['prefix' => 'settings'], function () {
                 Route::get('/download-qr', [StationDetailsController::class, 'downloadQr'])->name('stations.details.settings.download-qr');
+                Route::post('/save-settings-section', [StationDetailsController::class, 'saveSettingsSection'])->name('stations.details.settings.save-settings-section');
             });
         });
 
