@@ -16,8 +16,6 @@ use App\Models\Tariff;
 use App\Models\WebhookLog;
 use App\Models\Transaction;
 use App\Models\RemoteCommand;
-use App\Services\QontakService;
-use App\Helpers\GlobalHelper;
 
 class HomeController extends Controller
 {
@@ -116,7 +114,7 @@ class HomeController extends Controller
             'transactionId' => ['required','string','max:50'],
         ]);
 
-        $transaction = Transaction::where('transactionId', $data['transactionId'])->with(['station', 'connector', 'tariff'])->first();
+        $transaction = Transaction::where('transactionId', $data['transactionId'])->first();
         if (! $transaction) {
             return response()->json([
                 'ok' => false,
@@ -150,41 +148,6 @@ class HomeController extends Controller
             DB::table('jobs')->where('id', $transaction->id_job_stop)->delete();
             $transaction->id_job_stop = null;
             $transaction->save();
-        }
-
-        $response = Http::post(url('/api/stop-transaction'), [
-            'station_code' => $transaction->station->code,
-            'connector' => $transaction->connector_id,
-            'transactionId' => $transaction->transactionId,
-            'idTag' => 'CARD',
-            'meterStop' => 100,
-            'reason' => '-',
-            'timestamp' => date('Y-m-d H:i:s'),
-            'total_kwh' => 100,
-            'total_cost' => 100
-        ]);
-
-        $isSendWA = env('IS_SEND_WA');
-
-        if ($isSendWA) {
-            $phone = GlobalHelper::phoneConvert($transaction->phone);
-            $qontak = new QontakService();
-
-            try {
-                $qontak->sendWhatsApp($phone, [
-                    "name"            => $transaction->name,
-                    "order_id"        => $transaction->midtrans_order_id,
-                ]);
-
-                DB::table('transactions')->where('id',$transaction->id)->update([
-                    'wa_status'  => 1,
-                ]);
-            } catch (\Throwable $exception) {
-                Log::error('Failed to send whatsapp.', [
-                    "name"            => $transaction->name,
-                    "order_id"        => $transaction->midtrans_order_id,
-                ]);
-            }
         }
 
         return response()->json([

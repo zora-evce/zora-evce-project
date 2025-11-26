@@ -9,7 +9,6 @@ use App\Mail\PaymentReceipt;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use App\Models\SessionToken;
-use Illuminate\Support\Facades\Http;
 
 class PaymentController extends Controller
 {
@@ -63,7 +62,7 @@ class PaymentController extends Controller
         // ambil order id (sesuaikan dengan penyimpanan)
         $orderId = $request->order_id;
         // temukan transaksi berdasarkan midtrans_order_id lalu update status
-        $transaction = Transaction::where('midtrans_order_id', $orderId)->with(['station', 'connector', 'tariff'])->first();
+        $transaction = Transaction::where('midtrans_order_id', $orderId)->first();
         if (!$transaction) {
             return response()->json(['message' => 'transaction not found'], 404);
         }
@@ -105,25 +104,43 @@ class PaymentController extends Controller
                     'error' => $exception->getMessage(),
                 ]);
             }
-        }
 
-        $response = Http::post(url('/api/start-transaction'), [
-            'station_code' => $transaction->station->code,
-            'connector' => $transaction->connector_id,
-            'idTag' => 'CARD',
-            'meterStart' => 0,
-            'timestamp' => date('Y-m-d H:i:s'),
-            'raw' => json_encode(
-                [
-                    'idTag' => 'CARD',
-                    'connector' => $transaction->connector_id,
-                    'timestamp' => date('Y-m-d H:i:s'),
-                    'meterStart' => 0,
-                    'station_code' => $transaction->station->code,
-                    'transactionId' => $transaction->transactionId
-                ]
-            )
-        ]);
+            // try {
+            //     $phone = GlobalHelper::formatPhoneToInternational($transaction->phone);
+            //     $customer_name = $transaction->name;
+            //     $station_name = $transaction->station->name;
+            //     $connector_number = $transaction->connector_id;
+            //     $start_time = date("Y-m-d H:i");
+            //     $amount = number_format($transaction->executed_price, 0, ',', '.');
+            //     $company_name = "Zora";
+
+            //     $wa = Http::withToken(env('WHATSAPP_TOKEN'))
+            //             ->post('https://graph.facebook.com/v18.0/' . env('WHATSAPP_PHONE_ID') . '/messages', [
+            //                 'messaging_product' => 'whatsapp',
+            //                 'to' => $phone,
+            //                 'type' => 'text',
+            //                 'text' => [
+            //                     'body' => "Hello {$customer_name},\n\n".
+            //                             "Your payment for the EV charging session has been *successfully received*. ⚡\n\n".
+            //                             "🔋 *Transaction Details:*\n".
+            //                             "• Station: {$station_name}\n".
+            //                             "• Connector: {$connector_number}\n".
+            //                             "• Start time: {$start_time}\n".
+            //                             "• Total payment: Rp{$amount}\n\n".
+            //                             "You can now start your charging session via the app or directly at the station.\n\n".
+            //                             "Thank you for choosing {$company_name}! 🌱\n\n".
+            //                             "—\n".
+            //                             "_This is an automated message. Please do not reply._"
+            //                 ]
+            //             ]);
+            // } catch (\Throwable $exception) {
+            //     Log::error('Failed to send payment receipt whatsapp.', [
+            //         'transaction_id' => $transaction->id,
+            //         'order_id' => $transaction->midtrans_order_id,
+            //         'error' => $exception->getMessage(),
+            //     ]);
+            // }
+        }
 
         return response()->json(['message' => 'ok']);
     }
