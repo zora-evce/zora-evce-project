@@ -26,6 +26,7 @@ class Stations extends BaseModel
         'firmware_version',
         'tariff_id',
         'account_id',
+        'address',
         'deleted_at',
         'created_at',
         'updated_at',
