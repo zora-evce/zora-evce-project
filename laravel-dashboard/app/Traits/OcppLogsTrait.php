@@ -39,7 +39,7 @@ trait OcppLogsTrait
         } else {
             $query = $query->where('type', '!=', 'heartbeat');
         }
-        $query = $query->orderBy('id', 'ASC');
+        $query = $query->orderBy('id', 'DESC');
         $limited = DB::table(DB::raw("({$query->toSql()} LIMIT 100) as t"))->mergeBindings($query);
         return response()->json(GlobalHelper::dataTable($request, $limited));
     }
