@@ -6,9 +6,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
-use App\Services\QontakService;
-use App\Helpers\GlobalHelper;
 
 class OcppEventController extends Controller
 {
@@ -57,120 +54,76 @@ class OcppEventController extends Controller
             'idTag'        => ['required','string','max:255'],
             'timestamp'    => ['nullable','date'],
         ]);
-
-        $stationId  = $this->getStationIdOrCreate($p['station_code']);
-        $idTag      = $p['idTag'] ?? null;
-        $isAllowed  = true;
-        $cardStatus = 'unknown';
-
-        // Optional card validation: only enforce if RFID table exists
-        if ($idTag && Schema::hasTable('rfid_cards')) {
-            $query = DB::table('rfid_cards')->where('id_tag', $idTag);
-
-            if (Schema::hasColumn('rfid_cards', 'is_active')) {
-                $query->where('is_active', 1);
-            } elseif (Schema::hasColumn('rfid_cards', 'status')) {
-                $query->where('status', 'active');
-            }
-
-            $card = $query->first();
-
-            if (!$card) {
-                $isAllowed  = false;
-                $cardStatus = 'rejected';
-            } else {
-                $cardStatus = 'allowed';
-            }
-        }
-
-        $result = [
-            'ok'          => $isAllowed,
-            'card_status' => $cardStatus,
-        ];
-
-        // Debug log for authorize: see payload and decision in laravel.log
-        Log::info('OCPP authorize handled', [
-            'payload' => $p,
-            'result'  => $result,
-        ]);
-
-        $logId = $this->logWebhook('authorize', $p, $result, ['related_id'=>$stationId]);
-        $result['log_id'] = $logId;
-
-        return response()->json($result);
+        $stationId = $this->getStationIdOrCreate($p['station_code']);
+        $logId = $this->logWebhook('authorize', $p, ['ok'=>true], ['related_id'=>$stationId]);
+        return response()->json(['ok'=>true, 'log_id'=>$logId]);
     }
 
     // ---------------------------------------------------------------------
     // START TRANSACTION  (aligned to your schema)
     // ---------------------------------------------------------------------
-	public function startTransaction(Request $r)
-	{
-		// Normalisasi + validasi basic payload
-		$payload = $this->validated($r, [
-			'station_code' => ['required', 'string'],
-			'connector'    => ['required', 'integer'],
-			'idTag'        => ['required', 'string'],
-			'meterStart'   => ['required'],
-			'timestamp'    => ['required', 'string'],
-			'raw'          => ['nullable', 'array'],
-		]);
+    public function startTransaction(Request $r)
+    {
+        Log::info('OCPP start-transaction request', ['json' => $r->all()]);
 
-		$stationCode = $payload['station_code'];
-		$connector   = (int) $payload['connector'];
-		$idTag       = $payload['idTag'];
+        $p = $this->validated($r, [
+            'station_code'  => ['required','string','max:100'],
+            'connector'     => ['required','integer','min:0'],
+            'transactionId' => ['required','string','max:100'],
+            'idTag'         => ['nullable','string','max:255'],
+            'meterStart'    => ['nullable','numeric'],
+            'timestamp'     => ['nullable','date'],
+        ]);
 
-		$stationId = $this->getStationIdOrCreate($stationCode);
-		$payload['station_id'] = $stationId;
+        $idk = $r->attributes->get('idempotency_key');
 
-		$ok     = true;
-		$reason = null;
+        try {
+            $res = DB::transaction(function () use ($p, $idk) {
+                if ($idk && $this->idempotentExists('start-transaction', $idk)) {
+                    Log::info('OCPP start-transaction idempotent hit', ['idempotency_key' => $idk]);
+                    return ['ok'=>true, 'idempotent'=>true];
+                }
 
-		// 1) Cek kartu di rfid_cards (global aktif?)
-		if (Schema::hasTable('rfid_cards')) {
-			$q = DB::table('rfid_cards')->where('id_tag', $idTag);
+                [$stationId, $connectorId] = $this->ensureStationAndConnector($p['station_code'], (int)$p['connector']);
 
-			if (Schema::hasColumn('rfid_cards', 'is_active')) {
-				$q->where('is_active', true);
-			}
+                // charging_sessions (only existing columns)
+                $sessionId = DB::table('charging_sessions')->insertGetId([
+                    'station_id'   => $stationId,
+                    'connector_id' => $connectorId,
+                    'status'       => 'ongoing',
+                    'start_method' => 'webhook',
+                    'created_at'   => $this->ts($p['timestamp'] ?? null) ?? now(),
+                    'updated_at'   => now(),
+                ]);
 
-			$card = $q->first();
+                // ocpp_start_transactions (matches your table)
+                DB::table('ocpp_start_transactions')->insert([
+                    'session_id'      => $sessionId,
+                    'station_id'      => $stationId,
+                    'connector_id'    => $connectorId,
+                    'id_tag'          => $p['idTag'] ?? null,
+                    'meter_start'     => isset($p['meterStart']) ? (int)$p['meterStart'] : null,
+                    'meter_start_kwh' => isset($p['meterStart']) ? ((float)$p['meterStart']/1000.0) : null,
+                    'timestamp'       => $this->ts($p['timestamp'] ?? null) ?? now(),
+                    'raw'             => json_encode($p),
+                    'created_at'      => now(),
+                    'updated_at'      => now(),
+                ]);
 
-			if (!$card) {
-				$ok     = false;
-				$reason = 'card_not_registered';
-			}
-		}
+                $logId = $this->logWebhook('start-transaction', $p, ['ok'=>true], [
+                    'related_id'      => $sessionId,
+                    'idempotency_key' => $idk,
+                ]);
 
-		// 2) Cek binding kartu ↔ station ↔ connector
-		if ($ok && Schema::hasTable('rfid_card_connectors')) {
-			$exists = DB::table('rfid_card_connectors')
-				->where('id_tag', $idTag)
-				->where('station_code', $stationCode)
-				->where('connector', $connector)
-				->where('is_active', true)
-				->exists();
+                return ['ok'=>true, 'session_id'=>$sessionId, 'log_id'=>$logId];
+            });
 
-			if (!$exists) {
-				$ok     = false;
-				$reason = 'connector_not_allowed_for_card';
-			}
-		}
-
-		$result = [
-			'ok'         => $ok,
-			'reason'     => $reason,
-			'station_id' => $stationId,
-			// sementara ini kita belum pakai transaction_id dari DB,
-			// jadi biarkan Python default ke 0 kalau tidak ada key ini.
-		];
-
-		// Catat log webhook (lihat fix di bawah supaya nggak error 500)
-		$log = $this->logWebhook('start-transaction', $payload, $result);
-
-		return response()->json(array_merge($result, [
-			'log_id' => $log->id ?? null,
-		]));
-	}
+            return response()->json($res);
+        } catch (\Throwable $e) {
+            Log::error('OCPP start-transaction failed', ['error' => $e->getMessage()]);
+            return response()->json(['ok'=>false, 'error'=>'server_error'], 500);
+        }
+    }
 
     // ---------------------------------------------------------------------
     // METER VALUES  (kept generic to likely schema)
@@ -178,25 +131,6 @@ class OcppEventController extends Controller
 	public function meterValues(Request $r)
 	{
 	    Log::info('OCPP meter-values request', ['json' => $r->all()]);
-
-            // Patch: normalize transactionId & meterValue from raw.* if root is empty
-            $payload = $r->all();
-            if (
-                (!isset($payload['transactionId']) || $payload['transactionId'] === null || $payload['transactionId'] === '')
-                && isset($payload['raw']['transaction_id'])
-            ) {
-                $payload['transactionId'] = (string) $payload['raw']['transaction_id'];
-            }
-
-            if (
-                (!isset($payload['meterValue']) || empty($payload['meterValue']))
-                && isset($payload['raw']['meter_value'])
-            ) {
-                $payload['meterValue'] = $payload['raw']['meter_value'];
-            }
-
-            // replace request data so validator & business logic see normalized fields
-            $r->replace($payload);
 
 	    $p = $this->validated($r, [
 	        'station_code'  => ['required','string','max:100'],
@@ -355,30 +289,6 @@ class OcppEventController extends Controller
 	            ]);
 	        }
 
-			// SEND WA
-			$isSendWA = env('IS_SEND_WA');
-
-			if ($isSendWA) {
-				$phone = GlobalHelper::phoneConvert($transaction->phone);
-				$qontak = new QontakService();
-	
-				try {
-					$qontak->sendWhatsApp($phone, [
-						"name"            => $transaction->name,
-						"order_id"        => $transaction->midtrans_order_id,
-					]);
-	
-					DB::table('transactions')->where('id',$transaction->id)->update([
-						'wa_status'  => 1,
-					]);
-				} catch (\Throwable $exception) {
-					Log::error('Failed to send whatsapp.', [
-						"name"            => $transaction->name,
-						"order_id"        => $transaction->midtrans_order_id,
-					]);
-				}
-			}
-
 	        $logId = $this->logWebhook('stop-transaction', $p, ['ok'=>true], [
 	            'related_id'      => $sessionId,
 	            'idempotency_key' => $idk,
@@ -488,38 +398,8 @@ class OcppEventController extends Controller
     private function validated(Request $r, array $rules): array
     {
         $in = $r->all();
-        // Normalize request field names across different naming conventions and data types.
-        // station code alias
-        if (!isset($in['station_code']) && isset($in['stationCode'])) {
-            $in['station_code'] = $in['stationCode'];
-        }
-
-        // connector alias
-        if (!isset($in['connector']) && isset($in['connectorId'])) {
-            $in['connector'] = $in['connectorId'];
-        }
-        if (!isset($in['connector']) && isset($in['connector_id'])) {
-            $in['connector'] = $in['connector_id'];
-        }
-
-        // idTag alias
-        if (!isset($in['idTag']) && isset($in['id_tag'])) {
-            $in['idTag'] = $in['id_tag'];
-        }
-
-        // transactionId → cast ke string
-        if (isset($in['transactionId']) && is_numeric($in['transactionId'])) {
-            $in['transactionId'] = strval($in['transactionId']);
-        }
-
-        // meterValue alias
-        if (!isset($in['meterValue']) && isset($in['meter_value'])) {
-            $in['meterValue'] = $in['meter_value'];
-        }
-        if (!isset($in['meterValue']) && isset($in['meterValues'])) {
-            $in['meterValue'] = $in['meterValues'];
-        }
-
+        if (!isset($in['station_code']) && isset($in['stationCode'])) $in['station_code'] = $in['stationCode'];
+        if (!isset($in['connector']) && isset($in['connectorId']))    $in['connector']    = $in['connectorId'];
         return validator($in, $rules)->validate();
     }
 
