@@ -225,10 +225,14 @@
                                 </form>
                             `;
                         }
+                        let detailUrl = '{{ route("cpo.users.detail", ":id") }}'.replace(':id', userId);
                         return `
                             <div class="btn-group align-items-center" role="group" aria-label="User Actions">
                                 <a href="#" class="btn btn-primary btn-sm action-edit" data-id="${userId}">
                                     <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="${detailUrl}" class="btn btn-info btn-sm action-detail" data-id="${userId}">
+                                    <i class="fas fa-info-circle"></i>
                                 </a>
                                 ${deleteBtn}
                             </div>

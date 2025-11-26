@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Users;
 
 use App\Helpers\GlobalHelper;
 use App\Http\Controllers\Controller;
+use App\Models\Account;
 use App\Models\Partner;
+use App\Models\Stations;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -214,6 +216,29 @@ class UsersController extends Controller
 
         return redirect()->route('cpo.users')
             ->with('success', 'User deleted successfully');
+    }
+
+    public function detail($id)
+    {
+        $user = User::findOrFail($id);
+        $account = null;
+        $stations = collect([]);
+        
+        // Get account details where users.partner_id = accounts.account_id
+        if ($user->partner_id) {
+            $account = Account::where('account_id', $user->partner_id)->first();
+            
+            // Get stations where stations.account_id = accounts.account_id
+            if ($account) {
+                $stations = Stations::where('account_id', $account->account_id)->get();
+            }
+        }
+        
+        return view('users.detail', [
+            'user' => $user,
+            'account' => $account,
+            'stations' => $stations
+        ]);
     }
 }
 
