@@ -38,6 +38,7 @@ Route::middleware(['auth'])->group(function () {
             });
             Route::group(['prefix' => 'tariff'], function () {
                 Route::post('/save-tariff', [StationDetailsController::class, 'saveTariff'])->name('stations.details.tariff.save-tariff');
+                Route::get('/get-tariff-in-use', [StationDetailsController::class, 'getTariffInUse'])->name('stations.details.tariff.get-tariff-in-use');
             });
             Route::group(['prefix' => 'settings'], function () {
                 Route::get('/download-qr', [StationDetailsController::class, 'downloadQr'])->name('stations.details.settings.download-qr');

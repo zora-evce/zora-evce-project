@@ -115,7 +115,7 @@
                                 <div class="badge-step mr-3">01</div>
                                 <div>
                                     <h6 class="action-title mb-1">Reset station</h6>
-                                    <small class="text-muted">Hard/soft reset seluruh unit</small>
+                                    <small class="text-muted">Hard/soft reset all units</small>
                                 </div>
                             </div>
 
@@ -135,7 +135,7 @@
                                 <div class="badge-step mr-3">02</div>
                                 <div>
                                     <h6 class="action-title mb-1">Reset connector</h6>
-                                    <small class="text-muted">Restart konektor tertentu</small>
+                                    <small class="text-muted">Reset specific connector</small>
                                 </div>
                             </div>
 
@@ -158,7 +158,7 @@
                                 <div class="badge-step mr-3">03</div>
                                 <div>
                                     <h6 class="action-title mb-1">Clear cache</h6>
-                                    <small class="text-muted">Hapus cache lokal charger</small>
+                                    <small class="text-muted">Clear charger local cache</small>
                                 </div>
                             </div>
 
@@ -203,7 +203,7 @@
                                 <div class="badge-step mr-3">05</div>
                                 <div>
                                     <h6 class="action-title mb-1">Unlock connector</h6>
-                                    <small class="text-muted">Lepas kunci konektor</small>
+                                    <small class="text-muted">Unlock specific connector</small>
                                 </div>
                             </div>
 
@@ -234,7 +234,7 @@
                                 <div class="badge-step mr-3">01</div>
                                 <div>
                                     <h6 class="action-title mb-1">Remote Start</h6>
-                                    <small class="text-muted">Memulai sesi charging secara remote</small>
+                                    <small class="text-muted">Start session charging stations</small>
                                 </div>
                             </div>
 
@@ -264,7 +264,7 @@
                                 <div class="badge-step mr-3">02</div>
                                 <div>
                                     <h6 class="action-title mb-1">Remote Stop</h6>
-                                    <small class="text-muted">Menghentikan sesi charging</small>
+                                    <small class="text-muted">Stop session charging stations</small>
                                 </div>
                             </div>
 
@@ -290,7 +290,7 @@
                     <div class="card action-card mb-3">
                         <div class="card-body">
                             <h6 class="action-title mb-1">Firmware update</h6>
-                            <small class="text-muted">Tidak ada firmware pada contoh ini</small>
+                            <small class="text-muted">Available soon</small>
                         </div>
                     </div>
 
@@ -305,7 +305,7 @@
                     <div class="card action-card mb-3">
                         <div class="card-body">
                             <h6 class="action-title mb-1">Local list</h6>
-                            <small class="text-muted">Isi sesuai kebutuhan Anda</small>
+                            <small class="text-muted">Available soon</small>
                         </div>
                     </div>
 

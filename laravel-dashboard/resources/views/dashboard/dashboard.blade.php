@@ -51,7 +51,7 @@
                                 <div>
                                     <div class="text-muted small text-uppercase">Finished</div>
                                 </div>
-                                <a href="#" class="font-weight-bold text-primary">13403</a>
+                                <a href="#" class="font-weight-bold text-primary">0</a>
                             </div>
 
                         </div>
@@ -89,7 +89,7 @@
                     <div class="card shadow-sm border-0">
                         <div class="card-header">
                             <h6 class="mb-0">
-                                <span class="mr-2">&#x1F50B;</span> Charging stations
+                                <i class="fas fa-charging-station mr-2"></i><span>Charging stations</span>
                             </h6>
                         </div>
                         <div class="card-body">
@@ -100,7 +100,7 @@
                                 <div class="d-flex flex-wrap">
                                     <div class="mr-3 mb-2">
                                         <span class="badge badge-pill badge-primary mr-1">In transit</span>
-                                        <a href="#" class="font-weight-bold text-primary">7</a>
+                                        <a href="#" class="font-weight-bold text-primary">0</a>
                                     </div>
 
                                     <div class="mr-3 mb-2">
@@ -110,12 +110,12 @@
 
                                     <div class="mr-3 mb-2">
                                         <span class="badge badge-pill badge-success mr-1">Active</span>
-                                        <a href="#" class="font-weight-bold text-primary">57</a>
+                                        <a href="#" class="font-weight-bold text-primary">0</a>
                                     </div>
 
                                     <div class="mr-3 mb-2">
                                         <span class="badge badge-pill badge-danger mr-1">Inactive</span>
-                                        <a href="#" class="font-weight-bold text-primary">1</a>
+                                        <a href="#" class="font-weight-bold text-primary">0</a>
                                     </div>
                                 </div>
                             </div>
@@ -126,12 +126,12 @@
                                 <div class="d-flex flex-wrap">
                                     <div class="mr-3 mb-2">
                                         <span class="badge badge-pill badge-success mr-1">Online</span>
-                                        <a href="#" class="font-weight-bold text-primary">60</a>
+                                        <a href="#" class="font-weight-bold text-primary">0</a>
                                     </div>
 
                                     <div class="mr-3 mb-2">
                                         <span class="badge badge-pill badge-danger mr-1">Offline</span>
-                                        <a href="#" class="font-weight-bold text-primary">6</a>
+                                        <a href="#" class="font-weight-bold text-primary">0</a>
                                     </div>
 
                                     <div class="mr-3 mb-2">
@@ -169,12 +169,12 @@
 
                                 <div class="mr-3 mb-2">
                                     <span class="badge badge-pill badge-success mr-1">Available</span>
-                                    <a href="#" class="font-weight-bold text-primary">99</a>
+                                    <a href="#" class="font-weight-bold text-primary">0</a>
                                 </div>
 
                                 <div class="mr-3 mb-2">
                                     <span class="badge badge-pill badge-warning mr-1">Occupied</span>
-                                    <a href="#" class="font-weight-bold text-primary">1</a>
+                                    <a href="#" class="font-weight-bold text-primary">0</a>
                                 </div>
 
                                 <div class="mr-3 mb-2">
