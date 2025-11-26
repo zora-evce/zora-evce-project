@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 // CLIENT
 // Alias to match templates expecting zora.* route names
 Route::get('/login', [AuthController::class, 'index'])->name('login');
+Route::get('/', [HomeController::class, 'index'])->name('home');
 
 Route::middleware(\App\Http\Middleware\MidtransConfig::class)->group(function () {
     // semua route client yang kamu sudah punya:
