@@ -140,11 +140,18 @@ class ChargePoint(CP16):
                     if norm.get("connector") is not None:
                         connector_hint = norm["connector"]
 
+                    # 🔹 RemoteStartTransaction (setelah pembayaran sukses)
                     if name == "RemoteStartTransaction":
                         id_tag = payload.get("idTag") or payload.get("id_tag") or "CARD"
-                        connector_id = norm.get("connector") or payload.get("connectorId")
 
-                        # simpan transaction_id dari Laravel (session_id)
+                        # pastikan connector_id selalu keisi
+                        connector_id = (
+                            norm.get("connector")
+                            or payload.get("connectorId")
+                            or ((raw.get("command") or {}).get("connector_id"))
+                        )
+
+                        # simpan transaction_id dari Laravel (session/session_id) kalau ada
                         tx_id = norm.get("transaction_id") or payload.get("transactionId")
                         self.active_transaction_id = tx_id
 
@@ -157,17 +164,16 @@ class ChargePoint(CP16):
                         else:
                             req = call.RemoteStartTransactionPayload(id_tag=id_tag)
 
-                        # id baris di tabel remote_commands (hasil _normalize_remote_cmd)
                         cmd_id = norm.get("id")
 
                         try:
                             await self.call(req)
-                            # kirim ACK "sent" ke Laravel
+                            # ✅ ACK sukses kirim ke charger
                             if cmd_id:
                                 asyncio.create_task(
                                     self._ack_remote_command(
                                         cmd_id,
-                                        "sent",
+                                        "dispatched",  # SESUAIKAN DENGAN ENUM LARAVEL
                                         "RemoteStartTransaction dispatched"
                                     )
                                 )
@@ -177,16 +183,17 @@ class ChargePoint(CP16):
                                 asyncio.create_task(
                                     self._ack_remote_command(
                                         cmd_id,
-                                        "error",
+                                        "failed",  # SESUAIKAN DENGAN ENUM LARAVEL
                                         str(e)
                                     )
                                 )
 
+                    # 🔹 RemoteStopTransaction (auto stop / force stop)
                     elif name == "RemoteStopTransaction":
                         # Ambil transactionId dari payload atau dari state aktif
                         tx_id = payload.get("transactionId") \
-                                 or payload.get("transaction_id") \
-                                 or self.active_transaction_id
+                                or payload.get("transaction_id") \
+                                or self.active_transaction_id
 
                         if not tx_id:
                             log.error("RemoteStopTransaction missing transaction_id")
@@ -200,12 +207,12 @@ class ChargePoint(CP16):
 
                         try:
                             await self.call(req)
-                            # kirim ACK "sent" ke Laravel
+                            # ✅ ACK sukses kirim ke charger
                             if cmd_id:
                                 asyncio.create_task(
                                     self._ack_remote_command(
                                         cmd_id,
-                                        "sent",
+                                        "dispatched",  # SESUAIKAN DENGAN ENUM LARAVEL
                                         f"RemoteStopTransaction dispatched (tx_id={tx_id})"
                                     )
                                 )
@@ -215,11 +222,10 @@ class ChargePoint(CP16):
                                 asyncio.create_task(
                                     self._ack_remote_command(
                                         cmd_id,
-                                        "error",
+                                        "failed",  # SESUAIKAN DENGAN ENUM LARAVEL
                                         str(e)
                                     )
                                 )
-
 
                 await asyncio.sleep(POLL_SEC)
             except Exception as e:
@@ -236,41 +242,29 @@ class ChargePoint(CP16):
         except Exception as e:
             log.exception("%s post failed: %s", endpoint, e)
 
-    async def _ack_remote_command(self, cmd_id: int, status: str, detail: Optional[str] = None):       
+    async def _ack_remote_command(self, cmd_id: int, status: str, detail: Optional[str] = None):
         """
         Kirim ACK ke Laravel untuk remote_commands.
-        status: "sent", "error", "cancelled", dll (ikuti yang dipakai Laravel).
+        status: ikuti enum yang dipakai Laravel (mis: dispatched, failed, dll).
         """
+        # Laravel minta detail = array
+        if detail is None:
+            detail_payload = []
+        elif isinstance(detail, list):
+            detail_payload = detail
+        else:
+            detail_payload = [str(detail)]
+
         body = {
             "id": cmd_id,
             "status": status,
-            "detail": detail,
-            # penting: station_code dipakai untuk pilih X-OCPP-Key yg benar
+            "detail": detail_payload,
             "station_code": self.cp_id,
         }
         try:
             await post_laravel("commands/ack", body)
         except Exception as e:
             log.exception("commands/ack failed for %s: %s", cmd_id, e)
-
-    @on('BootNotification')
-    async def on_boot_notification(self, **p):
-        vendor = p.get("chargePointVendor") or p.get("vendor") or "Unknown"
-        model = p.get("chargePointModel") or p.get("model") or "Unknown"
-        firmware = p.get("firmwareVersion")
-        asyncio.create_task(self._safe_post("boot-notification", {
-            "station_code": self.cp_id,
-            "vendor": vendor,
-            "model": model,
-            "firmware": firmware,
-            "timestamp": utcnow(),
-            "raw": {"action": "BootNotification", **p},
-        }))
-        return call_result.BootNotificationPayload(
-            current_time=utcnow(),
-            interval=30,
-            status=RegistrationStatus.accepted,
-        )
 
     @on('Authorize')
     async def on_authorize(self, **p):
