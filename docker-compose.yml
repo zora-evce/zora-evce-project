@@ -119,6 +119,8 @@ services:
       - ./ocpp-server:/app
     expose:
       - "9001"
+    networks:
+      - laravel_network
 
 # Nginx OCPP
   nginx_ocpp:
