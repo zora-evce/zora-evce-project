@@ -130,6 +130,7 @@ class ChargePoint(CP16):
                 raw = await poll_command(self.cp_id, connector_hint)
                 if raw:
                     log.info("poll raw: %s", raw)
+
                 norm = _normalize_remote_cmd(raw) if raw else None
 
                 if norm and norm.get("name"):
@@ -140,22 +141,10 @@ class ChargePoint(CP16):
                     if norm.get("connector") is not None:
                         connector_hint = norm["connector"]
 
-                    # 🔹 RemoteStartTransaction (setelah pembayaran sukses)
                     if name == "RemoteStartTransaction":
                         id_tag = payload.get("idTag") or payload.get("id_tag") or "CARD"
+                        connector_id = norm.get("connector") or payload.get("connectorId")
 
-                        # pastikan connector_id selalu keisi
-                        connector_id = (
-                            norm.get("connector")
-                            or payload.get("connectorId")
-                            or ((raw.get("command") or {}).get("connector_id"))
-                        )
-
-                        # simpan transaction_id dari Laravel (session/session_id) kalau ada
-                        tx_id = norm.get("transaction_id") or payload.get("transactionId")
-                        self.active_transaction_id = tx_id
-
-                        # Build request OCPP pakai Payload
                         if connector_id is not None:
                             req = call.RemoteStartTransactionPayload(
                                 id_tag=id_tag,
@@ -164,70 +153,18 @@ class ChargePoint(CP16):
                         else:
                             req = call.RemoteStartTransactionPayload(id_tag=id_tag)
 
-                        cmd_id = norm.get("id")
+                        await self.call(req)
 
-                        try:
-                            await self.call(req)
-                            # ✅ ACK sukses kirim ke charger
-                            if cmd_id:
-                                asyncio.create_task(
-                                    self._ack_remote_command(
-                                        cmd_id,
-                                        "dispatched",  # SESUAIKAN DENGAN ENUM LARAVEL
-                                        "RemoteStartTransaction dispatched"
-                                    )
-                                )
-                        except Exception as e:
-                            log.warning("Failed to send RemoteStartTransaction: %s", e)
-                            if cmd_id:
-                                asyncio.create_task(
-                                    self._ack_remote_command(
-                                        cmd_id,
-                                        "sent",        # ✅ PAKAI "sent"
-                                        str(e)         # detail tetap isi error biar Laravel tahu ini gagal
-                                    )
-                                )
-
-
-                    # 🔹 RemoteStopTransaction (auto stop / force stop)
                     elif name == "RemoteStopTransaction":
-                        # Ambil transactionId dari payload atau dari state aktif
-                        tx_id = payload.get("transactionId") \
-                                or payload.get("transaction_id") \
-                                or self.active_transaction_id
-
-                        if not tx_id:
-                            log.error("RemoteStopTransaction missing transaction_id")
-                            continue
-
-                        req = call.RemoteStopTransactionPayload(
-                            transaction_id=int(tx_id)
-                        )
-
-                        cmd_id = norm.get("id")
-
+                        # Laravel might send 'transactionId' (str or int)
+                        tx_raw = payload.get("transactionId") or payload.get("transaction_id") or 0
                         try:
-                            await self.call(req)
-                            # ✅ ACK sukses kirim ke charger
-                            if cmd_id:
-                                asyncio.create_task(
-                                    self._ack_remote_command(
-                                        cmd_id,
-                                        "dispatched",  # SESUAIKAN DENGAN ENUM LARAVEL
-                                        f"RemoteStopTransaction dispatched (tx_id={tx_id})"
-                                    )
-                                )
-                        except Exception as e:
-                            log.warning("Failed to send RemoteStopTransaction: %s", e)
-                            if cmd_id:
-                                asyncio.create_task(
-                                    self._ack_remote_command(
-                                        cmd_id,
-                                        "sent",        # ✅ PAKAI "sent"
-                                        str(e)
-                                    )
-                                )
+                            tx = int(tx_raw)
+                        except Exception:
+                            tx = 0
 
+                        req = call.RemoteStopTransactionPayload(transaction_id=tx)
+                        await self.call(req)
 
                 await asyncio.sleep(POLL_SEC)
             except Exception as e:
@@ -244,29 +181,29 @@ class ChargePoint(CP16):
         except Exception as e:
             log.exception("%s post failed: %s", endpoint, e)
 
-    async def _ack_remote_command(self, cmd_id: int, status: str, detail: Optional[str] = None):
-        """
-        Kirim ACK ke Laravel untuk remote_commands.
-        status: ikuti enum yang dipakai Laravel (mis: dispatched, failed, dll).
-        """
-        # Laravel minta detail = array
-        if detail is None:
-            detail_payload = []
-        elif isinstance(detail, list):
-            detail_payload = detail
-        else:
-            detail_payload = [str(detail)]
-
-        body = {
-            "id": cmd_id,
-            "status": status,
-            "detail": detail_payload,
-            "station_code": self.cp_id,
-        }
-        try:
-            await post_laravel("commands/ack", body)
-        except Exception as e:
-            log.exception("commands/ack failed for %s: %s", cmd_id, e)
+#    async def _ack_remote_command(self, cmd_id: int, status: str, detail: Optional[str] = None):
+#        """
+#        Kirim ACK ke Laravel untuk remote_commands.
+#        status: ikuti enum yang dipakai Laravel (mis: dispatched, failed, dll).
+#        """
+#        # Laravel minta detail = array
+#       if detail is None:
+#            detail_payload = []
+#        elif isinstance(detail, list):
+#            detail_payload = detail
+#        else:
+#            detail_payload = [str(detail)]
+#
+#        body = {
+#            "id": cmd_id,
+#            "status": status,
+#            "detail": detail_payload,
+#            "station_code": self.cp_id,
+#        }
+#        try:
+#            await post_laravel("commands/ack", body)
+#        except Exception as e:
+#            log.exception("commands/ack failed for %s: %s", cmd_id, e)
 
     @on('BootNotification')
     async def on_boot_notification(self, **p):
