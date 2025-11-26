@@ -183,10 +183,11 @@ class ChargePoint(CP16):
                                 asyncio.create_task(
                                     self._ack_remote_command(
                                         cmd_id,
-                                        "failed",  # SESUAIKAN DENGAN ENUM LARAVEL
-                                        str(e)
+                                        "sent",        # ✅ PAKAI "sent"
+                                        str(e)         # detail tetap isi error biar Laravel tahu ini gagal
                                     )
                                 )
+
 
                     # 🔹 RemoteStopTransaction (auto stop / force stop)
                     elif name == "RemoteStopTransaction":
@@ -222,10 +223,11 @@ class ChargePoint(CP16):
                                 asyncio.create_task(
                                     self._ack_remote_command(
                                         cmd_id,
-                                        "failed",  # SESUAIKAN DENGAN ENUM LARAVEL
+                                        "sent",        # ✅ PAKAI "sent"
                                         str(e)
                                     )
                                 )
+
 
                 await asyncio.sleep(POLL_SEC)
             except Exception as e:
@@ -265,6 +267,27 @@ class ChargePoint(CP16):
             await post_laravel("commands/ack", body)
         except Exception as e:
             log.exception("commands/ack failed for %s: %s", cmd_id, e)
+
+    @on('BootNotification')
+    async def on_boot_notification(self, **p):
+        vendor = p.get("chargePointVendor") or p.get("vendor") or "Unknown"
+        model = p.get("chargePointModel") or p.get("model") or "Unknown"
+        firmware = p.get("firmwareVersion")
+
+        asyncio.create_task(self._safe_post("boot-notification", {
+            "station_code": self.cp_id,
+            "vendor": vendor,
+            "model": model,
+            "firmware": firmware,
+            "timestamp": utcnow(),
+            "raw": {"action": "BootNotification", **p},
+        }))
+
+        return call_result.BootNotificationPayload(
+            current_time=utcnow(),
+            interval=30,
+            status=RegistrationStatus.accepted,
+        )
 
     @on('Authorize')
     async def on_authorize(self, **p):
