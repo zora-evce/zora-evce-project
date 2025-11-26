@@ -19,8 +19,7 @@ trait OcppLogsTrait
 
     public function getDataOcppLogs(Request $request)
     {
-        // $model = new WebhookLog();
-        // $query = $model->select();
+        $station_id = $request->get('station_id');
         $query = DB::table('webhook_logs')
         ->selectRaw("
             id,
@@ -33,7 +32,7 @@ trait OcppLogsTrait
             deleted_at,
             created_at,
             updated_at
-        ");
+        ")->where('related_id', $station_id);
         return response()->json(GlobalHelper::dataTable($request, $query));
     }
 }
