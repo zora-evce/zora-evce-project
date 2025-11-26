@@ -62,5 +62,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{id}/edit', [UsersController::class, 'edit'])->name('users.edit');
         Route::put('/{id}', [UsersController::class, 'update'])->name('users.update');
         Route::delete('/{id}', [UsersController::class, 'destroy'])->name('users.destroy');
+        Route::get('/{id}/detail', [UsersController::class, 'detail'])->name('users.detail');
     });
 });
