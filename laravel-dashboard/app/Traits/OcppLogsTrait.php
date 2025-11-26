@@ -19,6 +19,7 @@ trait OcppLogsTrait
 
     public function getDataOcppLogs(Request $request)
     {
+        $type = $request->get('type');
         $station_id = $request->get('station_id');
         $query = DB::table('webhook_logs')
         ->selectRaw("
@@ -33,6 +34,13 @@ trait OcppLogsTrait
             created_at,
             updated_at
         ")->where('related_id', $station_id);
-        return response()->json(GlobalHelper::dataTable($request, $query));
+        if (!empty($type) && $type == 'heartbeat') {
+            $query = $query->where('type', 'heartbeat');
+        } else {
+            $query = $query->where('type', '!=', 'heartbeat');
+        }
+        $query = $query->orderBy('id', 'ASC');
+        $limited = DB::table(DB::raw("({$query->toSql()} LIMIT 100) as t"))->mergeBindings($query);
+        return response()->json(GlobalHelper::dataTable($request, $limited));
     }
 }
