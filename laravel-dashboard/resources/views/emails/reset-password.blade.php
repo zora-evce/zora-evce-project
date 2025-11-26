@@ -59,7 +59,7 @@
 <body>
     <div class="email-container">
         <div class="header">
-            <img src="{{ url('/images/logo.png') }}" alt="Zora Logo" style="display:block; margin: 0 auto;width:200px;max-width:100%;height:auto;">
+            <img src="{{ asset('images/logo.png') }}" alt="" style="display:block; margin: 0 auto;width:40%">
             <h1 style="color:#012b46">Reset Your Password</h1>
         </div>
 

@@ -44,7 +44,7 @@
 <body>
     <div class="container">
         <div class="col-lg-8 col-xl-6 text-center">
-            <img src="{{ asset('images/logo-white.png') }}" alt="" style="display:block; margin: 0 auto;width:40%">
+            <img src="{{ asset('images/logo.png') }}" alt="" style="display:block; margin: 0 auto;width:40%">
             <hr class="divider" />
             <br>
         </div>
@@ -63,7 +63,7 @@
                     <td>{{ $transaction->midtrans_order_id ?? '-' }}</td>
                 </tr>
                 <tr>
-                    <th>Amount Paid</th>
+                    <th>Amount Paid (Inc Tax)</th>
                     <td>Rp {{ number_format((float) ($transaction->executed_price ?? 0), 2, ',', '.') }}</td>
                 </tr>
                 <tr>

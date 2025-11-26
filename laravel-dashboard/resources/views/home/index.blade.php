@@ -463,6 +463,9 @@
                             <div class="mb-3">
                                 <label for="duration" class="form-label">Duration</label>
                                 <select id="duration" name="duration" class="form-select">
+                                    @if (env('IS_TEST_MINUTE') == true)
+                                        <option value="0.05">3 Minute</option>
+                                    @endif
                                     <option value="1">1 Hour</option>
                                     <option value="2">2 Hours</option>
                                     <option value="3">3 Hours</option>
@@ -1019,6 +1022,7 @@
 
         <script>
             $(document).ready(function(){
+                var IS_TEST_MINUTE = "{{ env('IS_TEST_MINUTE') }}";
                 var allForm = $(".mainForm");
                 var form1 = $("#mainForm1");
                 var form2 = $("#mainForm2");
@@ -1140,7 +1144,11 @@
 
                 function getDurationHours() {
                     var durationVal = $("#duration").val();
-                    return durationVal ? parseInt(durationVal, 10) : null;
+                    if (IS_TEST_MINUTE) {
+                        return durationVal ? parseFloat(durationVal, 10) : null;
+                    } else {
+                        return durationVal ? parseInt(durationVal, 10) : null;
+                    }
                 }
 
                 function calculatePrice(hours) {
