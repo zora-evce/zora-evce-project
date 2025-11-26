@@ -99,7 +99,7 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         // return redirect()->route('cpo.login');
-        return redirect()->route('zora.login');
+        return redirect()->route('cpo.login');
     }
 
     public function showChangePassword()

@@ -152,7 +152,7 @@
                         } else {
                             toastr.error('Session expired. Please login again.');
                             setTimeout(function() {
-                                window.location.href = '{{ route("zora.login") }}';
+                                window.location.href = '{{ route("cpo.login") }}';
                             }, 1500);
                         }
                     }
@@ -325,7 +325,7 @@
                                 } else {
                                     toastr.error('Session expired. Please login again.');
                                     setTimeout(function() {
-                                        window.location.href = '{{ route("zora.login") }}';
+                                        window.location.href = '{{ route("cpo.login") }}';
                                     }, 1500);
                                 }
                             } else if (xhr.status === 422) {
@@ -402,7 +402,7 @@
                                 } else {
                                     toastr.error('Session expired. Please login again.');
                                     setTimeout(function() {
-                                        window.location.href = '{{ route("zora.login") }}';
+                                        window.location.href = '{{ route("cpo.login") }}';
                                     }, 1500);
                                 }
                             } else {
