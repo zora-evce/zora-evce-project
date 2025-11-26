@@ -513,7 +513,7 @@
                                     <span id="summaryDuration">-</span>
                                 </div>
                                 <div class="d-flex justify-content-between">
-                                    <span>Subtotal</span>
+                                    <span>Total Price</span>
                                     <span id="summarySubtotal">-</span>
                                 </div>
                                 <div class="d-flex justify-content-between">
@@ -521,7 +521,7 @@
                                     <span id="summaryTax">-</span>
                                 </div>
                                 <div class="d-flex justify-content-between">
-                                    <span>Total Price</span>
+                                    <span>Total Price After Tax</span>
                                     <span id="summaryPrice">-</span>
                                 </div>
                             </div>

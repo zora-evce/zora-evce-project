@@ -19,6 +19,12 @@ use App\Models\RemoteCommand;
 
 class HomeController extends Controller
 {
+
+    public function index()
+    {
+        return view('welcome');
+    }
+
     public function start($station_code, $connector_code)
     {
         try {

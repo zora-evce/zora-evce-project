@@ -9,7 +9,7 @@ use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 
 // ADMIN - Public routes (no authentication required)
-Route::get('/login', [AuthController::class, 'index'])->name('login');
+// Route::get('/login', [AuthController::class, 'index'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('forgot-password');
 Route::post('/forgot-password', [AuthController::class, 'sendResetLinkEmail'])->name('forgot-password.post');
@@ -45,22 +45,22 @@ Route::middleware(['auth'])->group(function () {
                 Route::post('/save-settings-section', [StationDetailsController::class, 'saveSettingsSection'])->name('stations.details.settings.save-settings-section');
             });
         });
+    });
 
-        Route::group(['prefix' => 'transactions'], function () {
-            Route::group(['prefix' => 'chargepoints'], function () {
-                Route::get('/', [ChargepointsTransactionsController::class, 'index'])->name('transactions.chargepoints');
-                Route::get('/get-data', [ChargepointsTransactionsController::class, 'getData'])->name('transactions.chargepoints.get-data');
-            });
+    Route::group(['prefix' => 'transactions'], function () {
+        Route::group(['prefix' => 'chargepoints'], function () {
+            Route::get('/', [ChargepointsTransactionsController::class, 'index'])->name('transactions.chargepoints');
+            Route::get('/get-data', [ChargepointsTransactionsController::class, 'getData'])->name('transactions.chargepoints.get-data');
         });
+    });
 
-        Route::group(['prefix' => 'users'], function () {
-            Route::get('/', [UsersController::class, 'index'])->name('users');
-            Route::get('/get-data', [UsersController::class, 'getData'])->name('users.get-data');
-            Route::get('/create', [UsersController::class, 'create'])->name('users.create');
-            Route::post('/', [UsersController::class, 'store'])->name('users.store');
-            Route::get('/{id}/edit', [UsersController::class, 'edit'])->name('users.edit');
-            Route::put('/{id}', [UsersController::class, 'update'])->name('users.update');
-            Route::delete('/{id}', [UsersController::class, 'destroy'])->name('users.destroy');
-        });
+    Route::group(['prefix' => 'users'], function () {
+        Route::get('/', [UsersController::class, 'index'])->name('users');
+        Route::get('/get-data', [UsersController::class, 'getData'])->name('users.get-data');
+        Route::get('/create', [UsersController::class, 'create'])->name('users.create');
+        Route::post('/', [UsersController::class, 'store'])->name('users.store');
+        Route::get('/{id}/edit', [UsersController::class, 'edit'])->name('users.edit');
+        Route::put('/{id}', [UsersController::class, 'update'])->name('users.update');
+        Route::delete('/{id}', [UsersController::class, 'destroy'])->name('users.destroy');
     });
 });

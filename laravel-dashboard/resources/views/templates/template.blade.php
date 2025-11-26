@@ -328,7 +328,7 @@
                 } else {
                     toastr.error('Session expired. Please login again.');
                     setTimeout(function() {
-                        window.location.href = '{{ route("cpo.login") }}';
+                        window.location.href = '{{ route("zora.login") }}';
                     }, 1500);
                 }
             }

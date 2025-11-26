@@ -16,9 +16,9 @@ class AuthController extends Controller
 {
     public function index(Request $request)
     {
-        if (!str_contains($request->path(), 'cpo')) {
-            return redirect()->route('cpo.login');
-        }
+        // if (!str_contains($request->path(), 'cpo')) {
+        //     return redirect()->route('cpo.login');
+        // }
         // Check if user is already logged in
         if (Auth::check()) {
             $user = Auth::user();
@@ -98,7 +98,8 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('cpo.login');
+        // return redirect()->route('cpo.login');
+        return redirect()->route('zora.login');
     }
 
     public function showChangePassword()
