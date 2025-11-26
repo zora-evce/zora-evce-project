@@ -26,7 +26,7 @@ LISTEN_PORT  = int(os.getenv("OCPP_LISTEN_PORT", "9000"))
 
 assert OCPP_KEY, "OCPP_KEY env must be set"
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")      
 log = logging.getLogger("ocpp-server")
 
 # httpx async client (module-level; closed on process exit)
@@ -103,7 +103,7 @@ class ChargePoint(CP16):
         # hasil Authorize terakhir dari backend
         self._last_auth = None  # {"id_tag": str, "ok": bool, "card_status": str, "time": str}
 
-        # sesi aktif per connector: connector_id -> {"tx_id": int, "id_tag": str, "started_at": str}
+        # sesi aktif per connector: connector_id -> {"tx_id": int, "id_tag": str, "started_at": str}   
         self._active_sessions = {}
 
         # transactionId terakhir yang aktif (dipakai untuk fallback RemoteStop)
@@ -135,6 +135,7 @@ class ChargePoint(CP16):
                 if norm and norm.get("name"):
                     name = norm["name"]
                     payload = norm.get("payload") or {}
+
                     # Keep/learn connector hint if present
                     if norm.get("connector") is not None:
                         connector_hint = norm["connector"]
@@ -147,14 +148,14 @@ class ChargePoint(CP16):
                         tx_id = norm.get("transaction_id") or payload.get("transactionId")
                         self.active_transaction_id = tx_id
 
-                        # Build request OCPP
+                        # Build request OCPP pakai Payload
                         if connector_id is not None:
-                            req = call.RemoteStartTransaction(
+                            req = call.RemoteStartTransactionPayload(
                                 id_tag=id_tag,
                                 connector_id=int(connector_id)
                             )
                         else:
-                            req = call.RemoteStartTransaction(id_tag=id_tag)
+                            req = call.RemoteStartTransactionPayload(id_tag=id_tag)
 
                         # id baris di tabel remote_commands (hasil _normalize_remote_cmd)
                         cmd_id = norm.get("id")
@@ -180,6 +181,7 @@ class ChargePoint(CP16):
                                         str(e)
                                     )
                                 )
+
                     elif name == "RemoteStopTransaction":
                         # Ambil transactionId dari payload atau dari state aktif
                         tx_id = payload.get("transactionId") \
@@ -190,7 +192,7 @@ class ChargePoint(CP16):
                             log.error("RemoteStopTransaction missing transaction_id")
                             continue
 
-                        req = call.RemoteStopTransaction(
+                        req = call.RemoteStopTransactionPayload(
                             transaction_id=int(tx_id)
                         )
 
@@ -218,6 +220,7 @@ class ChargePoint(CP16):
                                     )
                                 )
 
+
                 await asyncio.sleep(POLL_SEC)
             except Exception as e:
                 log.warning("poll/send command error: %s", e)
@@ -233,7 +236,7 @@ class ChargePoint(CP16):
         except Exception as e:
             log.exception("%s post failed: %s", endpoint, e)
 
-    async def _ack_remote_command(self, cmd_id: int, status: str, detail: Optional[str] = None):
+    async def _ack_remote_command(self, cmd_id: int, status: str, detail: Optional[str] = None):       
         """
         Kirim ACK ke Laravel untuk remote_commands.
         status: "sent", "error", "cancelled", dll (ikuti yang dipakai Laravel).
@@ -353,7 +356,7 @@ class ChargePoint(CP16):
             if id_tag and active_tag and id_tag != active_tag:
                 mismatch_id_tag = True
                 log.warning(
-                    "StopTransaction with DIFFERENT card on %s: connector=%s active=%r stop=%r",
+                    "StopTransaction with DIFFERENT card on %s: connector=%s active=%r stop=%r",       
                     self.cp_id, connector_id, active_tag, id_tag
                 )
 
