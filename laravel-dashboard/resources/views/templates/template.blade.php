@@ -57,7 +57,7 @@
 
         <!-- Preloader -->
         <div class="preloader flex-column justify-content-center align-items-center">
-            <img class="animation__shake" src="{{ asset('images/logo.png') }}"
+            <img class="" src="{{ asset('images/logo.png') }}"
                 alt="Zora Logo" height="8%" width="">
         </div>
 
