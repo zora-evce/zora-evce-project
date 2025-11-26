@@ -22,15 +22,20 @@ class UsersController extends Controller
 
     public function getData(Request $request)
     {
-        $model = new User();
+        $model = new Account();
         $query = $model->select();
         return response()->json(GlobalHelper::dataTable($request, $query));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $partners = Partner::orderBy('partner_name')->get();
-        return view('users.partials.form', ['user' => null, 'partners' => $partners]);
+        $accountId = $request->get('account_id');
+        return view('users.partials.form', [
+            'user' => null, 
+            'partners' => $partners,
+            'account_id' => $accountId
+        ]);
     }
 
     public function store(Request $request)
@@ -220,24 +225,18 @@ class UsersController extends Controller
 
     public function detail($id)
     {
-        $user = User::findOrFail($id);
-        $account = null;
-        $stations = collect([]);
+        $account = Account::findOrFail($id);
         
-        // Get account details where users.partner_id = accounts.account_id
-        if ($user->partner_id) {
-            $account = Account::where('account_id', $user->partner_id)->first();
-            
-            // Get stations where stations.account_id = accounts.account_id
-            if ($account) {
-                $stations = Stations::where('account_id', $account->account_id)->get();
-            }
-        }
+        // Get stations where stations.account_id = accounts.account_id
+        $stations = Stations::where('account_id', $account->account_id)->get();
+        
+        // Get users where users.partner_id = accounts.account_id
+        $users = User::where('partner_id', $account->account_id)->get();
         
         return view('users.detail', [
-            'user' => $user,
             'account' => $account,
-            'stations' => $stations
+            'stations' => $stations,
+            'users' => $users
         ]);
     }
 }

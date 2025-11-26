@@ -76,7 +76,7 @@
                 <li class="nav-item dropdown user-menu">
                     <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown">
                         <i class="fas fa-user"></i>
-                        <span class="d-none d-md-inline">Test</span>
+                        <span class="d-none d-md-inline">{{ Auth::user()->name }}</span>
                     </a>
                     <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
                         <!-- User image -->
@@ -85,7 +85,7 @@
                             <div class="row">
                                 <div class="col-12 text-center">
                                     <p>
-                                        {{ (Auth::user()->id_role == 1) ? 'Admin' : 'Partner' }} / {{ Auth::user()->name }}
+                                        {{ Auth::user()->name }} / {{ (Auth::user()->id_role == 1) ? 'Admin' : 'Partner' }}
                                     </p>
                                 </div>
                             </div>
