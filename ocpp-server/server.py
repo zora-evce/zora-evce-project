@@ -274,6 +274,30 @@ class ChargePoint(CP16):
         return call_result.AuthorizePayload(
             id_tag_info={"status": status}
         )
+    @on('StartTransaction')
+    async def on_start_transaction(self, **p):
+        connector_id = int(p.get("connectorId") or 1)
+        id_tag = p.get("idTag") or p.get("id_tag") or ""
+        meter_start = int(p.get("meterStart") or p.get("meter_start") or 0)
+        ts = p.get("timestamp") or utcnow()
+
+        body = {
+            "station_code": self.cp_id,
+            "connector": connector_id,
+            "transactionId": str(p.get("transactionId") or ""),  # atau logic tx_id kamu
+            "idTag": id_tag,
+            "meterStart": meter_start,
+            "timestamp": ts,
+            "raw": {"action": "StartTransaction", **p},
+        }
+
+        asyncio.create_task(self._safe_post("start-transaction", body))
+
+        # balikan normal ke charger
+        return call_result.StartTransactionPayload(
+            transaction_id=int(p.get("transactionId") or 0),
+            id_tag_info={"status": "Accepted"},
+        )
 
 
     @on('MeterValues')
