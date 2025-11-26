@@ -242,7 +242,9 @@
                     render: function(data, type, row) {
                         let status = row.status;
                         if (status == 'available') {
-                            return `<span class="badge badge-primary">Available</span>`;
+                            return `<span class="badge badge-primary">${status}</span>`;
+                        } else {
+                            return `<span class="badge badge-warning">${status}</span>`;
                         }
                     }
                 },
