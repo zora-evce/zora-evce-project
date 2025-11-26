@@ -114,10 +114,10 @@
             </a>
 
             <!-- Sidebar -->
-            <div class="sidebar">
+            <div class="sidebar" style="display: flex; flex-direction: column;">
                 <!-- Sidebar user panel (optional) -->
                 <!-- Sidebar Menu -->
-                <nav class="mt-2">
+                <nav class="mt-2" style="flex: 1;">
                     <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu"
                         data-accordion="false">
                         <li class="nav-item">
@@ -192,8 +192,8 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="{{ route('cpo.dashboard') }}"
-                                class="nav-link">
+                            <a href="{{ route('cpo.my-account') }}"
+                                class="nav-link {{ Route::is('cpo.my-account') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-user"></i>
                                 <p>
                                     My Account
@@ -212,6 +212,11 @@
                     </ul>
                 </nav>
                 <!-- /.sidebar-menu -->
+
+                <!-- Charging Icon at Bottom -->
+                <div class="text-center p-5 mt-auto" style="border-top: 1px solid rgba(255,255,255,0.1);">
+                    <img src="{{ asset('images/charging-icon.png') }}" alt="Charging Icon" style="max-width: 120px; height: auto; opacity: 0.8;">
+                </div>
             </div>
             <!-- /.sidebar -->
         </aside>

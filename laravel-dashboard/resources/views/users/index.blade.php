@@ -192,7 +192,7 @@
                         let detailUrl = '{{ route("cpo.users.detail", ":id") }}'.replace(':id', accountId);
                         return `
                             <div class="btn-group align-items-center" role="group" aria-label="Account Actions">
-                                <a href="${detailUrl}" class="btn btn-info btn-sm action-detail" data-id="${accountId}">
+                                <a href="${detailUrl}" class="btn btn-primary btn-sm action-detail" data-id="${accountId}">
                                     <i class="fas fa-info-circle"></i> Detail
                                 </a>
                             </div>

@@ -239,5 +239,28 @@ class UsersController extends Controller
             'users' => $users
         ]);
     }
+
+    public function myAccount()
+    {
+        $user = auth()->user();
+        $account = null;
+        $stations = collect([]);
+        
+        // Get account where users.partner_id = accounts.account_id
+        if ($user->partner_id) {
+            $account = Account::where('account_id', $user->partner_id)->first();
+            
+            // Get stations where stations.account_id = users.partner_id
+            if ($account) {
+                $stations = Stations::where('account_id', $user->partner_id)->get();
+            }
+        }
+        
+        return view('users.my-account', [
+            'user' => $user,
+            'account' => $account,
+            'stations' => $stations
+        ]);
+    }
 }
 

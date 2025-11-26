@@ -22,7 +22,7 @@
             <div class="row g-4">
                 <div class="col-md-12">
                     <div class="card border-0 shadow-sm rounded-4">
-                        <div class="card-header bg-info text-white text-center py-3">
+                        <div class="card-header bg-primary text-white text-center py-3">
                             <h5 class="card-title mb-0 fw-semibold">
                                 <i class="fas fa-info-circle me-2"></i>Account Information
                             </h5>
@@ -51,6 +51,36 @@
                                             </div>
                                         @endif
                                     @endforeach
+                                    
+                                    <!-- Address from Stations -->
+                                    @if($stations && $stations->count() > 0)
+                                        @php
+                                            $stationsWithAddress = $stations->filter(function($station) {
+                                                return !empty($station->address);
+                                            });
+                                        @endphp
+                                        
+                                        @if($stationsWithAddress->count() > 0)
+                                            @foreach($stationsWithAddress as $station)
+                                                <div class="col-md-4 mb-3">
+                                                    <div class="pb-2 border-bottom">
+                                                        <span class="text-muted small text-uppercase fw-semibold">
+                                                            @if($station->name)
+                                                                Address ({{ $station->name }})
+                                                            @elseif($station->code)
+                                                                Address (Station {{ $station->code }})
+                                                            @else
+                                                                Address
+                                                            @endif
+                                                        </span>
+                                                        <div class="fw-medium text-dark mt-1">
+                                                            {{ $station->address }}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            @endforeach
+                                        @endif
+                                    @endif
                                 </div>
                             @else
                                 <div class="text-center py-4">
@@ -67,7 +97,7 @@
             <div class="row g-4 mt-2">
                 <div class="col-md-12">
                     <div class="card border-0 shadow-sm rounded-4">
-                        <div class="card-header bg-success text-white text-center py-3">
+                        <div class="card-header bg-primary text-white text-center py-3">
                             <h5 class="card-title mb-0 fw-semibold">
                                 <i class="fas fa-charging-station me-2"></i>Stations
                             </h5>
