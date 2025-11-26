@@ -135,25 +135,10 @@ class ChargePoint(CP16):
                 if norm and norm.get("name"):
                     name = norm["name"]
                     payload = norm.get("payload") or {}
+
                     # Keep/learn connector hint if present
                     if norm.get("connector") is not None:
                         connector_hint = norm["connector"]
-
-                    if name == "RemoteStartTransaction":
-                        ...
-                        if connector_id is not None:
-                            req = call.RemoteStartTransaction(
-                                id_tag=id_tag,
-                                connector_id=int(connector_id)
-                            )
-                        else:
-                            req = call.RemoteStartTransaction(id_tag=id_tag)
-                        ...
-                    elif name == "RemoteStopTransaction":
-                        ...
-                        req = call.RemoteStopTransaction(
-                            transaction_id=int(tx_id)
-                        )
 
                     if name == "RemoteStartTransaction":
                         id_tag = payload.get("idTag") or payload.get("id_tag") or "CARD"
@@ -188,6 +173,44 @@ class ChargePoint(CP16):
                                 )
                         except Exception as e:
                             log.warning("Failed to send RemoteStartTransaction: %s", e)
+                            if cmd_id:
+                                asyncio.create_task(
+                                    self._ack_remote_command(
+                                        cmd_id,
+                                        "error",
+                                        str(e)
+                                    )
+                                )
+
+                    elif name == "RemoteStopTransaction":
+                        # Ambil transactionId dari payload atau dari state aktif
+                        tx_id = payload.get("transactionId") \
+                                 or payload.get("transaction_id") \
+                                 or self.active_transaction_id
+
+                        if not tx_id:
+                            log.error("RemoteStopTransaction missing transaction_id")
+                            continue
+
+                        req = call.RemoteStopTransactionPayload(
+                            transaction_id=int(tx_id)
+                        )
+
+                        cmd_id = norm.get("id")
+
+                        try:
+                            await self.call(req)
+                            # kirim ACK "sent" ke Laravel
+                            if cmd_id:
+                                asyncio.create_task(
+                                    self._ack_remote_command(
+                                        cmd_id,
+                                        "sent",
+                                        f"RemoteStopTransaction dispatched (tx_id={tx_id})"
+                                    )
+                                )
+                        except Exception as e:
+                            log.warning("Failed to send RemoteStopTransaction: %s", e)
                             if cmd_id:
                                 asyncio.create_task(
                                     self._ack_remote_command(
