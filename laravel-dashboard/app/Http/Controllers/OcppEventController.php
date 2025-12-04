@@ -85,6 +85,8 @@ class OcppEventController extends Controller
             /**
              * 4. Logging ke webhook_logs (supaya bisa dilihat di dashboard)
              */
+            $p['station_code'] = $stationCode;
+            $p['connector']    = $connectorNum;
             $this->logWebhook(
                 'BootNotification',
                 $p,
@@ -105,6 +107,8 @@ class OcppEventController extends Controller
             DB::rollBack();
 
             // Tetap log error untuk debugging
+            $p['station_code'] = $stationCode;
+            $p['connector']    = $connectorNum;
             $this->logWebhook(
                 'BootNotification',
                 $p,
@@ -250,6 +254,10 @@ class OcppEventController extends Controller
             DB::commit();
 
             // 4. Log ke webhook_logs untuk tracking di dashboard
+            $p['station_code'] = $stationCode;
+            $p['connector']    = $connectorNum;
+
+
             $this->logWebhook(
                 'StartTransaction',
                 $p,
@@ -272,6 +280,9 @@ class OcppEventController extends Controller
             DB::rollBack();
 
             // Tetap log errornya ke webhook_logs
+            $p['station_code'] = $stationCode;
+            $p['connector']    = $connectorNum;
+
             $this->logWebhook(
                 'StartTransaction',
                 $p,
@@ -380,6 +391,8 @@ class OcppEventController extends Controller
             /**
              * 5. Log ke webhook_logs untuk debugging
              */
+            $p['station_code'] = $stationCode;
+            $p['connector']    = $connectorNum;
             $this->logWebhook(
                 'MeterValues',
                 $p,
@@ -398,6 +411,8 @@ class OcppEventController extends Controller
             DB::rollBack();
 
             // log juga errornya
+            $p['station_code'] = $stationCode;
+            $p['connector']    = $connectorNum;
             $this->logWebhook(
                 'MeterValues',
                 $p,
@@ -491,6 +506,8 @@ class OcppEventController extends Controller
             DB::commit();
 
             // 4. → Logging ke webhook_logs
+            $p['station_code'] = $stationCode;
+            $p['connector']    = $connectorNum;
             $this->logWebhook(
                 'StopTransaction',
                 $p,
@@ -512,6 +529,8 @@ class OcppEventController extends Controller
             DB::rollBack();
 
             // Tetap log errornya
+            $p['station_code'] = $stationCode;
+            $p['connector']    = $connectorNum;
             $this->logWebhook(
                 'StopTransaction',
                 $p,
@@ -638,6 +657,8 @@ class OcppEventController extends Controller
             /**
              * 5. Logging ke webhook_logs
              */
+            $p['station_code'] = $stationCode;
+            $p['connector']    = $connectorNum;
             $this->logWebhook(
                 'StatusNotification',
                 $p,
@@ -655,7 +676,8 @@ class OcppEventController extends Controller
         } catch (\Throwable $e) {
 
             DB::rollBack();
-
+            $p['station_code'] = $stationCode;
+            $p['connector']    = $connectorNum;
             $this->logWebhook(
                 'StatusNotification',
                 $p,
@@ -678,7 +700,7 @@ class OcppEventController extends Controller
     {
         $p = $this->validated($r, [
             'station_code' => ['required', 'string', 'max:100'],
-            'connector'    => ['nullable', 'integer'], // optional
+            'connector'    => ['nullable', 'integer'],
             'timestamp'    => ['nullable', 'string'],
             'raw'          => ['nullable'],
         ]);
@@ -690,30 +712,25 @@ class OcppEventController extends Controller
         try {
             DB::beginTransaction();
 
-            /**
-             * 1. Pastikan station & connector ada
-             */
+            // 1. Pastikan station & connector ada
             [$stationId, $connectorId] = $this->ensureStationAndConnector($stationCode, (int)$connectorNum);
 
-            /**
-             * 2. Update last heartbeat waktu
-             */
+            // 2. Update station (heartbeat = ONLINE)
             DB::table('stations')->where('id', $stationId)->update([
                 'last_heartbeat_at' => $ts,
+                'status'            => 'online',
                 'updated_at'        => now(),
             ]);
 
-            /**
-             * 3. Update connector sebagai online (opsional)
-             */
-            DB::table('connectors')->where('id', $connectorId)->update([
-                'connectivity_status' => 'online',
-                'updated_at'          => now(),
-            ]);
+            // 3. Update connector connectivity_status secara aman
+            if ($connectorId) {
+                DB::table('connectors')->where('id', $connectorId)->update([
+                    'connectivity_status' => 'online',
+                    'updated_at'          => now(),
+                ]);
+            }
 
-            /**
-             * 4. Simpan event ke ocpp_events (untuk riwayat)
-             */
+            // 4. Log ke ocpp_events
             DB::table('ocpp_events')->insert([
                 'station_id'   => $stationId,
                 'connector_id' => $connectorId,
@@ -727,9 +744,10 @@ class OcppEventController extends Controller
 
             DB::commit();
 
-            /**
-             * 5. Logging ke webhook_logs
-             */
+            // 5. Webhook logs
+            $p['station_code'] = $stationCode;
+            $p['connector']    = $connectorNum;
+
             $this->logWebhook(
                 'Heartbeat',
                 $p,
@@ -746,6 +764,9 @@ class OcppEventController extends Controller
 
             DB::rollBack();
 
+            $p['station_code'] = $stationCode;
+            $p['connector']    = $connectorNum;
+
             $this->logWebhook(
                 'Heartbeat',
                 $p,
@@ -758,6 +779,7 @@ class OcppEventController extends Controller
             return $this->reply(false, $e->getMessage(), 500);
         }
     }
+
 
 
     // ============================== Helpers =================================
@@ -815,58 +837,67 @@ class OcppEventController extends Controller
         ], $updates));
     }
 
-    private function getStationIdOrCreate(string $code): int
+    private function getStationIdOrCreate(string $stationCode): int
     {
-        $row = DB::table('stations')->select('id')->where('code',$code)->first();
-        if ($row) return (int)$row->id;
-        return (int) DB::table('stations')->insertGetId([
-            'code'=>$code,'name'=>$code,'status'=>'available','connectivity_status'=>'offline',
-            'created_at'=>now(),'updated_at'=>now(),
-        ]);
-    }
-
-/**
- * Pastikan station & connector ada.
- * - Station di-handle oleh getStationIdOrCreate()
- * - Connector dicari berdasarkan (station_id, connector_number)
- * - Jika tidak ada, dibuat baru dengan status 'available'
- * - Sekaligus update stations.connectors_count
- */
-    private function ensureStationAndConnector(string $stationCode, int $connectorNumber): array
-    {
-        // 1. Pastikan station sudah ada
-        $stationId = $this->getStationIdOrCreate($stationCode);
-
-        // 2. Cari connector existing (hanya yang tidak soft-deleted)
-        $connector = DB::table('connectors')
-            ->select('id')
-            ->where('station_id', $stationId)
-            ->where('connector_number', $connectorNumber)
-            ->whereNull('deleted_at')
-            ->first();
-
-        if ($connector) {
-            return [$stationId, (int) $connector->id];
+        $row = DB::table('stations')->where('code', $stationCode)->first();
+        if ($row) {
+            return (int)$row->id;
         }
 
-        // 3. Buat connector baru kalau belum ada
-        $connectorId = DB::table('connectors')->insertGetId([
-            'station_id'       => $stationId,
-            'connector_number' => $connectorNumber,
-            'status'           => 'available',
-            'power_kw'         => null,
-            'last_status_at'   => null,
-            'created_at'       => now(),
-            'updated_at'       => now(),
+        return (int) DB::table('stations')->insertGetId([
+            'code'              => $stationCode,
+            'name'              => $stationCode,
+            'vendor'            => null,
+            'model'             => null,
+            'firmware'          => null,
+            'connectors_count'  => 0,
+            'status'            => 'offline',
+            'last_heartbeat_at' => null,
+            'created_at'        => now(),
+            'updated_at'        => now(),
         ]);
-
-        // 4. Update jumlah connector di stations (aman untuk 1–2 connector)
-        DB::table('stations')
-            ->where('id', $stationId)
-            ->increment('connectors_count', 1);
-
-        return [$stationId, (int) $connectorId];
     }
+
+
+    /**
+     * Pastikan station & connector ada.
+     * - Station di-handle oleh getStationIdOrCreate()
+     * - Connector dicari berdasarkan (station_id, connector_number)
+     * - Jika tidak ada, dibuat baru dengan status 'available'
+     * - Sekaligus update stations.connectors_count
+     */
+    private function ensureStationAndConnector(string $stationCode, int $connectorNumber): array
+    {
+        // Create or fetch station
+        $stationId = $this->getStationIdOrCreate($stationCode);
+
+        // Fetch connector
+        $connector = DB::table('connectors')
+            ->where('station_id', $stationId)
+            ->where('connector_number', $connectorNumber)
+            ->first();
+
+        if (!$connector) {
+            $connectorId = DB::table('connectors')->insertGetId([
+                'station_id'       => $stationId,
+                'connector_number' => $connectorNumber,
+                'status'           => 'available',
+                'connectivity_status' => 'offline',
+                'power_kw'         => null,
+                'last_status_at'   => null,
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
+
+            // Update connectors_count
+            DB::table('stations')->where('id', $stationId)->increment('connectors_count');
+
+            return [$stationId, $connectorId];
+        }
+
+        return [$stationId, $connector->id];
+    }
+
 
 
     private function idempotentExists(string $type, string $key): bool
@@ -874,17 +905,23 @@ class OcppEventController extends Controller
         return DB::table('webhook_logs')->where('type',$type)->where('idempotency_key',$key)->exists();
     }
 
-/**
- * Save OCPP event into webhook_logs table.
- * This function must NEVER throw an exception.
- */
+    /**
+     * Writes OCPP event logs safely into webhook_logs.
+     *
+     * @param string $type
+     * @param array  $payload
+     * @param array  $meta
+     * @param array  $extra
+     * @return int
+     */
     private function logWebhook(string $type, array $payload = [], array $meta = [], array $extra = []): int
     {
         try {
+
             $record = [
                 'type'         => $type,
-                'station_code' => $payload['station_code'] ?? null,
-                'connector'    => $payload['connector'] ?? null,
+                'station_code' => $payload['station_code'] ?? ($extra['station_code'] ?? null),
+                'connector'    => $payload['connector'] ?? ($extra['connector'] ?? null),
                 'level'        => $meta['level'] ?? 'info',
                 'status'       => $meta['status'] ?? null,
                 'related_id'   => $extra['related_id'] ?? null,
@@ -898,9 +935,9 @@ class OcppEventController extends Controller
             return (int) DB::table('webhook_logs')->insertGetId($record);
 
         } catch (\Throwable $e) {
-            // fallback logging, cannot fail
+
             return (int) DB::table('webhook_logs')->insertGetId([
-                'type'        => 'WebhookError',
+                'type'        => $type . '_Error',
                 'level'       => 'error',
                 'payload'     => json_encode($payload),
                 'response'    => json_encode(['error' => $e->getMessage()]),
@@ -910,5 +947,25 @@ class OcppEventController extends Controller
             ]);
         }
     }
+
+    /**
+     * Standard OCPP API reply format.
+     *
+     * @param bool $ok
+     * @param string|null $message
+     * @param int $httpCode
+     * @param array $extra
+     * @return \Illuminate\Http\JsonResponse
+     */
+    private function reply(bool $ok, ?string $message = null, int $httpCode = 200, array $extra = [])
+    {
+        $response = array_merge([
+            'ok'      => $ok,
+            'message' => $message,
+        ], $extra);
+
+        return response()->json($response, $httpCode);
+    }
+
 
 }
