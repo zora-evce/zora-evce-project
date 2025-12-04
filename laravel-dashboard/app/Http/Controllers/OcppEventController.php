@@ -221,60 +221,88 @@ class OcppEventController extends Controller
         $ts           = $this->ts($p['timestamp']) ?? now();
 
         try {
-            DB::beginTransaction();
+            // GET transactionId from pool
+		    $pool = TransactionidPool::with('transaction.tariff')
+                                        ->where('station_code', $p['station_code'])
+                                        ->where('connector_id', $p['connector'])
+                                        ->where('status', 0)
+                                        ->orderBy('id', 'desc')
+                                        ->first();
+            if ($pool) {
+                // OVERWRITE transactionId from OCPP
+				$p['transactionId'] = $pool->transactionId;
 
-            // 1. Pastikan station & connector ada (auto-create bila belum)
-            //    Helper ini sudah ada di bawah: ensureStationAndConnector()
-            [$stationId, $connectorId] = $this->ensureStationAndConnector($stationCode, $connectorNum);
+                DB::beginTransaction();
+    
+                // 1. Pastikan station & connector ada (auto-create bila belum)
+                //    Helper ini sudah ada di bawah: ensureStationAndConnector()
+                [$stationId, $connectorId] = $this->ensureStationAndConnector($stationCode, $connectorNum);
+    
+                // 2. Buat charging session baru
+                $sessionId = DB::table('charging_sessions')->insertGetId([
+                    'station_id'   => $stationId,
+                    'connector_id' => $connectorId,
+                    'status'       => 'ongoing',
+                    'start_method' => 'webhook',
+                    'created_at'   => $ts,
+                    'updated_at'   => $ts,
+                ]);
+                
+                // 3. Insert ke ocpp_start_transactions
+                $startId = DB::table('ocpp_start_transactions')->insertGetId([
+                    'session_id'       => $sessionId,
+                    'station_id'       => $stationId,
+                    'connector_id'     => $connectorId,
+                    'id_tag'           => $idTag,
+                    'meter_start'      => $p['meterStart'] ?? null,
+                    'meter_start_kwh'  => null,                  // nanti diisi kalau sudah ada konversi
+                    'timestamp'        => $ts,
+                    'raw'              => json_encode($p['raw'] ?? $p),
+                    'created_at'       => now(),
+                    'updated_at'       => now(),
+                ]);
+    
+                DB::commit();
+    
+                // 4. Log ke webhook_logs untuk tracking di dashboard
+                $p['station_code'] = $stationCode;
+                $p['connector']    = $connectorNum;
+    
+    
+                $this->logWebhook(
+                    'StartTransaction',
+                    $p,
+                    [
+                        'ok'          => true,
+                        'session_id'  => $sessionId,
+                        'start_id'    => $startId,
+                        'station_id'  => $stationId,
+                        'connector_id'=> $connectorId,
+                    ],
+                    [
+                        'related_id' => $sessionId,
+                    ]
+                );
 
-            // 2. Buat charging session baru
-            $sessionId = DB::table('charging_sessions')->insertGetId([
-                'station_id'   => $stationId,
-                'connector_id' => $connectorId,
-                'status'       => 'ongoing',
-                'start_method' => 'webhook',
-                'created_at'   => $ts,
-                'updated_at'   => $ts,
-            ]);
+                // UPDATE STATUS used IN TABLE transactionid_pool
+                $updatepool = TransactionidPool::find($pool->id);
+                $updatepool->status = 1;
+                $updatepool->save();
 
-            // 3. Insert ke ocpp_start_transactions
-            $startId = DB::table('ocpp_start_transactions')->insertGetId([
-                'session_id'       => $sessionId,
-                'station_id'       => $stationId,
-                'connector_id'     => $connectorId,
-                'id_tag'           => $idTag,
-                'meter_start'      => $p['meterStart'] ?? null,
-                'meter_start_kwh'  => null,                  // nanti diisi kalau sudah ada konversi
-                'timestamp'        => $ts,
-                'raw'              => json_encode($p['raw'] ?? $p),
-                'created_at'       => now(),
-                'updated_at'       => now(),
-            ]);
+                // SET JOBS TO STOP REMOTE
+                $delayMinutes = (int) $pool->transaction->tariff->tariff_value;
+                $job = EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $p->idTag)
+                                            ->delay(now()->addMinutes($delayMinutes));
+                $jobId = $job->getJobId(); 
 
-            DB::commit();
-
-            // 4. Log ke webhook_logs untuk tracking di dashboard
-            $p['station_code'] = $stationCode;
-            $p['connector']    = $connectorNum;
-
-
-            $this->logWebhook(
-                'StartTransaction',
-                $p,
-                [
-                    'ok'          => true,
-                    'session_id'  => $sessionId,
-                    'start_id'    => $startId,
-                    'station_id'  => $stationId,
-                    'connector_id'=> $connectorId,
-                ],
-                [
-                    'related_id' => $sessionId,
-                ]
-            );
-
-            return $this->reply(true, 'StartTransaction saved');
-
+                // SET start_time and id_job_stop ON transactions
+                $transaction = Transaction::find($pool->id_transaction);
+                $transaction->start_time = date('Y-m-d H:i:s');
+                $transaction->id_job_stop = $jobId;
+                $transaction->save();
+    
+                return $this->reply(true, 'StartTransaction saved');
+            }
         } catch (\Throwable $e) {
 
             DB::rollBack();
