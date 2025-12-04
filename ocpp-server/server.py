@@ -8,10 +8,12 @@ from urllib.parse import urlparse, parse_qs
 
 import httpx
 from websockets.server import serve
+
 load_dotenv(dotenv_path='.env', override=True)
+
 from ocpp.routing import on
 from ocpp.v16 import ChargePoint as CP16
-from ocpp.v16.enums import RegistrationStatus, Action
+from ocpp.v16.enums import RegistrationStatus
 from ocpp.v16 import call_result, call
 
 # 🔧 bring in the normalizer
@@ -26,35 +28,41 @@ LISTEN_PORT  = int(os.getenv("OCPP_LISTEN_PORT", "9000"))
 
 assert OCPP_KEY, "OCPP_KEY env must be set"
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")      
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("ocpp-server")
 
 # httpx async client (module-level; closed on process exit)
 http = httpx.AsyncClient(timeout=10.0, verify=True)
 
+
 # --- Key selection helpers ---
 _OCPP_MAP = None
+
+
 def _parse_key_map():
     global _OCPP_MAP
     if _OCPP_MAP is not None:
         return _OCPP_MAP
-    raw = os.getenv("OCPP_KEY_MAP","").strip()
+    raw = os.getenv("OCPP_KEY_MAP", "").strip()
     m = {}
     if raw:
         # format: A=keyA,B=keyB
         for pair in raw.split(","):
             if "=" in pair:
-                k,v = pair.split("=",1)
+                k, v = pair.split("=", 1)
                 m[k.strip()] = v.strip()
     _OCPP_MAP = m
     return _OCPP_MAP
+
 
 def _key_for_station(station_code: str, default_key: str):
     m = _parse_key_map()
     return m.get(station_code, default_key or "")
 
+
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
+
 
 # ------------ Helpers ------------
 async def post_laravel(path: str, payload: dict) -> dict:
@@ -68,11 +76,11 @@ async def post_laravel(path: str, payload: dict) -> dict:
     }
     r = await http.post(url, headers=headers, json=payload)
     if r.status_code >= 400:
-        import logging
         logger = logging.getLogger("ocpp-server")
         logger.error("Laravel error %s for %s: %s", r.status_code, url, r.text)
     r.raise_for_status()
     return r.json()
+
 
 async def poll_command(station_code: str, connector: Optional[int]) -> Optional[dict]:
     """
@@ -103,7 +111,7 @@ class ChargePoint(CP16):
         # hasil Authorize terakhir dari backend
         self._last_auth = None  # {"id_tag": str, "ok": bool, "card_status": str, "time": str}
 
-        # sesi aktif per connector: connector_id -> {"tx_id": int, "id_tag": str, "started_at": str}   
+        # sesi aktif per connector: connector_id -> {"tx_id": int, "id_tag": str, "started_at": str}
         self._active_sessions = {}
 
         # transactionId terakhir yang aktif (dipakai untuk fallback RemoteStop)
@@ -124,7 +132,18 @@ class ChargePoint(CP16):
                 pass
 
     async def _command_poller(self):
+        """
+        Poll Laravel every POLL_SEC seconds and execute remote commands:
+        - RemoteStartTransaction
+        - RemoteStopTransaction
+
+        RemoteStop has smart fallback for transactionId:
+        1. Laravel-supplied transactionId
+        2. self._active_sessions[connector_id]["tx_id"]
+        3. self.active_transaction_id
+        """
         connector_hint = None
+
         while self._running:
             try:
                 raw = await poll_command(self.cp_id, connector_hint)
@@ -136,44 +155,144 @@ class ChargePoint(CP16):
                 if norm and norm.get("name"):
                     name = norm["name"]
                     payload = norm.get("payload") or {}
+                    # id command dari Laravel, dipakai untuk ACK
+                    cmd_id = norm.get("id") or (raw.get("id") if isinstance(raw, dict) else None)
 
-                    # Keep/learn connector hint if present
+                    # Simpan connector_hint kalau ada
                     if norm.get("connector") is not None:
                         connector_hint = norm["connector"]
 
+                    # -----------------------------
+                    # REMOTE START
+                    # -----------------------------
                     if name == "RemoteStartTransaction":
                         id_tag = payload.get("idTag") or payload.get("id_tag") or "CARD"
-                        connector_id = norm.get("connector") or payload.get("connectorId")
+                        connector_id = (
+                            norm.get("connector")
+                            or payload.get("connectorId")
+                            or connector_hint
+                            or 1
+                        )
 
                         if connector_id is not None:
                             req = call.RemoteStartTransactionPayload(
                                 id_tag=id_tag,
-                                connector_id=int(connector_id)
+                                connector_id=int(connector_id),
                             )
                         else:
+                            # fallback: tanpa connector_id, biar charger pilih
                             req = call.RemoteStartTransactionPayload(id_tag=id_tag)
 
-                        await self.call(req)
-
-                    elif name == "RemoteStopTransaction":
-                        # Laravel might send 'transactionId' (str or int)
-                        tx_raw = payload.get("transactionId") or payload.get("transaction_id") or 0
                         try:
-                            tx = int(tx_raw)
-                        except Exception:
-                            tx = 0
+                            log.info("[%s] RemoteStart connector=%s id_tag=%s", self.cp_id, connector_id, id_tag)
+                            await self.call(req)
+                            if cmd_id is not None:
+                                ack_body = {
+                                    "id": cmd_id,
+                                    "status": "dispatched",
+                                    "detail": [],
+                                    "station_code": self.cp_id,
+                                }
+                                await self._safe_post("commands/ack", ack_body)
+                        except Exception as e:
+                            log.exception("RemoteStartTransaction failed: %s", e)
+                            if cmd_id is not None:
+                                ack_body = {
+                                    "id": cmd_id,
+                                    "status": "failed",
+                                    "detail": [str(e)],
+                                    "station_code": self.cp_id,
+                                }
+                                await self._safe_post("commands/ack", ack_body)
 
-                        req = call.RemoteStopTransactionPayload(transaction_id=tx)
-                        await self.call(req)
+                    # -----------------------------
+                    # REMOTE STOP  (SMART VERSION)
+                    # -----------------------------
+                    elif name == "RemoteStopTransaction":
+                        # Tentukan connector_id dulu
+                        connector_id = (
+                            norm.get("connector")
+                            or payload.get("connectorId")
+                            or connector_hint
+                            or 1
+                        )
+
+                        # 1) Coba ambil transactionId dari payload Laravel
+                        tx_id = None
+                        tx_raw = (
+                            payload.get("transactionId")
+                            or payload.get("transaction_id")
+                            or payload.get("tx_id")
+                        )
+
+                        if tx_raw is not None:
+                            try:
+                                tx_id = int(tx_raw)
+                            except Exception:
+                                tx_id = None
+
+                        # 2) Fallback: active_sessions untuk connector ini
+                        if (not tx_id or tx_id <= 0) and connector_id is not None:
+                            session = self._active_sessions.get(int(connector_id))
+                            if session:
+                                tx_id = session.get("tx_id")
+
+                        # 3) Fallback: global last active transaction
+                        if not tx_id or tx_id <= 0:
+                            tx_id = self.active_transaction_id
+
+                        # Jika tetap tidak ada transactionId valid → laporkan gagal ke Laravel
+                        if not tx_id or tx_id <= 0:
+                            log.warning(
+                                "No valid transactionId for RemoteStop on %s connector %s",
+                                self.cp_id,
+                                connector_id,
+                            )
+                            if cmd_id is not None:
+                                ack_body = {
+                                    "id": cmd_id,
+                                    "status": "failed",
+                                    "detail": ["No active transactionId available"],
+                                    "station_code": self.cp_id,
+                                }
+                                await self._safe_post("commands/ack", ack_body)
+                        else:
+                            # Eksekusi RemoteStop
+                            req = call.RemoteStopTransactionPayload(transaction_id=int(tx_id))
+                            try:
+                                log.info("[%s] RemoteStop connector=%s tx_id=%s", self.cp_id, connector_id, tx_id)
+                                await self.call(req)
+                                # bersihkan sesi aktif di memori (kalau charger nanti tidak kirim StopTransaction)
+                                try:
+                                    if connector_id is not None:
+                                        self._active_sessions.pop(int(connector_id), None)
+                                except Exception:
+                                    pass
+
+                                if cmd_id is not None:
+                                    ack_body = {
+                                        "id": cmd_id,
+                                        "status": "dispatched",
+                                        "detail": [],
+                                        "station_code": self.cp_id,
+                                    }
+                                    await self._safe_post("commands/ack", ack_body)
+                            except Exception as e:
+                                log.exception("RemoteStopTransaction failed: %s", e)
+                                if cmd_id is not None:
+                                    ack_body = {
+                                        "id": cmd_id,
+                                        "status": "failed",
+                                        "detail": [str(e)],
+                                        "station_code": self.cp_id,
+                                    }
+                                    await self._safe_post("commands/ack", ack_body)
 
                 await asyncio.sleep(POLL_SEC)
+
             except Exception as e:
                 log.warning("poll/send command error: %s", e)
                 await asyncio.sleep(POLL_SEC)
-
-    #def _next_tx_id(self) -> int:
-        #self._tx_seq += 1
-        #return self._tx_seq
 
     async def _safe_post(self, endpoint: str, body: dict):
         try:
@@ -181,44 +300,27 @@ class ChargePoint(CP16):
         except Exception as e:
             log.exception("%s post failed: %s", endpoint, e)
 
-#    async def _ack_remote_command(self, cmd_id: int, status: str, detail: Optional[str] = None):
-#        """
-#        Kirim ACK ke Laravel untuk remote_commands.
-#        status: ikuti enum yang dipakai Laravel (mis: dispatched, failed, dll).
-#        """
-#        # Laravel minta detail = array
-#       if detail is None:
-#            detail_payload = []
-#        elif isinstance(detail, list):
-#            detail_payload = detail
-#        else:
-#            detail_payload = [str(detail)]
-#
-#        body = {
-#            "id": cmd_id,
-#            "status": status,
-#            "detail": detail_payload,
-#            "station_code": self.cp_id,
-#        }
-#        try:
-#            await post_laravel("commands/ack", body)
-#        except Exception as e:
-#            log.exception("commands/ack failed for %s: %s", cmd_id, e)
-
     @on('BootNotification')
     async def on_boot_notification(self, **p):
         vendor = p.get("chargePointVendor") or p.get("vendor") or "Unknown"
         model = p.get("chargePointModel") or p.get("model") or "Unknown"
-        firmware = p.get("firmwareVersion")
+        firmware = p.get("firmwareVersion") or p.get("firmware")
 
-        asyncio.create_task(self._safe_post("boot-notification", {
+        body = {
             "station_code": self.cp_id,
+            # OCPP-style fields
+            "chargePointVendor": vendor,
+            "chargePointModel": model,
+            "firmwareVersion": firmware,
+            # Zora custom / legacy fields
             "vendor": vendor,
             "model": model,
             "firmware": firmware,
             "timestamp": utcnow(),
             "raw": {"action": "BootNotification", **p},
-        }))
+        }
+
+        asyncio.create_task(self._safe_post("boot-notification", body))
 
         return call_result.BootNotificationPayload(
             current_time=utcnow(),
@@ -274,31 +376,69 @@ class ChargePoint(CP16):
         return call_result.AuthorizePayload(
             id_tag_info={"status": status}
         )
+
     @on('StartTransaction')
     async def on_start_transaction(self, **p):
+        """
+        Handler StartTransaction dari charger.
+
+        Tugas:
+        - Normalisasi field dari payload charger
+        - Generate / ambil transaction_id yang konsisten
+        - Simpan sesi aktif di self._active_sessions per connector
+        - Kirim event ke Laravel (/api/ocpp/start-transaction)
+        - Balikkan StartTransactionPayload ke charger dengan transaction_id yang benar
+        """
         connector_id = int(p.get("connectorId") or 1)
         id_tag = p.get("idTag") or p.get("id_tag") or ""
         meter_start = int(p.get("meterStart") or p.get("meter_start") or 0)
         ts = p.get("timestamp") or utcnow()
 
+        # --- Tentukan transaction_id ---
+        # Jika charger mengirim transactionId, pakai itu.
+        raw_tx = p.get("transactionId")
+        try:
+            tx_id = int(raw_tx) if raw_tx is not None else 0
+        except Exception:
+            tx_id = 0
+
+        # Jika tidak ada / 0, generate transactionId lokal (sequence)
+        if tx_id <= 0:
+            self._tx_seq += 1
+            tx_id = self._tx_seq
+
+        # Simpan state lokal sesi aktif untuk connector ini
+        self._active_sessions[connector_id] = {
+            "tx_id": tx_id,
+            "id_tag": id_tag,
+            "started_at": ts,
+        }
+        self.active_transaction_id = tx_id
+
+        log.info(
+            "[%s] StartTransaction: connector=%s, tx_id=%s, id_tag=%s",
+            self.cp_id, connector_id, tx_id, id_tag
+        )
+
         body = {
             "station_code": self.cp_id,
             "connector": connector_id,
-            "transactionId": str(p.get("transactionId") or ""),  # atau logic tx_id kamu
+            # kirim untuk logging/debug ke Laravel (walau DB utama pakai session_id)
+            "transactionId": str(tx_id),
             "idTag": id_tag,
             "meterStart": meter_start,
             "timestamp": ts,
             "raw": {"action": "StartTransaction", **p},
         }
 
+        # Kirim ke Laravel secara async (tidak blocking OCPP)
         asyncio.create_task(self._safe_post("start-transaction", body))
 
-        # balikan normal ke charger
+        # Response ke charger: wajib pakai transaction_id yang sama
         return call_result.StartTransactionPayload(
-            transaction_id=int(p.get("transactionId") or 0),
+            transaction_id=tx_id,
             id_tag_info={"status": "Accepted"},
         )
-
 
     @on('MeterValues')
     async def on_meter_values(self, **p):
@@ -309,7 +449,8 @@ class ChargePoint(CP16):
             "station_code": self.cp_id,
             "connector": connector_id,
             "transactionId": str(transaction_id or ""),
-            "meterValue": meter_value,
+            # Laravel side expects "values"
+            "values": meter_value,
             "raw": {"action": "MeterValues", **p},
         }))
         return call_result.MeterValuesPayload()
@@ -334,9 +475,14 @@ class ChargePoint(CP16):
             if id_tag and active_tag and id_tag != active_tag:
                 mismatch_id_tag = True
                 log.warning(
-                    "StopTransaction with DIFFERENT card on %s: connector=%s active=%r stop=%r",       
+                    "StopTransaction with DIFFERENT card on %s: connector=%s active=%r stop=%r",
                     self.cp_id, connector_id, active_tag, id_tag
                 )
+
+        log.info(
+            "[%s] StopTransaction: connector=%s, tx_id=%s, id_tag=%s",
+            self.cp_id, connector_id, tx_id, id_tag
+        )
 
         asyncio.create_task(self._safe_post("stop-transaction", {
             "station_code": self.cp_id,
@@ -381,6 +527,7 @@ class ChargePoint(CP16):
             "raw": {"action": "Heartbeat", **p},
         }))
         return call_result.HeartbeatPayload(current_time=utcnow())
+
 
 # ------------ WebSocket entry ------------
 async def handler(websocket, path):
@@ -427,10 +574,20 @@ async def handler(websocket, path):
         await charge_point.stop_poller()
         log.info("Connection closed: %s", cp_id)
 
+
 async def main():
     log.info("OCPP server starting on %s:%d", LISTEN_HOST, LISTEN_PORT)
-    async with serve(handler, LISTEN_HOST, LISTEN_PORT, subprotocols=["ocpp1.6"], ping_interval=None, ping_timeout=None, close_timeout=120):
+    async with serve(
+        handler,
+        LISTEN_HOST,
+        LISTEN_PORT,
+        subprotocols=["ocpp1.6"],
+        ping_interval=None,
+        ping_timeout=None,
+        close_timeout=120,
+    ):
         await asyncio.Future()  # run forever
+
 
 if __name__ == "__main__":
     try:
