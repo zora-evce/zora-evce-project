@@ -23,34 +23,101 @@ class OcppEventController extends Controller
     public function bootNotification(Request $r)
     {
         $p = $this->validated($r, [
-            'station_code' => ['required','string','max:100'],
-            'vendor'       => ['nullable','string','max:100'],
-            'model'        => ['nullable','string','max:100'],
-            'firmware'     => ['nullable','string','max:100'],
-            'timestamp'    => ['nullable','date'],
+            'station_code'          => ['required', 'string', 'max:100'],
+            'chargePointVendor'     => ['nullable', 'string', 'max:255'],
+            'chargePointModel'      => ['nullable', 'string', 'max:255'],
+            'chargeBoxSerialNumber' => ['nullable', 'string', 'max:255'],
+            'firmwareVersion'       => ['nullable', 'string', 'max:255'],
+            'iccid'                 => ['nullable', 'string', 'max:255'],
+            'imsi'                  => ['nullable', 'string', 'max:255'],
+            'meterSerialNumber'     => ['nullable', 'string', 'max:255'],
+            'meterType'             => ['nullable', 'string', 'max:255'],
+            'timestamp'             => ['nullable', 'string'],
+            'connector'             => ['nullable', 'integer'], // optional
+            'raw'                   => ['nullable'],            // isi payload mentah dari Python
         ]);
-        $now = $this->ts($p['timestamp'] ?? null) ?? now();
 
-        $res = DB::transaction(function () use ($p, $now) {
-            $stationId = $this->upsertStation($p['station_code'], [
-                'status'              => 'available',
-                'connectivity_status' => 'online',
-                'last_heartbeat_at'   => $now,
-                'vendor'              => $p['vendor']   ?? null,
-                'model'               => $p['model']    ?? null,
-                'firmware_version'    => $p['firmware'] ?? null,
-                'updated_at'          => now(),
+        $stationCode = $p['station_code'];
+        $connectorNum = $p['connector'] ?? 1;
+        $ts = $this->ts($p['timestamp']) ?? now();
+
+        try {
+            DB::beginTransaction();
+
+            /**
+             * 1. Pastikan station & connector sudah terdaftar
+             *    (helper ini sudah kamu punya)
+             */
+            [$stationId, $connectorId] = $this->ensureStationAndConnector($stationCode, (int)$connectorNum);
+
+            /**
+             * 2. Update informasi device pada tabel stations
+             */
+            DB::table('stations')->where('id', $stationId)->update([
+                'vendor'         => $p['chargePointVendor'] ?? null,
+                'model'          => $p['chargePointModel'] ?? null,
+                'serial_number'  => $p['chargeBoxSerialNumber'] ?? null,
+                'firmware'       => $p['firmwareVersion'] ?? null,
+                'iccid'          => $p['iccid'] ?? null,
+                'imsi'           => $p['imsi'] ?? null,
+                'meter_serial'   => $p['meterSerialNumber'] ?? null,
+                'meter_type'     => $p['meterType'] ?? null,
+                'last_boot_at'   => $ts,
+                'updated_at'     => now(),
             ]);
 
-            $logId = $this->logWebhook('boot-notification', $p, ['ok'=>true], [
-                'related_id' => $stationId,
+            /**
+             * 3. Simpan event BootNotification ke tabel ocpp_events
+             */
+            DB::table('ocpp_events')->insert([
+                'station_id' => $stationId,
+                'connector_id' => $connectorId,
+                'name' => 'BootNotification',
+                'level' => 'info',
+                'detail' => json_encode($p),
+                'event_time' => $ts,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
-            return ['ok'=>true, 'station_id'=>$stationId, 'log_id'=>$logId];
-        });
+            DB::commit();
 
-        return response()->json($res);
+            /**
+             * 4. Logging ke webhook_logs (supaya bisa dilihat di dashboard)
+             */
+            $this->logWebhook(
+                'BootNotification',
+                $p,
+                [
+                    'ok'          => true,
+                    'station_id'  => $stationId,
+                    'connector_id'=> $connectorId,
+                ],
+                [
+                    'related_id' => $stationId,
+                ]
+            );
+
+            return $this->reply(true, 'BootNotification saved');
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            // Tetap log error untuk debugging
+            $this->logWebhook(
+                'BootNotification',
+                $p,
+                [
+                    'ok'    => false,
+                    'error' => $e->getMessage(),
+                ]
+            );
+
+            return $this->reply(false, $e->getMessage(), 500);
+        }
     }
+
 
     // ---------------------------------------------------------------------
     // AUTHORIZE
@@ -58,17 +125,31 @@ class OcppEventController extends Controller
     public function authorize(Request $r)
     {
         $p = $this->validated($r, [
-            'station_code' => ['required','string','max:100'],
-            'idTag'        => ['required','string','max:255'],
-            'timestamp'    => ['nullable','date'],
+            'station_code' => ['required', 'string', 'max:100'],
+            'idTag'        => ['required', 'string', 'max:255'],
+            'connector'    => ['nullable', 'integer'], // optional, kalau Python kirim connector
+            'timestamp'    => ['nullable', 'date'],
         ]);
 
-        $stationId  = $this->getStationIdOrCreate($p['station_code']);
+        // Pastikan station + optional connector tercatat rapi di DB
+        $stationCode  = $p['station_code'];
+        $stationId    = $this->getStationIdOrCreate($stationCode);
+        $connectorId  = null;
+
+        if (isset($p['connector'])) {
+            // Kalau ada connector, pastikan row di connectors ada
+            [$stationIdFromEnsure, $connectorId] = $this->ensureStationAndConnector(
+                $stationCode,
+                (int) $p['connector']
+            );
+            $stationId = $stationIdFromEnsure;
+        }
+
         $idTag      = $p['idTag'] ?? null;
         $isAllowed  = true;
         $cardStatus = 'unknown';
 
-        // Optional card validation: only enforce if RFID table exists
+        // Optional card validation: hanya kalau tabel rfid_cards memang ada
         if ($idTag && Schema::hasTable('rfid_cards')) {
             $query = DB::table('rfid_cards')->where('id_tag', $idTag);
 
@@ -89,419 +170,506 @@ class OcppEventController extends Controller
         }
 
         $result = [
-            'ok'          => $isAllowed,
-            'card_status' => $cardStatus,
+            'ok'           => $isAllowed,
+            'card_status'  => $cardStatus,
+            'station_id'   => $stationId,
+            'connector_id' => $connectorId,
         ];
 
-        // Debug log for authorize: see payload and decision in laravel.log
+        // Debug ke laravel.log
         Log::info('OCPP authorize handled', [
-            'payload' => $p,
-            'result'  => $result,
+            'payload'      => $p,
+            'result'       => $result,
+            'station_code' => $stationCode,
+            'station_id'   => $stationId,
+            'connector_id' => $connectorId,
         ]);
 
-        $logId = $this->logWebhook('authorize', $p, $result, ['related_id'=>$stationId]);
+        // Simpan juga ke webhook_logs supaya konsisten dengan event lain
+        $logId = $this->logWebhook('authorize', $p, $result, [
+            'related_id' => $stationId,
+        ]);
+
         $result['log_id'] = $logId;
 
         return response()->json($result);
     }
 
+
     // ---------------------------------------------------------------------
-    // START TRANSACTION  (aligned to your schema)
+    // START TRANSACTION  (final, aligned to schema & helpers)
     // ---------------------------------------------------------------------
-	public function startTransaction(Request $r)
-	{
-		// Normalisasi + validasi basic payload
-		$payload = $this->validated($r, [
-			'station_code' => ['required', 'string'],
-			'connector'    => ['required', 'integer'],
-            'transactionId' => ['required','string','max:100'],
-			'idTag'        => ['required', 'string'],
-			'meterStart'   => ['required'],
-			'timestamp'    => ['required', 'string'],
-			'raw'          => ['nullable', 'array'],
-		]);
+    public function startTransaction(Request $r)
+    {
+        $p = $this->validated($r, [
+            'station_code'   => ['required', 'string', 'max:100'],
+            'connector'      => ['required', 'integer'],
+            'transactionId'  => ['nullable'],                // dari OCPP (string/number), disimpan di log saja
+            'idTag'          => ['nullable', 'string', 'max:255'],
+            'meterStart'     => ['nullable', 'numeric'],
+            'timestamp'      => ['nullable', 'string'],
+            'raw'            => ['nullable'],                // payload mentah dari Python (optional)
+        ]);
 
-		$stationCode = $payload['station_code'];
-		$connector   = (int) $payload['connector'];
-		$idTag       = $payload['idTag'];
+        $stationCode  = $p['station_code'];
+        $connectorNum = (int) $p['connector'];
+        $idTag        = $p['idTag'] ?? null;
+        $ts           = $this->ts($p['timestamp']) ?? now();
 
-		$stationId = $this->getStationIdOrCreate($stationCode);
-		$payload['station_id'] = $stationId;
+        try {
+            DB::beginTransaction();
 
-		$ok     = true;
-		$reason = null;
+            // 1. Pastikan station & connector ada (auto-create bila belum)
+            //    Helper ini sudah ada di bawah: ensureStationAndConnector()
+            [$stationId, $connectorId] = $this->ensureStationAndConnector($stationCode, $connectorNum);
 
-        $pool = TransactionidPool::with('transaction.tariff')
-			->where('station_code', $payload['station_code'])
-			->where('connector_id', $payload['connector'])
-			->where('status', 0)
-			->orderBy('id', 'desc')
-			->first();
+            // 2. Buat charging session baru
+            $sessionId = DB::table('charging_sessions')->insertGetId([
+                'station_id'   => $stationId,
+                'connector_id' => $connectorId,
+                'status'       => 'ongoing',
+                'start_method' => 'webhook',
+                'created_at'   => $ts,
+                'updated_at'   => $ts,
+            ]);
 
-        if ($pool) {
-            try {
-                // OVERWRITE transactionId from OCPP
-				$payload['transactionId'] = $pool->transactionId;
-                // 1) Cek kartu di rfid_cards (global aktif?)
-                if (Schema::hasTable('rfid_cards')) {
-                    $q = DB::table('rfid_cards')->where('id_tag', $idTag);
+            // 3. Insert ke ocpp_start_transactions
+            $startId = DB::table('ocpp_start_transactions')->insertGetId([
+                'session_id'       => $sessionId,
+                'station_id'       => $stationId,
+                'connector_id'     => $connectorId,
+                'id_tag'           => $idTag,
+                'meter_start'      => $p['meterStart'] ?? null,
+                'meter_start_kwh'  => null,                  // nanti diisi kalau sudah ada konversi
+                'timestamp'        => $ts,
+                'raw'              => json_encode($p['raw'] ?? $p),
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
 
-                    if (Schema::hasColumn('rfid_cards', 'is_active')) {
-                        $q->where('is_active', true);
-                    }
+            DB::commit();
 
-                    $card = $q->first();
+            // 4. Log ke webhook_logs untuk tracking di dashboard
+            $this->logWebhook(
+                'StartTransaction',
+                $p,
+                [
+                    'ok'          => true,
+                    'session_id'  => $sessionId,
+                    'start_id'    => $startId,
+                    'station_id'  => $stationId,
+                    'connector_id'=> $connectorId,
+                ],
+                [
+                    'related_id' => $sessionId,
+                ]
+            );
 
-                    if (!$card) {
-                        $ok     = false;
-                        $reason = 'card_not_registered';
-                    }
-                }
+            return $this->reply(true, 'StartTransaction saved');
 
-                // 2) Cek binding kartu ↔ station ↔ connector
-                if ($ok && Schema::hasTable('rfid_card_connectors')) {
-                    $exists = DB::table('rfid_card_connectors')
-                        ->where('id_tag', $idTag)
-                        ->where('station_code', $stationCode)
-                        ->where('connector', $connector)
-                        ->where('is_active', true)
-                        ->exists();
+        } catch (\Throwable $e) {
 
-                    if (!$exists) {
-                        $ok     = false;
-                        $reason = 'connector_not_allowed_for_card';
-                    }
-                }
+            DB::rollBack();
 
-                // UPDATE STATUS used IN TABLE transactionid_pool
-                $updatepool = TransactionidPool::find($pool->id);
-                $updatepool->status = 1;
-                $updatepool->save();
+            // Tetap log errornya ke webhook_logs
+            $this->logWebhook(
+                'StartTransaction',
+                $p,
+                [
+                    'ok'    => false,
+                    'error' => $e->getMessage(),
+                ]
+            );
 
-                // SET JOBS TO STOP REMOTE
-                $delayMinutes = (int) $pool->transaction->tariff->tariff_value;
-                $job = EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $p->idTag)
-                                            ->delay(now()->addMinutes($delayMinutes));
-                $jobId = $job->getJobId();
-
-                // SET start_time and id_job_stop ON transactions
-                $transaction = Transaction::find($pool->id_transaction);
-                $transaction->start_time = date('Y-m-d H:i:s');
-                $transaction->id_job_stop = $jobId;
-                $transaction->save();
-
-                $result = [
-                    'ok'         => $ok,
-                    'reason'     => $reason,
-                    'station_id' => $stationId,
-                    // sementara ini kita belum pakai transaction_id dari DB,
-                    // jadi biarkan Python default ke 0 kalau tidak ada key ini.
-                ];
-
-                // Catat log webhook (lihat fix di bawah supaya nggak error 500)
-                $log = $this->logWebhook('start-transaction', $payload, $result);
-
-                return response()->json(array_merge($result, [
-                    'log_id' => $log->id ?? null,
-                ]));
-            } catch (\Throwable $e) {
-				Log::error('OCPP start-transaction failed', ['error' => $e->getMessage()]);
-				return response()->json(['ok'=>false, 'error'=>'server_error'], 500);
-			}
-
+            return $this->reply(false, $e->getMessage(), 500);
         }
-	}
+    }
+
+
+
 
     // ---------------------------------------------------------------------
     // METER VALUES  (kept generic to likely schema)
     // ---------------------------------------------------------------------
-	public function meterValues(Request $r)
-	{
-	    Log::info('OCPP meter-values request', ['json' => $r->all()]);
+    public function meterValues(Request $r)
+    {
+        $p = $this->validated($r, [
+            'station_code' => ['required', 'string', 'max:100'],
+            'connector'    => ['required', 'integer'],
+            'timestamp'    => ['nullable', 'string'],
+            'values'       => ['nullable'], // sesuai payload Python OCPP server
+            'raw'          => ['nullable'], // payload mentah
+        ]);
 
-            // Patch: normalize transactionId & meterValue from raw.* if root is empty
-            $payload = $r->all();
-            if (
-                (!isset($payload['transactionId']) || $payload['transactionId'] === null || $payload['transactionId'] === '')
-                && isset($payload['raw']['transaction_id'])
-            ) {
-                $payload['transactionId'] = (string) $payload['raw']['transaction_id'];
+        $stationCode  = $p['station_code'];
+        $connectorNum = (int) $p['connector'];
+        $ts           = $this->ts($p['timestamp']) ?? now();
+
+        try {
+            DB::beginTransaction();
+
+            /**
+             * 1. Ambil station
+             */
+            $station = DB::table('stations')
+                ->where('code', $stationCode)
+                ->first();
+
+            if (!$station) {
+                throw new \Exception("Station not found: {$stationCode}");
             }
 
-            if (
-                (!isset($payload['meterValue']) || empty($payload['meterValue']))
-                && isset($payload['raw']['meter_value'])
-            ) {
-                $payload['meterValue'] = $payload['raw']['meter_value'];
+            /**
+             * 2. Ambil connector
+             */
+            $connector = DB::table('connectors')
+                ->where('station_id', $station->id)
+                ->where('connector_number', $connectorNum)
+                ->first();
+
+            if (!$connector) {
+                throw new \Exception("Connector not found: {$stationCode} / {$connectorNum}");
             }
 
-            // replace request data so validator & business logic see normalized fields
-            $r->replace($payload);
+            /**
+             * 3. Ambil session aktif (ongoing)
+             */
+            $session = DB::table('charging_sessions')
+                ->where('station_id', $station->id)
+                ->where('connector_id', $connector->id)
+                ->where('status', 'ongoing')
+                ->orderByDesc('id')
+                ->first();
 
-	    $p = $this->validated($r, [
-	        'station_code'  => ['required','string','max:100'],
-	        'connector'     => ['required','integer','min:0'],
-	        'transactionId' => ['required','string','max:100'],
-	        'meterValue'    => ['required','array'],
-	    ]);
+            /**
+             * Kalau tidak ada session → buat dummy session agar logging tetap jalan
+             * MeterValues tidak boleh gagal
+             */
+            if (!$session) {
+                $sessionId = DB::table('charging_sessions')->insertGetId([
+                    'station_id'   => $station->id,
+                    'connector_id' => $connector->id,
+                    'status'       => 'ongoing',
+                    'start_method' => 'unknown',
+                    'created_at'   => $ts,
+                    'updated_at'   => $ts,
+                ]);
+            } else {
+                $sessionId = $session->id;
+            }
 
-	    $idk = $r->attributes->get('idempotency_key');
+            /**
+             * 4. Insert ke ocpp_meter_values
+             */
+            DB::table('ocpp_meter_values')->insert([
+                'station_id'      => $station->id,
+                'connector_id'    => $connector->id,
+                'session_id'      => $sessionId,
+                'event_time'      => $ts,
+                'meter_value_json'=> json_encode($p['values'] ?? $p['raw'] ?? $p),
+                'energy_kwh'      => null, // bisa dihitung jika meterStart/Stop tersedia
+                'power_kw'        => null,
+                'voltage'         => null,
+                'current'         => null,
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
 
-	    $res = DB::transaction(function () use ($p, $idk) {
-	        if ($idk && $this->idempotentExists('meter-values', $idk)) {
-	            return ['ok'=>true, 'idempotent'=>true];
-	        }
+            DB::commit();
 
-	        [$stationId, $connectorId] = $this->ensureStationAndConnector(
-	            $p['station_code'],
-	            (int)$p['connector']
-	        );
+            /**
+             * 5. Log ke webhook_logs untuk debugging
+             */
+            $this->logWebhook(
+                'MeterValues',
+                $p,
+                [
+                    'ok'          => true,
+                    'session_id'  => $sessionId,
+                    'station_id'  => $station->id,
+                    'connector_id'=> $connector->id,
+                ]
+            );
 
-		// 1) Prefer ongoing
-		$session = DB::table('charging_sessions')
-		    ->select('id')->where('station_id',$stationId)->where('connector_id',$connectorId)
-		    ->where('status','ongoing')->latest('id')->first();
-		$sessionId = $session->id ?? null;
+            return $this->reply(true, 'MeterValues saved');
 
-		// 2) If none, take latest any-status session
-		if (!$sessionId) {
-		    $any = DB::table('charging_sessions')
-		        ->select('id')->where('station_id',$stationId)->where('connector_id',$connectorId)
-		        ->latest('id')->first();
-		    $sessionId = $any->id ?? null;
-		}
+        } catch (\Throwable $e) {
 
-		// 3) If still none, auto-create a session so inserts never fail
-		if (!$sessionId) {
-		    $sessionId = DB::table('charging_sessions')->insertGetId([
-		        'station_id'   => $stationId,
-		        'connector_id' => $connectorId,
-		        'status'       => 'ongoing',
-		        'start_method' => 'webhook-auto',
-		        'created_at'   => now(),
-		        'updated_at'   => now(),
-		    ]);
-		}
+            DB::rollBack();
 
-	        foreach ($p['meterValue'] as $mv) {
-	            $ts = $this->ts($mv['timestamp'] ?? null) ?? now();
+            // log juga errornya
+            $this->logWebhook(
+                'MeterValues',
+                $p,
+                [
+                    'ok'    => false,
+                    'error' => $e->getMessage()
+                ]
+            );
 
-	            // Defaults
-	            $energy_kwh = null;
-	            $power_kw   = null;
-	            $voltage    = null;
-	            $current    = null;
-
-	            foreach (($mv['sampledValue'] ?? []) as $sv) {
-	                $measurand = strtolower((string)($sv['measurand'] ?? ''));
-	                $unit      = strtoupper((string)($sv['unit'] ?? ''));
-	                $val       = $sv['value'] ?? null;
-	                if (!is_numeric($val)) continue;
-	                $num = (float)$val;
-
-	                if ($measurand === 'energy.active.import.register') {
-	                    $energy_kwh = ($unit === 'WH') ? ($num / 1000.0) :
-	                                  ($unit === 'KWH' ? $num : $energy_kwh);
-	                } elseif ($measurand === 'power.active.import') {
-	                    $power_kw = ($unit === 'W') ? ($num / 1000.0) :
-	                                ($unit === 'KW' ? $num : $power_kw);
-	                } elseif ($measurand === 'voltage') {
-	                    $voltage = $num;
-	                } elseif ($measurand === 'current.import') {
-	                    $current = $num;
-	                }
-	            }
-
-	            DB::table('ocpp_meter_values')->insert([
-	                'station_id'       => $stationId,
-	                'connector_id'     => $connectorId,
-	                'session_id'       => $sessionId,
-	                'event_time'       => $ts,                // correct column
-	                'meter_value_json' => json_encode($mv),   // correct column
-	                'energy_kwh'       => $energy_kwh,
-	                'power_kw'         => $power_kw,
-	                'voltage'          => $voltage,
-	                'current'          => $current,
-	                'created_at'       => now(),
-	                'updated_at'       => now(),
-	            ]);
-	        }
-
-	        $logId = $this->logWebhook('meter-values', $p, ['ok'=>true], [
-	            'related_id'      => $sessionId,
-	            'idempotency_key' => $idk,
-	        ]);
-
-	        return ['ok'=>true, 'session_id'=>$sessionId, 'log_id'=>$logId];
-	    });
-
-	    return response()->json($res);
-	}
+            return $this->reply(false, $e->getMessage(), 500);
+        }
+    }
 
 
+
+
+     // ---------------------------------------------------------------------
+    // STOP TRANSACTION  (final, clean, aligned with DB schema)
     // ---------------------------------------------------------------------
-    // STOP TRANSACTION  (best-effort mapping)
-    // ---------------------------------------------------------------------
-	public function stopTransaction(Request $r)
-	{
-	    Log::info('OCPP stop-transaction request', ['json' => $r->all()]);
+    public function stopTransaction(Request $r)
+    {
+        $p = $this->validated($r, [
+            'station_code'   => ['required', 'string', 'max:100'],
+            'connector'      => ['required', 'integer'],
+            'transactionId'  => ['nullable'],              // OCPP transactionId (log only)
+            'idTag'          => ['nullable', 'string'],
+            'meterStop'      => ['nullable', 'numeric'],
+            'timestamp'      => ['nullable', 'string'],
+            'reason'         => ['nullable', 'string'],
+            'raw'            => ['nullable'],
+        ]);
 
-	    $p = $this->validated($r, [
-	        'station_code'  => ['required','string','max:100'],
-	        'connector'     => ['required','integer','min:0'],
-	        'transactionId' => ['required','string','max:100'],
-	        'idTag'         => ['nullable','string','max:255'],
-	        'meterStop'     => ['nullable','numeric'],
-	        'reason'        => ['nullable','string','max:100'],
-	        'timestamp'     => ['nullable','date'],
-	        'total_kwh'     => ['nullable','numeric'],
-	        'total_cost'    => ['nullable','numeric'],
-	    ]);
+        $stationCode  = $p['station_code'];
+        $connectorNum = (int) $p['connector'];
+        $ts           = $this->ts($p['timestamp']) ?? now();
 
-	    $idk = $r->attributes->get('idempotency_key');
+        try {
+            DB::beginTransaction();
 
-	    $res = DB::transaction(function () use ($p, $idk) {
-	        if ($idk && $this->idempotentExists('stop-transaction', $idk)) {
-	            return ['ok'=>true, 'idempotent'=>true];
-	        }
+            // 1. → Dapatkan station_id & connector_id (auto-create bila belum ada)
+            [$stationId, $connectorId] = $this->ensureStationAndConnector($stationCode, $connectorNum);
 
-	        [$stationId, $connectorId] = $this->ensureStationAndConnector($p['station_code'], (int)$p['connector']);
+            // 2. → Cari charging session ongoing
+            $session = DB::table('charging_sessions')
+                ->where('station_id', $stationId)
+                ->where('connector_id', $connectorId)
+                ->where('status', 'ongoing')
+                ->orderByDesc('id')
+                ->first();
 
-	        $session = DB::table('charging_sessions')
-	            ->select('id')->where('station_id',$stationId)->where('connector_id',$connectorId)
-	            ->latest('id')->first();
-	        $sessionId = $session->id ?? null;
+            if (!$session) {
+                // Jika session tidak ditemukan, buat session dummy agar StopTransaction tidak error
+                $sessionId = DB::table('charging_sessions')->insertGetId([
+                    'station_id'   => $stationId,
+                    'connector_id' => $connectorId,
+                    'status'       => 'stopped',
+                    'start_method' => 'unknown',
+                    'end_method'   => 'webhook',
+                    'created_at'   => $ts,
+                    'updated_at'   => $ts,
+                ]);
+            } else {
+                $sessionId = $session->id;
 
-	        DB::table('ocpp_stop_transactions')->insert([
-	            'session_id'       => $sessionId,
-	            'station_id'       => $stationId,
-	            'connector_id'     => $connectorId,
-	            'event_time'       => $this->ts($p['timestamp'] ?? null) ?? now(),
-	            'reason'           => $p['reason'] ?? null,
-	            'meter_stop'       => isset($p['meterStop']) ? (int)$p['meterStop'] : null,
-	            'meter_stop_kwh'   => isset($p['meterStop']) ? ((float)$p['meterStop'] / 1000.0) : null,
-	            'total_energy_kwh' => $p['total_kwh'] ?? null,
-	            'total_cost'       => $p['total_cost'] ?? null,
-	            'raw'              => json_encode($p),
-	            'created_at'       => now(),
-	            'updated_at'       => now(),
-	        ]);
+                // Tutup session
+                DB::table('charging_sessions')
+                    ->where('id', $sessionId)
+                    ->update([
+                        'status'     => 'stopped',
+                        'end_method' => 'webhook',
+                        'updated_at' => now(),
+                    ]);
+            }
 
-	        if ($sessionId) {
-	            DB::table('charging_sessions')->where('id',$sessionId)->update([
-	                'status'     => 'stopped',
-	                'end_method' => 'webhook',
-	                'updated_at' => now(),
-	            ]);
-	        }
+            // 3. → Insert ke ocpp_stop_transactions
+            $stopId = DB::table('ocpp_stop_transactions')->insertGetId([
+                'session_id'       => $sessionId,
+                'station_id'       => $stationId,
+                'connector_id'     => $connectorId,
+                'event_time'       => $ts,
+                'reason'           => $p['reason'] ?? null,
+                'meter_stop'       => $p['meterStop'] ?? null,
+                'meter_stop_kwh'   => null,
+                'total_energy_kwh' => null,
+                'total_cost'       => null,
+                'raw'              => json_encode($p['raw'] ?? $p),
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
 
-            // SET stop_time and id_job_stop ON transactions
-			$transaction = Transaction::where("transactionId", $p['transactionId']);
-			$transaction->stop_time = date('Y-m-d H:i:s');
-			$transaction->save();
+            DB::commit();
 
-			// SEND WA
-			$isSendWA = env('IS_SEND_WA');
+            // 4. → Logging ke webhook_logs
+            $this->logWebhook(
+                'StopTransaction',
+                $p,
+                [
+                    'ok'          => true,
+                    'session_id'  => $sessionId,
+                    'stop_id'     => $stopId,
+                    'station_id'  => $stationId,
+                    'connector_id'=> $connectorId,
+                ],
+                [
+                    'related_id' => $sessionId,
+                ]
+            );
 
-			if ($isSendWA) {
-				$phone = GlobalHelper::phoneConvert($transaction->phone);
-				$qontak = new QontakService();
+            return $this->reply(true, 'StopTransaction saved');
 
-				try {
-					$qontak->sendWhatsApp($phone, [
-						"name"            => $transaction->name,
-						"order_id"        => $transaction->midtrans_order_id,
-					]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
 
-					DB::table('transactions')->where('id',$transaction->id)->update([
-						'wa_status'  => 1,
-					]);
-				} catch (\Throwable $exception) {
-					Log::error('Failed to send whatsapp.', [
-						"name"            => $transaction->name,
-						"order_id"        => $transaction->midtrans_order_id,
-					]);
-				}
-			}
+            // Tetap log errornya
+            $this->logWebhook(
+                'StopTransaction',
+                $p,
+                [
+                    'ok'    => false,
+                    'error' => $e->getMessage(),
+                ]
+            );
 
-	        $logId = $this->logWebhook('stop-transaction', $p, ['ok'=>true], [
-	            'related_id'      => $sessionId,
-	            'idempotency_key' => $idk,
-	        ]);
+            return $this->reply(false, $e->getMessage(), 500);
+        }
+    }
 
-	        return ['ok'=>true, 'session_id'=>$sessionId, 'log_id'=>$logId];
-	    });
 
-	    return response()->json($res);
-	}
+
 
 
     // ---------------------------------------------------------------------
     // STATUS NOTIFICATION
     // ---------------------------------------------------------------------
-	public function statusNotification(Request $r)
-	{
-	    Log::info('OCPP status-notification request', ['json' => $r->all()]);
+    public function statusNotification(Request $r)
+    {
+        $p = $this->validated($r, [
+            'station_code'     => ['required', 'string', 'max:100'],
+            'connector'        => ['required', 'integer'],
+            'status'           => ['required', 'string', 'max:40'],
+            'errorCode'        => ['nullable', 'string', 'max:40'],
+            'info'             => ['nullable', 'string'],
+            'timestamp'        => ['nullable', 'string'],
+            'raw'              => ['nullable'],
+        ]);
 
-	    $p = $this->validated($r, [
-	        'station_code' => ['required','string','max:100'],
-	        'connector'    => ['required','integer','min:0'],
-	        'status'       => ['required','string','max:50'],
-	        'errorCode'    => ['nullable','string','max:50'],
-	        'timestamp'    => ['nullable','date'],
-	    ]);
+        $stationCode  = $p['station_code'];
+        $connectorNum = (int) $p['connector'];
+        $ts           = $this->ts($p['timestamp']) ?? now();
+        $status       = strtolower($p['status']);
 
-	    $idk = $r->attributes->get('idempotency_key');
+        try {
+            DB::beginTransaction();
 
-	    $res = DB::transaction(function () use ($p, $idk) {
-	        if ($idk && $this->idempotentExists('status-notification', $idk)) {
-	            return ['ok'=>true, 'idempotent'=>true];
-	        }
+            /**
+             * 1. Cari station
+             */
+            $station = DB::table('stations')
+                ->where('code', $stationCode)
+                ->first();
 
-	        [$stationId, $connectorId] = $this->ensureStationAndConnector(
-	            $p['station_code'], (int)$p['connector']
-	        );
+            if (!$station) {
+                throw new \Exception("Station not found: {$stationCode}");
+            }
 
-	        // normalize status to lowercase to match DB CHECK constraint
-	        $status = strtolower($p['status']);
+            /**
+             * 2. Cari connector
+             */
+            $connector = DB::table('connectors')
+                ->where('station_id', $station->id)
+                ->where('connector_number', $connectorNum)
+                ->first();
 
-	        // Allowed values in your stations.status check:
-	        $allowed = [
-	            'available','charging','faulted','preparing','suspended_ev',
-	            'suspended_evse','finishing','reserved','unavailable'
-	        ];
-	        if (!in_array($status, $allowed, true)) {
-	            // if unknown, don’t try to set it; just keep log/heartbeat
-	            $status = null;
-	        }
+            if (!$connector) {
+                throw new \Exception("Connector not found: {$stationCode} / {$connectorNum}");
+            }
 
-	        // 1) Mark station online + heartbeat
-	        DB::table('stations')->where('id',$stationId)->update([
-	            'connectivity_status' => 'online',
-	            'last_heartbeat_at'   => $this->ts($p['timestamp'] ?? null) ?? now(),
-	            // Optional: set station status if valid
-	            ...( $status ? ['status' => $status] : [] ),
-	            'updated_at' => now(),
-	        ]);
+            /**
+             * 3. Update connector status
+             */
+            DB::table('connectors')
+                ->where('id', $connector->id)
+                ->update([
+                    'status'        => $status,
+                    'last_status_at'=> $ts,
+                    'updated_at'    => now(),
+                ]);
 
-	        // 2) Update connector status if valid
-	        if ($status) {
-	            DB::table('connectors')->where('id', $connectorId)->update([
-	                'status'     => $status,
-	                'updated_at' => now(),
-	            ]);
-	        }
+            /**
+             * 4. Handle automatic session transitions
+             */
+            if ($status === 'charging') {
 
-	        $logId = $this->logWebhook('status-notification', $p, ['ok'=>true], [
-	            'related_id'      => $connectorId,
-	            'idempotency_key' => $idk,
-	        ]);
+                // Apakah ada session ongoing?
+                $session = DB::table('charging_sessions')
+                    ->where('station_id', $station->id)
+                    ->where('connector_id', $connector->id)
+                    ->where('status', 'ongoing')
+                    ->first();
 
-	        return ['ok'=>true, 'station_id'=>$stationId, 'connector_id'=>$connectorId, 'log_id'=>$logId];
-	    });
+                if (!$session) {
+                    // Buat session baru jika charger mulai charging tanpa StartTransaction
+                    $sessionId = DB::table('charging_sessions')->insertGetId([
+                        'station_id'   => $station->id,
+                        'connector_id' => $connector->id,
+                        'start_method' => 'auto',
+                        'status'       => 'ongoing',
+                        'created_at'   => $ts,
+                        'updated_at'   => $ts,
+                    ]);
+                }
+            }
 
-	    return response()->json($res);
-	}
+            if ($status === 'available' || $status === 'finishing') {
+
+                // Cari session ongoing
+                $session = DB::table('charging_sessions')
+                    ->where('station_id', $station->id)
+                    ->where('connector_id', $connector->id)
+                    ->where('status', 'ongoing')
+                    ->orderByDesc('id')
+                    ->first();
+
+                if ($session) {
+                    // Tutup session otomatis
+                    DB::table('charging_sessions')
+                        ->where('id', $session->id)
+                        ->update([
+                            'status'     => 'stopped',
+                            'end_method' => 'status-notification',
+                            'updated_at' => now(),
+                        ]);
+                }
+            }
+
+            DB::commit();
+
+            /**
+             * 5. Logging ke webhook_logs
+             */
+            $this->logWebhook(
+                'StatusNotification',
+                $p,
+                [
+                    'ok'          => true,
+                    'station_id'  => $station->id,
+                    'connector_id'=> $connector->id,
+                    'status'      => $status,
+                    'error'       => $p['errorCode'] ?? null,
+                ]
+            );
+
+            return $this->reply(true, 'StatusNotification saved');
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            $this->logWebhook(
+                'StatusNotification',
+                $p,
+                [
+                    'ok'    => false,
+                    'error' => $e->getMessage(),
+                ]
+            );
+
+            return $this->reply(false, $e->getMessage(), 500);
+        }
+    }
+
+
 
     // ---------------------------------------------------------------------
     // HEARTBEAT
@@ -509,24 +677,88 @@ class OcppEventController extends Controller
     public function heartbeat(Request $r)
     {
         $p = $this->validated($r, [
-            'station_code' => ['required','string','max:100'],
-            'timestamp'    => ['nullable','date'],
+            'station_code' => ['required', 'string', 'max:100'],
+            'connector'    => ['nullable', 'integer'], // optional
+            'timestamp'    => ['nullable', 'string'],
+            'raw'          => ['nullable'],
         ]);
 
-        $stationId = $this->getStationIdOrCreate($p['station_code']);
+        $stationCode  = $p['station_code'];
+        $connectorNum = $p['connector'] ?? 1;
+        $ts           = $this->ts($p['timestamp']) ?? now();
 
-        DB::table('stations')->where('id',$stationId)->update([
-            'connectivity_status' => 'online',
-            'last_heartbeat_at'   => $this->ts($p['timestamp'] ?? null) ?? now(),
-            'updated_at'          => now(),
-        ]);
+        try {
+            DB::beginTransaction();
 
-        $logId = $this->logWebhook('heartbeat', $p, ['ok'=>true], [
-            'related_id' => $stationId,
-        ]);
+            /**
+             * 1. Pastikan station & connector ada
+             */
+            [$stationId, $connectorId] = $this->ensureStationAndConnector($stationCode, (int)$connectorNum);
 
-        return response()->json(['ok'=>true, 'log_id'=>$logId]);
+            /**
+             * 2. Update last heartbeat waktu
+             */
+            DB::table('stations')->where('id', $stationId)->update([
+                'last_heartbeat_at' => $ts,
+                'updated_at'        => now(),
+            ]);
+
+            /**
+             * 3. Update connector sebagai online (opsional)
+             */
+            DB::table('connectors')->where('id', $connectorId)->update([
+                'connectivity_status' => 'online',
+                'updated_at'          => now(),
+            ]);
+
+            /**
+             * 4. Simpan event ke ocpp_events (untuk riwayat)
+             */
+            DB::table('ocpp_events')->insert([
+                'station_id'   => $stationId,
+                'connector_id' => $connectorId,
+                'name'         => 'Heartbeat',
+                'level'        => 'info',
+                'detail'       => json_encode($p),
+                'event_time'   => $ts,
+                'created_at'   => now(),
+                'updated_at'   => now(),
+            ]);
+
+            DB::commit();
+
+            /**
+             * 5. Logging ke webhook_logs
+             */
+            $this->logWebhook(
+                'Heartbeat',
+                $p,
+                [
+                    'ok'          => true,
+                    'station_id'  => $stationId,
+                    'connector_id'=> $connectorId,
+                ]
+            );
+
+            return $this->reply(true, 'Heartbeat saved');
+
+        } catch (\Throwable $e) {
+
+            DB::rollBack();
+
+            $this->logWebhook(
+                'Heartbeat',
+                $p,
+                [
+                    'ok'    => false,
+                    'error' => $e->getMessage(),
+                ]
+            );
+
+            return $this->reply(false, $e->getMessage(), 500);
+        }
     }
+
 
     // ============================== Helpers =================================
 
@@ -593,39 +825,90 @@ class OcppEventController extends Controller
         ]);
     }
 
+/**
+ * Pastikan station & connector ada.
+ * - Station di-handle oleh getStationIdOrCreate()
+ * - Connector dicari berdasarkan (station_id, connector_number)
+ * - Jika tidak ada, dibuat baru dengan status 'available'
+ * - Sekaligus update stations.connectors_count
+ */
     private function ensureStationAndConnector(string $stationCode, int $connectorNumber): array
     {
+        // 1. Pastikan station sudah ada
         $stationId = $this->getStationIdOrCreate($stationCode);
-        $conn = DB::table('connectors')->select('id')
-            ->where('station_id',$stationId)->where('connector_number',$connectorNumber)->first();
 
-        if ($conn) return [$stationId, (int)$conn->id];
+        // 2. Cari connector existing (hanya yang tidak soft-deleted)
+        $connector = DB::table('connectors')
+            ->select('id')
+            ->where('station_id', $stationId)
+            ->where('connector_number', $connectorNumber)
+            ->whereNull('deleted_at')
+            ->first();
 
+        if ($connector) {
+            return [$stationId, (int) $connector->id];
+        }
+
+        // 3. Buat connector baru kalau belum ada
         $connectorId = DB::table('connectors')->insertGetId([
-            'station_id'=>$stationId,'connector_number'=>$connectorNumber,'status'=>'available',
-            'created_at'=>now(),'updated_at'=>now(),
+            'station_id'       => $stationId,
+            'connector_number' => $connectorNumber,
+            'status'           => 'available',
+            'power_kw'         => null,
+            'last_status_at'   => null,
+            'created_at'       => now(),
+            'updated_at'       => now(),
         ]);
 
-        return [$stationId, (int)$connectorId];
+        // 4. Update jumlah connector di stations (aman untuk 1–2 connector)
+        DB::table('stations')
+            ->where('id', $stationId)
+            ->increment('connectors_count', 1);
+
+        return [$stationId, (int) $connectorId];
     }
+
 
     private function idempotentExists(string $type, string $key): bool
     {
         return DB::table('webhook_logs')->where('type',$type)->where('idempotency_key',$key)->exists();
     }
 
-    private function logWebhook(string $type, array $payload, array $response, array $refs = []): int
+/**
+ * Save OCPP event into webhook_logs table.
+ * This function must NEVER throw an exception.
+ */
+    private function logWebhook(string $type, array $payload = [], array $meta = [], array $extra = []): int
     {
-        return (int) DB::table('webhook_logs')->insertGetId([
-            'type'            => $type,
-            'related_id'      => $refs['related_id']      ?? null,
-            'idempotency_key' => $refs['idempotency_key'] ?? null,
-            'payload'         => json_encode($payload),
-            'response'        => json_encode($response),
-            'status_code'     => 200,
-            'received_at'     => now(),
-            'created_at'      => now(),
-            'updated_at'      => now(),
-        ]);
+        try {
+            $record = [
+                'type'         => $type,
+                'station_code' => $payload['station_code'] ?? null,
+                'connector'    => $payload['connector'] ?? null,
+                'level'        => $meta['level'] ?? 'info',
+                'status'       => $meta['status'] ?? null,
+                'related_id'   => $extra['related_id'] ?? null,
+                'payload'      => json_encode($payload),
+                'response'     => json_encode($meta),
+                'received_at'  => now(),
+                'created_at'   => now(),
+                'updated_at'   => now(),
+            ];
+
+            return (int) DB::table('webhook_logs')->insertGetId($record);
+
+        } catch (\Throwable $e) {
+            // fallback logging, cannot fail
+            return (int) DB::table('webhook_logs')->insertGetId([
+                'type'        => 'WebhookError',
+                'level'       => 'error',
+                'payload'     => json_encode($payload),
+                'response'    => json_encode(['error' => $e->getMessage()]),
+                'received_at' => now(),
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
+        }
     }
+
 }
