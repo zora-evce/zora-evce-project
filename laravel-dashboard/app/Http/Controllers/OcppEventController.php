@@ -223,7 +223,7 @@ class OcppEventController extends Controller
 
         try {
             // GET stations
-            $station = Station::where('station_code', $p['station_code'])->first();
+            $station = Station::where('code', $p['station_code'])->first();
 
 
             // GET transactionId from pool
