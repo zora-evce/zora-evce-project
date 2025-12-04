@@ -11,6 +11,7 @@ use App\Services\QontakService;
 use App\Helpers\GlobalHelper;
 use App\Models\TransactionidPool;
 use App\Models\Transaction;
+use App\Models\Station;
 use App\Jobs\EnqueueRemoteStopCommandJob;
 
 
@@ -221,9 +222,13 @@ class OcppEventController extends Controller
         $ts           = $this->ts($p['timestamp']) ?? now();
 
         try {
+            // GET stations
+            $station = Station::where('station_code', $p['station_code'])->first();
+
+
             // GET transactionId from pool
 		    $pool = TransactionidPool::with('transaction.tariff')
-                                        ->where('station_code', $p['station_code'])
+                                        ->where('station_id', $station->id)
                                         ->where('connector_id', $p['connector'])
                                         ->where('status', 0)
                                         ->orderBy('id', 'desc')
