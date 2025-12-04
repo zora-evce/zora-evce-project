@@ -225,17 +225,16 @@ class OcppEventController extends Controller
             // GET stations
             $station = Station::where('code', $p['station_code'])->first();
 
-
             // GET transactionId from pool
-		    $pool = TransactionidPool::with('transaction.tariff')
-                                        ->where('station_id', $station->id)
-                                        ->where('connector_id', $p['connector'])
-                                        ->where('status', 0)
-                                        ->orderBy('id', 'desc')
-                                        ->first();
-            if ($pool) {
+		    // $pool = TransactionidPool::with('transaction.tariff')
+            //                             ->where('station_id', $station->id)
+            //                             ->where('connector_id', $p['connector'])
+            //                             ->where('status', 0)
+            //                             ->orderBy('id', 'desc')
+            //                             ->first();
+            // if ($pool) {
                 // OVERWRITE transactionId from OCPP
-				$p['transactionId'] = $pool->transactionId;
+				// $p['transactionId'] = $pool->transactionId;
 
                 // DB::beginTransaction();
     
@@ -289,25 +288,25 @@ class OcppEventController extends Controller
                     ]
                 );
 
-                // UPDATE STATUS used IN TABLE transactionid_pool
-                $updatepool = TransactionidPool::find($pool->id);
-                $updatepool->status = 1;
-                $updatepool->save();
+                // // UPDATE STATUS used IN TABLE transactionid_pool
+                // $updatepool = TransactionidPool::find($pool->id);
+                // $updatepool->status = 1;
+                // $updatepool->save();
 
-                // SET JOBS TO STOP REMOTE
-                $delayMinutes = (int) $pool->transaction->tariff->tariff_value;
-                $job = EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $p->idTag)
-                                            ->delay(now()->addMinutes($delayMinutes));
-                $jobId = $job->getJobId(); 
+                // // SET JOBS TO STOP REMOTE
+                // $delayMinutes = (int) $pool->transaction->tariff->tariff_value;
+                // $job = EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $p->idTag)
+                //                             ->delay(now()->addMinutes($delayMinutes));
+                // $jobId = $job->getJobId(); 
 
-                // SET start_time and id_job_stop ON transactions
-                $transaction = Transaction::find($pool->id_transaction);
-                $transaction->start_time = date('Y-m-d H:i:s');
-                $transaction->id_job_stop = $jobId;
-                $transaction->save();
+                // // SET start_time and id_job_stop ON transactions
+                // $transaction = Transaction::find($pool->id_transaction);
+                // $transaction->start_time = date('Y-m-d H:i:s');
+                // $transaction->id_job_stop = $jobId;
+                // $transaction->save();
     
                 return $this->reply(true, 'StartTransaction saved');
-            }
+            // }
         } catch (\Throwable $e) {
 
             // DB::rollBack();
