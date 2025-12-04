@@ -715,14 +715,13 @@ class OcppEventController extends Controller
             // 1. Pastikan station & connector ada
             [$stationId, $connectorId] = $this->ensureStationAndConnector($stationCode, (int)$connectorNum);
 
-            // 2. Update station (heartbeat = ONLINE)
+            // 2. Update station heartbeat — JANGAN UPDATE kolom status!
             DB::table('stations')->where('id', $stationId)->update([
                 'last_heartbeat_at' => $ts,
-                'status'            => 'online',
                 'updated_at'        => now(),
             ]);
 
-            // 3. Update connector connectivity_status secara aman
+            // 3. Update connector connectivity_status
             if ($connectorId) {
                 DB::table('connectors')->where('id', $connectorId)->update([
                     'connectivity_status' => 'online',
@@ -779,8 +778,6 @@ class OcppEventController extends Controller
             return $this->reply(false, $e->getMessage(), 500);
         }
     }
-
-
 
     // ============================== Helpers =================================
 
