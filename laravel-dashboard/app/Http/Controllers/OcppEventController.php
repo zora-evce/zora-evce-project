@@ -551,6 +551,37 @@ class OcppEventController extends Controller
                 ]
             );
 
+            // SET stop_time and id_job_stop ON transactions
+			$transaction = Transaction::where("transactionId", $p['transactionId'])
+                                        ->orderBy('id', 'desc')
+                                        ->first();
+			$transaction->stop_time = date('Y-m-d H:i:s');
+			$transaction->save();
+
+            // SEND WA
+			$isSendWA = env('IS_SEND_WA');
+
+			if ($isSendWA) {
+				$phone = GlobalHelper::phoneConvert($transaction->phone);
+				$qontak = new QontakService();
+	
+				try {
+					$qontak->sendWhatsApp($phone, [
+						"name"            => $transaction->name,
+						"order_id"        => $transaction->midtrans_order_id,
+					]);
+	
+					DB::table('transactions')->where('id',$transaction->id)->update([
+						'wa_status'  => 1,
+					]);
+				} catch (\Throwable $exception) {
+					Log::error('Failed to send whatsapp.', [
+						"name"            => $transaction->name,
+						"order_id"        => $transaction->midtrans_order_id,
+					]);
+				}
+			}
+
             return $this->reply(true, 'StopTransaction saved');
 
         } catch (\Throwable $e) {
