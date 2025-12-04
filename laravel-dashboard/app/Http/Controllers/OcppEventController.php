@@ -226,9 +226,14 @@ class OcppEventController extends Controller
             $station = Station::where('code', $p['station_code'])->first();
 
             // GET transactionId from pool
-		    $pool = TransactionidPool::with('transaction.tariff')
-                                        ->where('station_id', $station->id)
-                                        ->where('connector_id', $p['connector'])
+		    // $pool = TransactionidPool::with('transaction.tariff')
+            //                             ->where('station_id', $station->id)
+            //                             ->where('connector_id', $p['connector'])
+            //                             ->where('status', 0)
+            //                             ->orderBy('id', 'desc')
+            //                             ->first();
+		    $pool = TransactionidPool::where('station_id', $station->id)
+                                        ->where('connector_id', 4)
                                         ->where('status', 0)
                                         ->orderBy('id', 'desc')
                                         ->first();
