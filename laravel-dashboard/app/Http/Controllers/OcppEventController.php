@@ -237,7 +237,7 @@ class OcppEventController extends Controller
                 // OVERWRITE transactionId from OCPP
 				$p['transactionId'] = $pool->transactionId;
 
-                DB::beginTransaction();
+                // DB::beginTransaction();
     
                 // 1. Pastikan station & connector ada (auto-create bila belum)
                 //    Helper ini sudah ada di bawah: ensureStationAndConnector()
@@ -267,7 +267,7 @@ class OcppEventController extends Controller
                     'updated_at'       => now(),
                 ]);
     
-                DB::commit();
+                // DB::commit();
     
                 // 4. Log ke webhook_logs untuk tracking di dashboard
                 $p['station_code'] = $stationCode;
@@ -310,7 +310,7 @@ class OcppEventController extends Controller
             }
         } catch (\Throwable $e) {
 
-            DB::rollBack();
+            // DB::rollBack();
 
             // Tetap log errornya ke webhook_logs
             $p['station_code'] = $stationCode;
