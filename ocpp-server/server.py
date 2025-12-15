@@ -209,6 +209,10 @@ class ChargePoint(CP16):
                     # REMOTE STOP  (SMART VERSION)
                     # -----------------------------
                     elif name == "RemoteStopTransaction":
+                        log.warning('log norm')
+                        log.warning(norm)
+                        log.warning('log payload')
+                        log.warning(payload)
                         # Tentukan connector_id dulu
                         connector_id = (
                             norm.get("connector")
