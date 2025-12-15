@@ -234,7 +234,7 @@ class OcppEventController extends Controller
             //                             ->orderBy('id', 'desc')
             //                             ->first();
 		    $pool = TransactionidPool::where('station_id', $station->id)
-                                        ->where('connector_id', 4)
+                                        ->where('connector_id', $p['connector'])
                                         ->where('status', 0)
                                         ->orderBy('id', 'desc')
                                         ->first();
@@ -259,19 +259,19 @@ class OcppEventController extends Controller
                 ]);
 
                 // 3. Insert ke ocpp_start_transactions
-                $startId = DB::table('ocpp_start_transactions')->insertGetId([
-                    'session_id'       => $sessionId,
-                    'station_id'       => $stationId,
-                    'connector_id'     => $connectorId,
-                    'id_tag'           => $idTag,
-                    'meter_start'      => $p['meterStart'] ?? null,
-                    'meter_start_kwh'  => null,                  // nanti diisi kalau sudah ada konversi
-                    'timestamp'        => $ts,
-                    'raw'              => json_encode($p['raw'] ?? $p),
-                    'created_at'       => now(),
-                    'updated_at'       => now(),
-                ]);
-
+                // $startId = DB::table('ocpp_start_transactions')->insertGetId([
+                //     'session_id'       => $sessionId,
+                //     'station_id'       => $stationId,
+                //     'connector_id'     => $connectorId,
+                //     'id_tag'           => $idTag,
+                //     'meter_start'      => $p['meterStart'] ?? null,
+                //     'meter_start_kwh'  => null,                  // nanti diisi kalau sudah ada konversi
+                //     'timestamp'        => $ts,
+                //     'raw'              => json_encode($p['raw'] ?? $p),
+                //     'created_at'       => now(),
+                //     'updated_at'       => now(),
+                // ]);
+    
                 // DB::commit();
 
                 // 4. Log ke webhook_logs untuk tracking di dashboard
@@ -308,19 +308,19 @@ class OcppEventController extends Controller
                 'updated_at'      => now(),
             ]);
           // 3b. Update transactionid_pool: isi id_transaction (OCPP transactionId) untuk kode transaksi yang sedang aktif
-            // if (!empty($p['transactionId'])) {
-            //     DB::table('transactionid_pool')
-            //         ->where('station_id', (string) $stationId)   // stations.id disimpan varchar
-            //         ->where('connector_id', (int) $connectorId)  // connectors.id
-            //         ->where('status', 0)                         // row yang masih available
-            //         ->orderByDesc('id')
-            //         ->limit(1)
-            //         ->update([
-            //             'id_transaction' => (int) $p['transactionId'], // OCPP transactionId
-            //             'status'         => 1,
-            //             'updated_at'     => now(),
-            //         ]);
-            // }
+            if (!empty($p['transactionId'])) {
+                DB::table('transactionid_pool')
+                    ->where('station_id', (string) $stationId)   // stations.id disimpan varchar
+                    ->where('connector_id', (int) $connectorId)  // connectors.id
+                    ->where('status', 0)                         // row yang masih available
+                    ->orderByDesc('id')
+                    ->limit(1)
+                    ->update([
+                        // 'id_transaction' => (int) $p['transactionId'], // OCPP transactionId
+                        'status'         => 1,
+                        'updated_at'     => now(),
+                    ]);
+            }
 
 
                 // // SET JOBS TO STOP REMOTE
