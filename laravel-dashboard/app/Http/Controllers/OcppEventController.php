@@ -242,11 +242,11 @@ class OcppEventController extends Controller
 				$p['transactionId'] = $pool->transactionId;
 
                 // DB::beginTransaction();
-    
+
                 // 1. Pastikan station & connector ada (auto-create bila belum)
                 //    Helper ini sudah ada di bawah: ensureStationAndConnector()
                 [$stationId, $connectorId] = $this->ensureStationAndConnector($stationCode, $connectorNum);
-    
+
                 // 2. Buat charging session baru
                 $sessionId = DB::table('charging_sessions')->insertGetId([
                     'station_id'   => $stationId,
@@ -256,7 +256,7 @@ class OcppEventController extends Controller
                     'created_at'   => $ts,
                     'updated_at'   => $ts,
                 ]);
-                
+
                 // 3. Insert ke ocpp_start_transactions
                 $startId = DB::table('ocpp_start_transactions')->insertGetId([
                     'session_id'       => $sessionId,
@@ -270,14 +270,14 @@ class OcppEventController extends Controller
                     'created_at'       => now(),
                     'updated_at'       => now(),
                 ]);
-    
+
                 // DB::commit();
-    
+
                 // 4. Log ke webhook_logs untuk tracking di dashboard
                 $p['station_code'] = $stationCode;
                 $p['connector']    = $connectorNum;
-    
-    
+
+
                 $this->logWebhook(
                     'StartTransaction',
                     $p,
@@ -289,7 +289,7 @@ class OcppEventController extends Controller
                         'connector_id'=> $connectorId,
                     ],
                     [
-                        'related_id' => $sessionId,
+                        'related_id' => $stationId,
                     ]
                 );
 
@@ -326,14 +326,14 @@ class OcppEventController extends Controller
                 // $delayMinutes = (int) $pool->transaction->tariff->tariff_value;
                 // $job = EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $p->idTag)
                 //                             ->delay(now()->addMinutes($delayMinutes));
-                // $jobId = $job->getJobId(); 
+                // $jobId = $job->getJobId();
 
                 // // SET start_time and id_job_stop ON transactions
                 // $transaction = Transaction::find($pool->id_transaction);
                 // $transaction->start_time = date('Y-m-d H:i:s');
                 // $transaction->id_job_stop = $jobId;
                 // $transaction->save();
-    
+
                 return $this->reply(true, 'StartTransaction saved');
             // }
         } catch (\Throwable $e) {
@@ -621,7 +621,7 @@ class OcppEventController extends Controller
                     'connector_id'=> $connectorId,
                 ],
                 [
-                    'related_id' => $sessionId,
+                    'related_id' => $stationId,
                 ]
             );
 
@@ -638,13 +638,13 @@ class OcppEventController extends Controller
 			if ($isSendWA) {
 				$phone = GlobalHelper::phoneConvert($transaction->phone);
 				$qontak = new QontakService();
-	
+
 				try {
 					$qontak->sendWhatsApp($phone, [
 						"name"            => $transaction->name,
 						"order_id"        => $transaction->midtrans_order_id,
 					]);
-	
+
 					DB::table('transactions')->where('id',$transaction->id)->update([
 						'wa_status'  => 1,
 					]);
