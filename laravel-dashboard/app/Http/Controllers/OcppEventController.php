@@ -216,7 +216,10 @@ class OcppEventController extends Controller
             'timestamp'      => ['nullable', 'string'],
             'raw'            => ['nullable'],                // payload mentah dari Python (optional)
         ]);
-
+        Log::info('test!!!');
+        Log::info($r);
+        Log::info('test@@@');
+        Log::info($p);
         $stationCode  = $p['station_code'];
         $connectorNum = (int) $p['connector'];
         $idTag        = $p['idTag'] ?? null;
@@ -278,22 +281,6 @@ class OcppEventController extends Controller
                 $p['station_code'] = $stationCode;
                 $p['connector']    = $connectorNum;
 
-
-                $this->logWebhook(
-                    'StartTransaction',
-                    $p,
-                    [
-                        'ok'          => true,
-                        'session_id'  => $sessionId,
-                        'start_id'    => $startId,
-                        'station_id'  => $stationId,
-                        'connector_id'=> $connectorId,
-                    ],
-                    [
-                        'related_id' => $stationId,
-                    ]
-                );
-
             // 3. Insert ke ocpp_start_transactions
             $startId = DB::table('ocpp_start_transactions')->insertGetId([
                 'session_id'      => $sessionId,
@@ -307,6 +294,22 @@ class OcppEventController extends Controller
                 'created_at'      => now(),
                 'updated_at'      => now(),
             ]);
+
+            $this->logWebhook(
+                'StartTransaction',
+                $p,
+                [
+                    'ok'          => true,
+                    'session_id'  => $sessionId,
+                    'start_id'    => $startId,
+                    'station_id'  => $stationId,
+                    'connector_id'=> $connectorId,
+                ],
+                [
+                    'related_id' => $stationId,
+                ]
+            );
+
           // 3b. Update transactionid_pool: isi id_transaction (OCPP transactionId) untuk kode transaksi yang sedang aktif
             if (!empty($p['transactionId'])) {
                 DB::table('transactionid_pool')
