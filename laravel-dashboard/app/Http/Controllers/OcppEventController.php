@@ -216,16 +216,17 @@ class OcppEventController extends Controller
             'timestamp'      => ['nullable', 'string'],
             'raw'            => ['nullable'],                // payload mentah dari Python (optional)
         ]);
-        Log::info('test!!!');
-        Log::info($r);
-        Log::info('test@@@');
-        Log::info($p);
+        
         $stationCode  = $p['station_code'];
         $connectorNum = (int) $p['connector'];
         $idTag        = $p['idTag'] ?? null;
         $ts           = $this->ts($p['timestamp']) ?? now();
 
         try {
+            // 1. Pastikan station & connector ada (auto-create bila belum)
+            //    Helper ini sudah ada di bawah: ensureStationAndConnector()
+            [$stationId, $connectorId] = $this->ensureStationAndConnector($stationCode, $connectorNum);
+
             // GET stations
             $station = Station::where('code', $p['station_code'])->first();
 
@@ -236,8 +237,8 @@ class OcppEventController extends Controller
             //                             ->where('status', 0)
             //                             ->orderBy('id', 'desc')
             //                             ->first();
-		    $pool = TransactionidPool::where('station_id', $station->id)
-                                        ->where('connector_id', $p['connector'])
+		    $pool = TransactionidPool::where('station_id', $stationId)
+                                        ->where('connector_id', $connectorId)
                                         ->where('status', 0)
                                         ->orderBy('id', 'desc')
                                         ->first();
@@ -246,10 +247,6 @@ class OcppEventController extends Controller
 				$p['transactionId'] = $pool->transactionId;
 
                 // DB::beginTransaction();
-
-                // 1. Pastikan station & connector ada (auto-create bila belum)
-                //    Helper ini sudah ada di bawah: ensureStationAndConnector()
-                [$stationId, $connectorId] = $this->ensureStationAndConnector($stationCode, $connectorNum);
 
                 // 2. Buat charging session baru
                 $sessionId = DB::table('charging_sessions')->insertGetId([
