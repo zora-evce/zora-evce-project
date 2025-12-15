@@ -251,19 +251,19 @@ class OcppEventController extends Controller
                 'updated_at'      => now(),
             ]);
           // 3b. Update transactionid_pool: isi id_transaction (OCPP transactionId) untuk kode transaksi yang sedang aktif
-            if (!empty($p['transactionId'])) {
-                DB::table('transactionid_pool')
-                    ->where('station_id', (string) $stationId)   // stations.id disimpan varchar
-                    ->where('connector_id', (int) $connectorId)  // connectors.id
-                    ->where('status', 0)                         // row yang masih available
-                    ->orderByDesc('id')
-                    ->limit(1)
-                    ->update([
-                        'id_transaction' => (int) $p['transactionId'], // OCPP transactionId
-                        'status'         => 1,
-                        'updated_at'     => now(),
-                    ]);
-            }
+            // if (!empty($p['transactionId'])) {
+            //     DB::table('transactionid_pool')
+            //         ->where('station_id', (string) $stationId)   // stations.id disimpan varchar
+            //         ->where('connector_id', (int) $connectorId)  // connectors.id
+            //         ->where('status', 0)                         // row yang masih available
+            //         ->orderByDesc('id')
+            //         ->limit(1)
+            //         ->update([
+            //             'id_transaction' => (int) $p['transactionId'], // OCPP transactionId
+            //             'status'         => 1,
+            //             'updated_at'     => now(),
+            //         ]);
+            // }
 
 
             DB::commit();
@@ -547,17 +547,17 @@ class OcppEventController extends Controller
                 'updated_at'       => now(),
             ]);
 
-            if (!empty($p['transactionId'])) {
-                DB::table('transactionid_pool')
-                    ->where('id_transaction', (int) $p['transactionId'])
-                    ->where('station_id', (string) $stationId)
-                    ->where('connector_id', (int) $connectorId)
-                    ->where('status', 1)
-                    ->update([
-                        'status' => 0,
-                        'updated_at' => now(),
-                    ]);
-            }
+            // if (!empty($p['transactionId'])) {
+            //     DB::table('transactionid_pool')
+            //         ->where('id_transaction', (int) $p['transactionId'])
+            //         ->where('station_id', (string) $stationId)
+            //         ->where('connector_id', (int) $connectorId)
+            //         ->where('status', 1)
+            //         ->update([
+            //             'status' => 0,
+            //             'updated_at' => now(),
+            //         ]);
+            // }
 
             DB::commit();
 
@@ -595,7 +595,7 @@ class OcppEventController extends Controller
                     'error' => $e->getMessage(),
                 ]
             );
-            
+
             return $this->reply(false, $e->getMessage(), 500);
         }
     }
