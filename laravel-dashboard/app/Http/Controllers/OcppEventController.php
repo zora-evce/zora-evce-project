@@ -40,7 +40,8 @@ class OcppEventController extends Controller
 
         $stationCode = $p['station_code'];
         $connectorNum = $p['connector'] ?? 1;
-        $ts = $this->ts($p['timestamp']) ?? now();
+        $ts = $this->ts($p['timestamp'] ?? null) ?? now();
+
 
         try {
             DB::beginTransaction();
@@ -367,15 +368,27 @@ class OcppEventController extends Controller
     {
         $p = $this->validated($r, [
             'station_code' => ['required', 'string', 'max:100'],
-            'connector'    => ['required', 'integer'],
+            'connector'    => ['nullable', 'integer'],
+            'connectorId'  => ['nullable', 'integer'],
             'timestamp'    => ['nullable', 'string'],
-            'values'       => ['nullable'], // sesuai payload Python OCPP server
-            'raw'          => ['nullable'], // payload mentah
+            'meterValue'   => ['nullable'],
+            'values'       => ['nullable'],
+            'raw'          => ['nullable'],
         ]);
 
-        $stationCode  = $p['station_code'];
-        $connectorNum = (int) $p['connector'];
-        $ts           = $this->ts($p['timestamp']) ?? now();
+        $stationCode  = $p['station_code'] ?? null;
+
+        $connectorNum = (int) ($p['connector'] ?? $p['connectorId'] ?? 0);
+        if ($connectorNum <= 0) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Missing connector or connectorId'
+            ], 422);
+        }
+
+        $mvTs = $p['meterValue'][0]['timestamp'] ?? null;
+        $ts   = $this->ts($p['timestamp'] ?? $mvTs ?? null) ?? now();
+
 
         try {
             DB::beginTransaction();
