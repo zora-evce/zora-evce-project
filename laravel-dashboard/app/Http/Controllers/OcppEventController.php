@@ -216,7 +216,7 @@ class OcppEventController extends Controller
             'timestamp'      => ['nullable', 'string'],
             'raw'            => ['nullable'],                // payload mentah dari Python (optional)
         ]);
-        
+
         $stationCode  = $p['station_code'];
         $connectorNum = (int) $p['connector'];
         $idTag        = $p['idTag'] ?? null;
@@ -287,7 +287,7 @@ class OcppEventController extends Controller
                 'meter_start'     => $p['meterStart'] ?? null,
                 'meter_start_kwh' => isset($p['meterStart']) ? ((float) $p['meterStart'] / 1000) : null,
                 'timestamp'       => $ts,
-                'raw'             => $p['raw'] ?? $p,
+                'raw'             => json_encode($p['raw'] ?? $p),
                 'created_at'      => now(),
                 'updated_at'      => now(),
             ]);
