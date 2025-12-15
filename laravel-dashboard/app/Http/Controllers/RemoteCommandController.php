@@ -91,7 +91,7 @@ class RemoteCommandController extends Controller
     {
         $p = $this->validated($r, [
             'id'     => ['required','integer','min:1'],
-            'status' => ['required','string','in:ack,error,cancelled,failed'],
+            'status' => ['required','string','in:ack,error,cancelled,dispatched,failed'],
             'detail' => ['nullable','array'],
         ]);
 
