@@ -214,23 +214,20 @@ class ChargePoint(CP16):
                         log.warning('log payload')
                         log.warning(payload)
                         # Tentukan connector_id dulu
-                        # connector_id = (
-                        #     norm.get("connector")
-                        #     or payload.get("connectorId")
-                        #     or connector_hint
-                        #     or 1
-                        # )
-                        connector_id = payload.get("connectorId")
+                        connector_id = (
+                            norm.get("connector")
+                            or payload.get("connectorId")
+                            or connector_hint
+                            or 1
+                        )
 
                         # 1) Coba ambil transactionId dari payload Laravel
                         tx_id = None
-                        # tx_raw = (
-                        #     payload.get("transactionId")
-                        #     or payload.get("transaction_id")
-                        #     or payload.get("tx_id")
-                        # )
-                        
-                        tx_raw = payload.get("transactionId")
+                        tx_raw = (
+                            payload.get("transactionId")
+                            or payload.get("transaction_id")
+                            or payload.get("tx_id")
+                        )
 
                         if tx_raw is not None:
                             try:
