@@ -171,6 +171,26 @@
                 color: #fff;
             }
 
+            .form-control::placeholder {
+                color: lightgrey;
+            }
+
+            /* Chrome, Edge, Safari */
+            .form-control::-webkit-input-placeholder {
+                color: lightgrey;
+            }
+
+            /* Firefox */
+            .form-control::-moz-placeholder {
+                color: lightgrey;
+            opacity: 1;
+            }
+
+            /* Internet Explorer */
+            .form-control:-ms-input-placeholder {
+                color: lightgrey;
+            }
+
             @keyframes errorShine {
                 0%, 100% {
                     transform: translate(-50%, -50%) rotate(0deg);
