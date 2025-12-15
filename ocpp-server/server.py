@@ -444,6 +444,8 @@ class ChargePoint(CP16):
         # Kirim ke Laravel secara async (tidak blocking OCPP)
         asyncio.create_task(self._safe_post("start-transaction", body))
 
+        log.warning('tx id bro')
+        log.warning(str(tx_id))
         # Response ke charger: wajib pakai transaction_id yang sama
         return call_result.StartTransactionPayload(
             transaction_id=tx_id,
