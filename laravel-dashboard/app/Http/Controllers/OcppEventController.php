@@ -316,7 +316,7 @@ class OcppEventController extends Controller
                     ->orderByDesc('id')
                     ->limit(1)
                     ->update([
-                        // 'id_transaction' => (int) $p['transactionId'], // OCPP transactionId
+                        'id_transaction' => (int) $p['transactionId'], // OCPP transactionId
                         'status'         => 1,
                         'updated_at'     => now(),
                     ]);
