@@ -91,9 +91,12 @@ class RemoteCommandController extends Controller
     {
         $p = $this->validated($r, [
             'id'     => ['required','integer','min:1'],
-            'status' => ['required','string','in:ack,error,cancelled,dispatched,failed'],
+            'status' => ['required','string','in:ack,error,cancelled,dispatched,failed,Acepted,Rejected'],
             'detail' => ['nullable','array'],
         ]);
+        
+        if ($p['status'] === 'Accepted') $p['status'] = 'ack';
+        if ($p['status'] === 'Rejected') $p['status'] = 'error';
 
         $updated = DB::table('remote_commands')->where('id', $p['id'])->update([
             'status'     => $p['status'],
