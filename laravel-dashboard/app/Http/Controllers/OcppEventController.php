@@ -293,10 +293,34 @@ class OcppEventController extends Controller
                     ]
                 );
 
-                // // UPDATE STATUS used IN TABLE transactionid_pool
-                // $updatepool = TransactionidPool::find($pool->id);
-                // $updatepool->status = 1;
-                // $updatepool->save();
+            // 3. Insert ke ocpp_start_transactions
+            $startId = DB::table('ocpp_start_transactions')->insertGetId([
+                'session_id'      => $sessionId,
+                'station_id'      => $stationId,
+                'connector_id'    => $connectorId,
+                'id_tag'          => $idTag,
+                'meter_start'     => $p['meterStart'] ?? null,
+                'meter_start_kwh' => isset($p['meterStart']) ? ((float) $p['meterStart'] / 1000) : null,
+                'timestamp'       => $ts,
+                'raw'             => $p['raw'] ?? $p,
+                'created_at'      => now(),
+                'updated_at'      => now(),
+            ]);
+          // 3b. Update transactionid_pool: isi id_transaction (OCPP transactionId) untuk kode transaksi yang sedang aktif
+            // if (!empty($p['transactionId'])) {
+            //     DB::table('transactionid_pool')
+            //         ->where('station_id', (string) $stationId)   // stations.id disimpan varchar
+            //         ->where('connector_id', (int) $connectorId)  // connectors.id
+            //         ->where('status', 0)                         // row yang masih available
+            //         ->orderByDesc('id')
+            //         ->limit(1)
+            //         ->update([
+            //             'id_transaction' => (int) $p['transactionId'], // OCPP transactionId
+            //             'status'         => 1,
+            //             'updated_at'     => now(),
+            //         ]);
+            // }
+
 
                 // // SET JOBS TO STOP REMOTE
                 // $delayMinutes = (int) $pool->transaction->tariff->tariff_value;
@@ -524,6 +548,20 @@ class OcppEventController extends Controller
                     ]);
             }
 
+            $meterStop = isset($p['meterStop']) ? (float) $p['meterStop'] : null;
+
+            $start = DB::table('ocpp_start_transactions')
+                ->where('session_id', $sessionId)
+                ->orderByDesc('id')
+                ->first();
+
+            $meterStart = $start?->meter_start ? (float) $start->meter_start : null;
+
+            $meterStopKwh = $meterStop !== null ? ($meterStop / 1000) : null;
+            $totalEnergyKwh = ($meterStop !== null && $meterStart !== null)
+                ? max(0, ($meterStop - $meterStart) / 1000)
+                : null;
+
             // 3. → Insert ke ocpp_stop_transactions
             $stopId = DB::table('ocpp_stop_transactions')->insertGetId([
                 'session_id'       => $sessionId,
@@ -532,13 +570,40 @@ class OcppEventController extends Controller
                 'event_time'       => $ts,
                 'reason'           => $p['reason'] ?? null,
                 'meter_stop'       => $p['meterStop'] ?? null,
-                'meter_stop_kwh'   => null,
-                'total_energy_kwh' => null,
+                'meter_stop_kwh'   => $meterStopKwh,
+                'total_energy_kwh' => $totalEnergyKwh,
                 'total_cost'       => null,
-                'raw'              => json_encode($p['raw'] ?? $p),
+                'raw'              => $p['raw'] ?? $p,
                 'created_at'       => now(),
                 'updated_at'       => now(),
             ]);
+
+            // 3c. Update tabel transactions (jika ada mapping OCPP transactionId)
+            if (!empty($p['transactionId'])) {
+                $trx = Transaction::where('transactionId', (string) $p['transactionId'])->first();
+                if ($trx) {
+                    $trx->stop_time = now();
+                    $trx->save();
+                }
+            }
+
+            // Update session energy
+            DB::table('charging_sessions')->where('id', $sessionId)->update([
+                'total_energy_kwh' => $totalEnergyKwh,
+                'updated_at'       => now(),
+            ]);
+
+            // if (!empty($p['transactionId'])) {
+            //     DB::table('transactionid_pool')
+            //         ->where('id_transaction', (int) $p['transactionId'])
+            //         ->where('station_id', (string) $stationId)
+            //         ->where('connector_id', (int) $connectorId)
+            //         ->where('status', 1)
+            //         ->update([
+            //             'status' => 0,
+            //             'updated_at' => now(),
+            //         ]);
+            // }
 
             DB::commit();
 
@@ -714,7 +779,7 @@ class OcppEventController extends Controller
                         ->where('id', $session->id)
                         ->update([
                             'status'     => 'stopped',
-                            'end_method' => 'status-notification',
+                            'end_method' => 'auto',
                             'updated_at' => now(),
                         ]);
                 }

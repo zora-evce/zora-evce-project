@@ -138,7 +138,10 @@ class RemoteCommandController extends Controller
         // 2) Cari di transactionid_pool
         $pool = DB::table('transactionid_pool')
             ->where('transactionId', $txCode)
+            ->where('status', 1)                 // 🔴 PENTING: hanya session aktif
+            ->orderByDesc('id')                  // ambil mapping terbaru
             ->first();
+        ;
 
         if (! $pool) {
             return response()->json([
