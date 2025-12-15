@@ -265,7 +265,10 @@ class ChargePoint(CP16):
                                 await self._safe_post("commands/ack", ack_body)
                         else:
                             # Eksekusi RemoteStop
+                            log.warning('masuk bro')
+                            log.warning(int(tx_id))
                             req = call.RemoteStopTransactionPayload(transaction_id=int(tx_id))
+                            log.warning(req)
                             try:
                                 log.info("[%s] RemoteStop connector=%s tx_id=%s", self.cp_id, connector_id, tx_id)
                                 await self.call(req)
