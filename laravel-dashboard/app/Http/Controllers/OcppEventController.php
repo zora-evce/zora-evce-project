@@ -449,23 +449,36 @@ class OcppEventController extends Controller
             // Tentukan payload meter value yang akan disimpan
             $mvJson = $p['values'] ?? null;
 
-            // Jika values kosong ([]), gunakan meterValue (payload OCPP asli)
             if (empty($mvJson)) {
-                $mvJson = $p['meterValue'] ?? ($p['raw'] ?? $p);
+                // 1) kalau ada meterValue langsung (ambil item pertama biar format "lama")
+                $mvJson = $p['meterValue'][0] ?? ($p['meterValue'] ?? null);
+
+                // 2) kalau tidak ada, coba ambil dari raw wrapper: raw['meter_value']
+                if (empty($mvJson)) {
+                    $raw = $p['raw'] ?? null;
+                    if (is_array($raw) && !empty($raw['meter_value'])) {
+                        $mvJson = $raw['meter_value'][0] ?? $raw['meter_value'];
+                    }
+                }
+
+                // 3) fallback terakhir (jangan kosong)
+                if (empty($mvJson)) {
+                    $mvJson = $p['raw'] ?? $p;
+                }
             }
 
             DB::table('ocpp_meter_values')->insert([
-                'station_id'      => $station->id,
-                'connector_id'    => $connector->id,
-                'session_id'      => $sessionId,
-                'event_time'      => $ts,
-                'meter_value_json'=> json_encode($mvJson),
-                'energy_kwh'      => null, // bisa dihitung jika meterStart/Stop tersedia
-                'power_kw'        => null,
-                'voltage'         => null,
-                'current'         => null,
-                'created_at'      => now(),
-                'updated_at'      => now(),
+                'station_id'       => $station->id,
+                'connector_id'     => $connector->id,
+                'session_id'       => $sessionId,
+                'event_time'       => $ts,
+                'meter_value_json' => json_encode($mvJson),
+                'energy_kwh'       => null,
+                'power_kw'         => null,
+                'voltage'          => null,
+                'current'          => null,
+                'created_at'       => now(),
+                'updated_at'       => now(),
             ]);
 
             DB::commit();
