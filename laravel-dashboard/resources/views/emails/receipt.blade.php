@@ -63,6 +63,10 @@
                     <td>{{ $transaction->midtrans_order_id ?? '-' }}</td>
                 </tr>
                 <tr>
+                    <th>Duration</th>
+                    <td>{{ $transaction->duration.' Hour(s)' ?? '-' }}</td>
+                </tr>
+                <tr>
                     <th>Amount Paid (Inc Tax)</th>
                     <td>Rp {{ number_format((float) ($transaction->executed_price ?? 0), 2, ',', '.') }}</td>
                 </tr>

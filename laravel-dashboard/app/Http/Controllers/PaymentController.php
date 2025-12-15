@@ -8,6 +8,7 @@ use App\Helpers\GlobalHelper;
 use App\Mail\PaymentReceipt;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\DB;
 use App\Models\SessionToken;
 
 class PaymentController extends Controller
@@ -93,10 +94,10 @@ class PaymentController extends Controller
         }
 
         if ($shouldSendReceipt) {
+            $emailStatus = 0;
             try {
                 Mail::to($transaction->email)->send(new PaymentReceipt($transaction));
-                $transaction->email_status = 1;
-                $transaction->save();
+                $emailStatus = 1;
             } catch (\Throwable $exception) {
                 Log::error('Failed to send payment receipt email.', [
                     'transaction_id' => $transaction->id,
@@ -104,6 +105,21 @@ class PaymentController extends Controller
                     'error' => $exception->getMessage(),
                 ]);
             }
+
+            // Update email_status directly in database using DB facade to ensure it's saved
+            $updated = DB::table('transactions')
+                ->where('id', $transaction->id)
+                ->update(['email_status' => (int)$emailStatus]);
+
+            // Log for debugging
+            Log::info('Email status update attempt', [
+                'transaction_id' => $transaction->id,
+                'email_status' => $emailStatus,
+                'rows_affected' => $updated,
+            ]);
+
+            // Refresh the model instance to reflect the updated value
+            $transaction->refresh();
 
             // try {
             //     $phone = GlobalHelper::formatPhoneToInternational($transaction->phone);
