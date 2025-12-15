@@ -287,7 +287,7 @@ class OcppEventController extends Controller
                 'meter_start'     => $p['meterStart'] ?? null,
                 'meter_start_kwh' => isset($p['meterStart']) ? ((float) $p['meterStart'] / 1000) : null,
                 'timestamp'       => $ts,
-                'raw'             => json_encode($p['raw'] ?? $p),
+                'raw'             => json_encode($p['raw'] ?? null),
                 'created_at'      => now(),
                 'updated_at'      => now(),
             ]);
