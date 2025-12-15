@@ -462,6 +462,9 @@ class OcppEventController extends Controller
                     'session_id'  => $sessionId,
                     'station_id'  => $station->id,
                     'connector_id'=> $connector->id,
+                ],
+                [
+                    'related_id' => $station->id
                 ]
             );
 
@@ -801,6 +804,9 @@ class OcppEventController extends Controller
                     'connector_id'=> $connector->id,
                     'status'      => $status,
                     'error'       => $p['errorCode'] ?? null,
+                ],
+                [
+                    'related_id' => $station->id
                 ]
             );
 
@@ -887,6 +893,9 @@ class OcppEventController extends Controller
                     'ok'          => true,
                     'station_id'  => $stationId,
                     'connector_id'=> $connectorId,
+                ],
+                [
+                    'related_id' => $stationId
                 ]
             );
 
