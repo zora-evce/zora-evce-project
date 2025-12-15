@@ -68,7 +68,7 @@
                 </tr>
                 <tr>
                     <th>Amount Paid (Inc Tax)</th>
-                    <td>Rp {{ number_format((float) ($transaction->executed_price ?? 0), 2, ',', '.') }}</td>
+                    <td>Rp {{ number_format((float) ($transaction->total_price ?? 0), 2, ',', '.') }}</td>
                 </tr>
                 <tr>
                     <th>Station</th>
