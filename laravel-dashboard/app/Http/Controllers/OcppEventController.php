@@ -446,12 +446,20 @@ class OcppEventController extends Controller
             /**
              * 4. Insert ke ocpp_meter_values
              */
+            // Tentukan payload meter value yang akan disimpan
+            $mvJson = $p['values'] ?? null;
+
+            // Jika values kosong ([]), gunakan meterValue (payload OCPP asli)
+            if (empty($mvJson)) {
+                $mvJson = $p['meterValue'] ?? ($p['raw'] ?? $p);
+            }
+
             DB::table('ocpp_meter_values')->insert([
                 'station_id'      => $station->id,
                 'connector_id'    => $connector->id,
                 'session_id'      => $sessionId,
                 'event_time'      => $ts,
-                'meter_value_json'=> json_encode($p['values'] ?? $p['raw'] ?? $p),
+                'meter_value_json'=> json_encode($mvJson),
                 'energy_kwh'      => null, // bisa dihitung jika meterStart/Stop tersedia
                 'power_kw'        => null,
                 'voltage'         => null,
