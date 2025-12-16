@@ -8,21 +8,6 @@
             align-self: center;
         }
     </style>
-    <div class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1 class="m-0">Accounts</h1>
-                </div><!-- /.col -->
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="{{ route('cpo.dashboard') }}">Home</a></li>
-                        <li class="breadcrumb-item active">Accounts</li>
-                    </ol>
-                </div><!-- /.col -->
-            </div><!-- /.row -->
-        </div><!-- /.container-fluid -->
-    </div>
     <section class="content">
         <div class="container-fluid">
             <div class="card border-0 shadow-sm rounded-4 mb-4">
@@ -37,7 +22,7 @@
                     <div class="row g-4">
                         <div class="col-md-3">
                             <label for="filter_account_id" class="form-label">Account ID</label>
-                            <input type="text" class="form-control" id="filter_account_id" placeholder="Search by Account ID...">
+                            <input type="text" class="form-control form-control-sm" id="filter_account_id" placeholder="Search by Account ID...">
                         </div>
                     </div>
                     <br>
@@ -139,12 +124,12 @@
                         // Display all account fields except excluded ones in a compact format
                         let excludedFields = ['deleted_at', 'password', 'remember_token', 'email_verified_at', 'account_id', 'created_at', 'updated_at'];
                         let details = [];
-                        
+
                         for (let key in row) {
                             if (excludedFields.indexOf(key) === -1 && row.hasOwnProperty(key) && row[key] !== null && row[key] !== '') {
                                 let label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                                 let value = row[key];
-                                
+
                                 if (typeof value === 'boolean') {
                                     value = value ? 'Yes' : 'No';
                                 } else if (key.includes('date') || key.includes('at')) {
@@ -154,20 +139,20 @@
                                         // Keep original value
                                     }
                                 }
-                                
+
                                 // For search functionality, include the value
                                 if (type === 'type' || type === 'sort') {
                                     return value;
                                 }
-                                
+
                                 details.push('<div class="mb-1"><small class="text-muted">' + label + ':</small><br><strong>' + value + '</strong></div>');
                             }
                         }
-                        
+
                         if (details.length === 0) {
                             return '<span class="text-muted">-</span>';
                         }
-                        
+
                         return '<div style="max-width: 500px; font-size: 0.9em;">' + details.join('') + '</div>';
                     }
                 },

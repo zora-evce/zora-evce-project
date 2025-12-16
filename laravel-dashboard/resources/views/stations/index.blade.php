@@ -8,21 +8,6 @@
             align-self: center;
         }
     </style>
-    <div class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1 class="m-0">Stations</h1>
-                </div><!-- /.col -->
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="{{ route('cpo.dashboard') }}">Home</a></li>
-                        <li class="breadcrumb-item active">Stations</li>
-                    </ol>
-                </div><!-- /.col -->
-            </div><!-- /.row -->
-        </div><!-- /.container-fluid -->
-    </div>
     <section class="content">
         <div class="container-fluid">
             <div class="card border-0 shadow-sm rounded-4 mb-4">

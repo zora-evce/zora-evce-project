@@ -1,21 +1,5 @@
 @extends('templates/template')
 @section('content')
-    <div class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1 class="m-0">Account Detail</h1>
-                </div><!-- /.col -->
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="{{ route('cpo.dashboard') }}">Home</a></li>
-                        <li class="breadcrumb-item"><a href="{{ route('cpo.users') }}">Accounts</a></li>
-                        <li class="breadcrumb-item active">Detail</li>
-                    </ol>
-                </div><!-- /.col -->
-            </div><!-- /.row -->
-        </div><!-- /.container-fluid -->
-    </div>
     <section class="content">
         <div class="container-fluid">
             <!-- Account Information Card -->
@@ -51,7 +35,7 @@
                                             </div>
                                         @endif
                                     @endforeach
-                                    
+
                                     <!-- Address from Stations -->
                                     @if($stations && $stations->count() > 0)
                                         @php
@@ -59,7 +43,7 @@
                                                 return !empty($station->address);
                                             });
                                         @endphp
-                                        
+
                                         @if($stationsWithAddress->count() > 0)
                                             @foreach($stationsWithAddress as $station)
                                                 <div class="col-md-4 mb-3">
@@ -155,8 +139,8 @@
                                                         @endif
                                                     </td>
                                                     <td>
-                                                        <a href="{{ route('cpo.stations.details') }}?id={{ $station->id }}" 
-                                                           class="btn btn-primary btn-sm" 
+                                                        <a href="{{ route('cpo.stations.details') }}?id={{ $station->id }}"
+                                                           class="btn btn-primary btn-sm"
                                                            title="View Details">
                                                             <i class="fas fa-eye"></i>
                                                         </a>
@@ -256,15 +240,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Back Button -->
-            <div class="row mt-4">
-                <div class="col-md-12">
-                    <a href="{{ route('cpo.users') }}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>Back to Accounts
-                    </a>
                 </div>
             </div>
         </div>

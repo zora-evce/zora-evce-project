@@ -140,7 +140,7 @@
                         </li>
                         <li class="nav-item menu-closed">
                             <a href="#"
-                                class="nav-link {{ Str::contains(Route::currentRouteName(), 'mcu') ? 'active' : '' }}">
+                                class="nav-link {{ Route::is('cpo.transactions*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-exchange-alt"></i>
                                 <p>
                                     Transactions
@@ -149,8 +149,7 @@
                             </a>
                             <ul class="nav nav-treeview">
                                 <li class="nav-item">
-                                    <a href="{{ route('cpo.transactions.chargepoints') }}"
-                                        class="nav-link {{ Route::is('cpo.transactions*') ? 'active' : '' }}">
+                                    <a href="{{ route('cpo.transactions.chargepoints') }}" class="nav-link {{ Route::is('cpo.transactions.chargepoints') ? 'active' : '' }}">
                                         <i class="far fa-circle nav-icon"></i>
                                         <p>Chargepoints</p>
                                     </a>
@@ -199,6 +198,24 @@
                                     My Account
                                 </p>
                             </a>
+                        </li>
+                        <li class="nav-item menu-closed">
+                            <a href="#"
+                                class="nav-link {{ Route::is('cpo.master*') ? 'active' : '' }} }}">
+                                <i class="nav-icon fas fa-server"></i>
+                                <p>
+                                    Master
+                                    <i class="right fas fa-angle-left"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="{{ route('cpo.master.tariff') }}" class="nav-link {{ Route::is('cpo.master.tariff') ? 'active' : '' }}">
+                                        <i class="fas fa-usd-circle nav-icon"></i>
+                                        <p>Tariff</p>
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
                         <li class="nav-item">
                             <a href="{{ route('cpo.dashboard') }}"
@@ -307,6 +324,33 @@
             <script src="{{ asset('templates/adminlte/plugins/datatables-buttons/js/buttons.colVis.min.js') }}"></script>
             <script src="{{ asset('templates/adminlte/plugins/echarts/echarts.min.js') }}"></script>
             <script src="{{ asset('templates/adminlte/plugins/xlsx/xlsx.full.min.js') }}"></script>
+            @if (Route::is('cpo.dashboard'))
+            @else
+                <div class="content-header">
+                    <div class="container-fluid">
+                        <div class="row mb-2">
+                            <div class="col-sm-6">
+                                <p><a href="{{ url()->previous() }}" class="link-underline-primary"><i class="fas fa-arrow-left mr-2"></i>Back</a></p>
+                            </div>
+                            <div class="col-sm-6">
+                                <ol class="breadcrumb float-sm-right">
+                                    @foreach ($breadcrumbs as $breadcrumb)
+                                        @if ($breadcrumb['url'])
+                                            <li class="breadcrumb-item">
+                                                <a href="{{ $breadcrumb['url'] }}">{{ $breadcrumb['title'] }}</a>
+                                            </li>
+                                        @else
+                                            <li class="breadcrumb-item active">
+                                                {{ $breadcrumb['title'] }}
+                                            </li>
+                                        @endif
+                                    @endforeach
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            @endif
             @yield('content')
         </div>
     </div>

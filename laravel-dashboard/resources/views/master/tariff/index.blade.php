@@ -13,26 +13,22 @@
             <div class="card border-0 shadow-sm rounded-4 mb-4">
                 <div class="card-header py-3">
                     <h5 class="card-title mb-0 fw-semibold">
-                        <i class="fas fa-filter me-1"></i> Data
+                        <i class="fas fa-usd-circle me-1"></i> Tariff
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="row g-4">
                         <div class="col-md-2">
-                            <label for="filter_name" class="form-label">Charging Station ID</label>
-                            <input type="text" class="form-control" id="filter_name" placeholder="">
+                            <label for="filter_name" class="form-label form-label">Code</label>
+                            <input type="text" class="form-control form-control-sm" id="filter_name" placeholder="">
                         </div>
                         <div class="col-md-2">
-                            <label for="filter_name" class="form-label">Transaction ID</label>
-                            <input type="text" class="form-control" id="filter_name" placeholder=".">
+                            <label for="filter_name" class="form-label">Name</label>
+                            <input type="text" class="form-control form-control-sm" id="filter_name" placeholder=".">
                         </div>
                         <div class="col-md-2">
-                            <label for="filter_name" class="form-label">Connector ID</label>
-                            <input type="text" class="form-control" id="filter_name" placeholder=".">
-                        </div>
-                        <div class="col-md-2">
-                            <label for="filter_name" class="form-label">Status</label>
-                            <input type="text" class="form-control" id="filter_name" placeholder="">
+                            <label for="filter_name" class="form-label">Type</label>
+                            <input type="text" class="form-control form-control-sm" id="filter_name" placeholder=".">
                         </div>
                     </div>
                     <br>
@@ -40,25 +36,24 @@
                         <div class="col-md-12">
                             <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn_register_new_station" data-toggle="modal" data-target="#registerStationModal"><i class="fas fa-plus mr-2"></i>Add New Tariff</button>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn_export"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
                         </div>
                     </div>
                     <br>
                     <div class="row g-4">
                         <div class="col-md-12">
                             <div class="table-responsive">
-                                <table id="auditTable" class="table table-hover align-middle">
+                                <table id="tariffTable" class="table table-hover align-middle">
                                     <thead class="table-light">
                                         <tr>
-                                            <th style="width: 30px;">No</th>
-                                            <th style="width: 30px;">Chargin Station ID</th>
-                                            <th>Transaction ID</th>
-                                            <th>Connector ID</th>
-                                            <th>Address</th>
-                                            <th>Payment Status</th>
-                                            <th>Start Time</th>
-                                            <th>Stop Time</th>
-                                            <th>Total Time</th>
-                                            <th>Total Cost</th>
+                                            <th style="width: 40px;">#</th>
+                                            <th>Tariff Code</th>
+                                            <th>Tariff Name</th>
+                                            <th>Tarif Type</th>
+                                            <th>Tarif Value (minute/kwh)</th>
+                                            <th>Tariff Price</th>
+                                            <th>Tax (%)</th>
                                             <th style="width: 80px;"><i class="fas fa-cogs"></i></th>
                                         </tr>
                                     </thead>
@@ -105,15 +100,20 @@
             allowClear: true,
             theme: 'bootstrap4'
         });
-        let table = $("#auditTable").DataTable({
+        let table = $("#tariffTable").DataTable({
             responsive: true,
             lengthChange: true,
             autoWidth: false,
-            searching: false,
+            searching: true,
             processing: true,
             serverSide: true,
+            searching: false,
+            lengthChange: false,
+            paging: false,
+            info: false,
             ajax: {
-                url: '{{ route("cpo.transactions.chargepoints.get-data") }}',
+                // url: '/stations/details/get-connectors',
+                url: '{{ route("cpo.master.tariff.get-data") }}',
                 type: 'GET',
                 data: function(d) {
                 }
@@ -127,67 +127,67 @@
                     }
                 },
                 {
-                    data: 'code',
-                    name: 'Chargin Station ID',
+                    data: 'tariff_code',
+                    name: 'Tariff Code',
                     searchable: true,
                     orderable: true
                 },
                 {
-                    data: 'transactionId',
-                    name: 'Transaction ID',
+                    data: 'tariff_name',
+                    name: 'Tariff Number',
                     searchable: true,
                     orderable: true
                 },
                 {
-                    data: 'connector_id',
-                    name: 'Connector ID',
+                    data: 'tariff_type',
+                    name: 'Tariff Type',
                     searchable: true,
                     orderable: true
                 },
                 {
-                    data: 'address',
-                    name: 'Address',
+                    data: 'tariff_value',
+                    name: 'Tariff Value (minute/kwh)',
                     searchable: true,
                     orderable: true
                 },
                 {
-                    data: 'payment_status_name',
-                    name: 'Payment Status',
+                    data: 'tariff_price',
+                    name: 'Tariff Price',
                     searchable: true,
-                    orderable: true
+                    orderable: true,
+                    render: function(data, type, row) {
+                        let price = row.tariff_price;
+                        return `Rp. ${price}`;
+                    }
                 },
                 {
-                    data: 'start_time',
-                    name: 'Start Time',
+                    data: 'tax_rate',
+                    name: 'Tax (%)',
                     searchable: true,
-                    orderable: true
-                },
-                {
-                    data: 'stop_time',
-                    name: 'Stop Time',
-                    searchable: true,
-                    orderable: true
-                },
-                {
-                    data: 'total_time',
-                    name: 'Total Time',
-                    searchable: true,
-                    orderable: true
-                },
-                {
-                    data: 'total_cost',
-                    name: 'Total Cost',
-                    searchable: true,
-                    orderable: true
+                    orderable: true,
+                    render: function(data, type, row) {
+                        let tax = row.tax_rate;
+                        return `${tax} %`;
+                    }
                 },
                 {
                     data: null,
+                    searchable: false,
+                    orderable: false,
                     render: function(data, type, row) {
                         let stationId = row.id;
                         return `
                             <div class="btn-group align-items-center" role="group" aria-label="Station Actions">
-                                <a href="" class="btn btn-primary btn-sm action-detail">
+                                <a href="#" class="btn btn-primary btn-sm action-detail" id="btn-detail-table">
                                     <i class="fas fa-eye"></i>
+                                </a>
+                                <div class="btn-divider"></div>
+                                <a href="#" class="btn btn-primary btn-sm action-detail">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <div class="btn-divider"></div>
+                                <a href="#" class="btn btn-primary btn-sm action-detail action-delete">
+                                    <i class="fas fa-trash"></i>
                                 </a>
                             </div>
                         `;
