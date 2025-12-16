@@ -1,20 +1,5 @@
 @extends('templates/template')
 @section('content')
-    <div class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1 class="m-0">My Account</h1>
-                </div><!-- /.col -->
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="{{ route('cpo.dashboard') }}">Home</a></li>
-                        <li class="breadcrumb-item active">My Account</li>
-                    </ol>
-                </div><!-- /.col -->
-            </div><!-- /.row -->
-        </div><!-- /.container-fluid -->
-    </div>
     <section class="content">
         <div class="container-fluid">
             <!-- User Information Card -->
@@ -121,7 +106,7 @@
                                             </div>
                                         @endif
                                     @endforeach
-                                    
+
                                     <!-- Address from Stations -->
                                     @if($stations && $stations->count() > 0)
                                         @php
@@ -129,7 +114,7 @@
                                                 return !empty($station->address);
                                             });
                                         @endphp
-                                        
+
                                         @if($stationsWithAddress->count() > 0)
                                             @foreach($stationsWithAddress as $station)
                                                 <div class="col-md-12 mb-3">

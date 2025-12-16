@@ -6,6 +6,7 @@ use App\Http\Controllers\Stations\StationDetailsController;
 use App\Http\Controllers\Stations\StationsController;
 use App\Http\Controllers\Users\UsersController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Master\TariffController;
 use Illuminate\Support\Facades\Route;
 
 // ADMIN - Public routes (no authentication required)
@@ -51,6 +52,13 @@ Route::middleware(['auth'])->group(function () {
         Route::group(['prefix' => 'chargepoints'], function () {
             Route::get('/', [ChargepointsTransactionsController::class, 'index'])->name('transactions.chargepoints');
             Route::get('/get-data', [ChargepointsTransactionsController::class, 'getData'])->name('transactions.chargepoints.get-data');
+        });
+    });
+
+    Route::group(['prefix' => 'master'], function () {
+        Route::group(['prefix' => 'tariff'], function () {
+            Route::get('/', [TariffController::class, 'index'])->name('master.tariff');
+            Route::get('/get-data', [TariffController::class, 'getData'])->name('master.tariff.get-data');
         });
     });
 
