@@ -326,7 +326,7 @@ class OcppEventController extends Controller
 
             // // SET JOBS TO STOP REMOTE
             $delayMinutes = ($pool->transaction->duration) * 60;
-            $job = EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $p->idTag)
+            $job = EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $idTag)
                                         ->delay(now()->addMinutes($delayMinutes));
             // $jobId = $job->getJobId();
 
