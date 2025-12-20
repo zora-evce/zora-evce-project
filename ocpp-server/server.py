@@ -469,7 +469,7 @@ class ChargePoint(CP16):
         log.warning('ini p')
         log.warning(p)
         connector_id = int(p.get("connectorId") or 1)
-        tx_id = int(p.get("transactionId") or 0)
+        tx_id = int(p.get("transaction_id") or 0)
         meter_stop = int(p.get("meterStop") or p.get("meter_stop") or 0)
         ts = p.get("timestamp") or utcnow()
         reason = p.get("reason")
