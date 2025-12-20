@@ -26,7 +26,8 @@ class Transaction extends BaseModel
         'id_job_stop',
         'tax',
         'total_price',
-        'duration'
+        'duration',
+        'trx_id'
         // timestamps auto-set
     ];
 
