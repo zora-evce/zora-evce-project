@@ -133,7 +133,8 @@ class HomeController extends Controller
         // if ($connector && isset($connector->idTag) && $connector->idTag) {
         //     $payload['idTag'] = $connector->idTag;
         // }
-        $payload['transactionId'] = $transaction->transactionId;
+        // $payload['transactionId'] = $transaction->transactionId;
+        $payload['transactionId'] = $transaction->trx_id;
 
         RemoteCommand::create([
             'station_id'   => $transaction->station_id,
