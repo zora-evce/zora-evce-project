@@ -671,8 +671,10 @@ class OcppEventController extends Controller
                                         ->where('stop_time', null)
                                         ->orderBy('id', 'desc')
                                         ->first();
-			$transaction->stop_time = date('Y-m-d H:i:s');
-			$transaction->save();
+            if ($transaction) {
+                $transaction->stop_time = date('Y-m-d H:i:s');
+                $transaction->save();
+            }
 
             // SEND WA
 			$isSendWA = env('IS_SEND_WA');
