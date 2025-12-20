@@ -145,11 +145,11 @@ class HomeController extends Controller
         ]);
 
         // Delete queued stop job if exists
-        if (!empty($transaction->id_job_stop)) {
-            DB::table('jobs')->where('id', $transaction->id_job_stop)->delete();
-            $transaction->id_job_stop = null;
-            $transaction->save();
-        }
+        // if (!empty($transaction->id_job_stop)) {
+        //     DB::table('jobs')->where('id', $transaction->id_job_stop)->delete();
+        //     $transaction->id_job_stop = null;
+        //     $transaction->save();
+        // }
 
         return response()->json([
             'ok' => true,

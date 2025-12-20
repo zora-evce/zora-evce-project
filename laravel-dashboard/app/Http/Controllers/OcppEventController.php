@@ -334,7 +334,7 @@ class OcppEventController extends Controller
             $transaction = Transaction::find($pool->id_transaction);
             $transaction->start_time = date('Y-m-d H:i:s');
             $transaction->trx_id = $p['transactionId'];
-            $transaction->id_job_stop = $jobId;
+            // $transaction->id_job_stop = $jobId;
             $transaction->save();
 
             return $this->reply(true, 'StartTransaction saved');
