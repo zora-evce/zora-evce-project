@@ -612,7 +612,7 @@ class OcppEventController extends Controller
                 'meter_stop_kwh'   => $meterStopKwh,
                 'total_energy_kwh' => $totalEnergyKwh,
                 'total_cost'       => null,
-                'raw'              => $p['raw'] ?? json_encode($p),
+                'raw'              => json_encode($p['raw'] ?? null),
                 'created_at'       => now(),
                 'updated_at'       => now(),
             ]);
