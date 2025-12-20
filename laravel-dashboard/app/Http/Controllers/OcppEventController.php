@@ -237,7 +237,7 @@ class OcppEventController extends Controller
             //                             ->where('status', 0)
             //                             ->orderBy('id', 'desc')
             //                             ->first();
-		    $pool = TransactionidPool::with('transaction.tariff')
+		    $pool = TransactionidPool::with('transaction')
                                         ->where('station_id', $stationId)
                                         ->where('connector_id', $connectorId)
                                         ->where('status', 0)
@@ -324,20 +324,20 @@ class OcppEventController extends Controller
             }
 
 
-                // // SET JOBS TO STOP REMOTE
-                $delayMinutes = (int) $pool->transaction->tariff->tariff_value;
-                $job = EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $p->idTag)
-                                            ->delay(now()->addMinutes($delayMinutes));
-                $jobId = $job->getJobId();
+            // // SET JOBS TO STOP REMOTE
+            $delayMinutes = ($pool->transaction->duration) * 60;
+            $job = EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $p->idTag)
+                                        ->delay(now()->addMinutes($delayMinutes));
+            // $jobId = $job->getJobId();
 
-                // SET start_time and id_job_stop ON transactions
-                $transaction = Transaction::find($pool->id_transaction);
-                $transaction->start_time = date('Y-m-d H:i:s');
-                $transaction->trx_id = $p['transactionId'];
-                $transaction->id_job_stop = $jobId;
-                $transaction->save();
+            // SET start_time and id_job_stop ON transactions
+            $transaction = Transaction::find($pool->id_transaction);
+            $transaction->start_time = date('Y-m-d H:i:s');
+            $transaction->trx_id = $p['transactionId'];
+            $transaction->id_job_stop = $jobId;
+            $transaction->save();
 
-                return $this->reply(true, 'StartTransaction saved');
+            return $this->reply(true, 'StartTransaction saved');
             // }
         } catch (\Throwable $e) {
 
