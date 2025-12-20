@@ -644,8 +644,6 @@ class OcppEventController extends Controller
             //         ]);
             // }
 
-            DB::commit();
-
             // 4. → Logging ke webhook_logs
             $p['station_code'] = $stationCode;
             $p['connector']    = $connectorNum;
@@ -699,6 +697,8 @@ class OcppEventController extends Controller
 					]);
 				}
 			}
+
+            DB::commit();
 
             return $this->reply(true, 'StopTransaction saved');
 
