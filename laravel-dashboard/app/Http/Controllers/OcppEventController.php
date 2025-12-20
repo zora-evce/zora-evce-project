@@ -272,7 +272,7 @@ class OcppEventController extends Controller
                 //     'created_at'       => now(),
                 //     'updated_at'       => now(),
                 // ]);
-    
+
                 // DB::commit();
 
                 // 4. Log ke webhook_logs untuk tracking di dashboard
@@ -612,7 +612,7 @@ class OcppEventController extends Controller
                 'meter_stop_kwh'   => $meterStopKwh,
                 'total_energy_kwh' => $totalEnergyKwh,
                 'total_cost'       => null,
-                'raw'              => $p['raw'] ?? $p,
+                'raw'              => $p['raw'] ?? json_encode($p),
                 'created_at'       => now(),
                 'updated_at'       => now(),
             ]);
