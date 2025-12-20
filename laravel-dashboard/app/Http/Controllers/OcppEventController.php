@@ -326,7 +326,7 @@ class OcppEventController extends Controller
 
             // // SET JOBS TO STOP REMOTE
             $delayMinutes = ($pool->transaction->duration) * 60;
-            $job = EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $idTag)
+            $job = EnqueueRemoteStopCommandJob::dispatch($stationId, $connectorId, $p['transactionId'])
                                         ->delay(now()->addMinutes($delayMinutes));
             // $jobId = $job->getJobId();
 
@@ -618,13 +618,13 @@ class OcppEventController extends Controller
             ]);
 
             // 3c. Update tabel transactions (jika ada mapping OCPP transactionId)
-            if (!empty($p['transactionId'])) {
-                $trx = Transaction::where('transactionId', (string) $p['transactionId'])->first();
-                if ($trx) {
-                    $trx->stop_time = now();
-                    $trx->save();
-                }
-            }
+            // if (!empty($p['transactionId'])) {
+            //     $trx = Transaction::where('transactionId', (string) $p['transactionId'])->first();
+            //     if ($trx) {
+            //         $trx->stop_time = now();
+            //         $trx->save();
+            //     }
+            // }
 
             // Update session energy
             DB::table('charging_sessions')->where('id', $sessionId)->update([
@@ -665,7 +665,10 @@ class OcppEventController extends Controller
             );
 
             // SET stop_time and id_job_stop ON transactions
-			$transaction = Transaction::where("transactionId", $p['transactionId'])
+			$transaction = Transaction::where("trx_id", $p['transactionId'])
+                                        ->where('station_id', $stationId)
+                                        ->where('connector_id', $connectorId)
+                                        ->where('stop_time', null)
                                         ->orderBy('id', 'desc')
                                         ->first();
 			$transaction->stop_time = date('Y-m-d H:i:s');
