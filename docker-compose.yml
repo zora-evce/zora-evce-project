@@ -106,20 +106,23 @@ services:
     networks:
       - laravel_network
   
-    queue:
-      # biasanya reuse image yang sama dengan php
-      build: .
-      # atau: image: your-php-image
-      working_dir: /var/www/html
-      command: php artisan queue:work --sleep=1 --tries=3 --timeout=120
-      restart: unless-stopped
-      depends_on:
-        - php_stag
-      environment:
-        - APP_ENV=${APP_ENV}
-        - QUEUE_CONNECTION=${QUEUE_CONNECTION}
-      volumes:
-        - ./:/var/www/html
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: zora_queue
+    working_dir: /var/www/html
+    command: php artisan queue:work --sleep=1 --tries=3 --timeout=120
+    restart: unless-stopped
+    depends_on:
+      - php_stag
+    volumes:
+      - ./laravel-dashboard:/var/www/html
+    environment:
+      APP_ENV: ${APP_ENV}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION}
+    networks:
+      - laravel_network
       
 # Server OCPP
   ocpp_server_stag:
