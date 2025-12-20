@@ -124,7 +124,7 @@ class HomeController extends Controller
 
         // Update transaction flags
         $transaction->manual_stop = 1;
-        $transaction->stop_time = Carbon::now();
+        // $transaction->stop_time = Carbon::now();
         $transaction->save();
 
         // Enqueue RemoteStopTransaction command
