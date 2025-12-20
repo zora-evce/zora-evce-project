@@ -114,7 +114,10 @@ class HomeController extends Controller
             'transactionId' => ['required','string','max:50'],
         ]);
 
-        $transaction = Transaction::where('transactionId', $data['transactionId'])->first();
+        $transaction = Transaction::where('transactionId', $data['transactionId'])
+                                    ->where('stop_time', null)
+                                    ->orderBy('id', 'desc')
+                                    ->first();
         if (! $transaction) {
             return response()->json([
                 'ok' => false,
