@@ -466,6 +466,8 @@ class ChargePoint(CP16):
 
     @on('StopTransaction')
     async def on_stop_transaction(self, **p):
+        log.warning('ini p')
+        log.warning(p)
         connector_id = int(p.get("connectorId") or 1)
         tx_id = int(p.get("transactionId") or 0)
         meter_stop = int(p.get("meterStop") or p.get("meter_stop") or 0)
