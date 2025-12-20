@@ -663,6 +663,9 @@ class OcppEventController extends Controller
             );
 
             // SET stop_time and id_job_stop ON transactions
+            Log::info($p['transactionId']);
+            Log::info($stationId);
+            Log::info($connectorId);
 			$transaction = Transaction::where("trx_id", $p['transactionId'])
                                         ->where('station_id', $stationId)
                                         ->where('connector_id', $connectorId)
@@ -672,31 +675,31 @@ class OcppEventController extends Controller
             if ($transaction) {
                 $transaction->stop_time = date('Y-m-d H:i:s');
                 $transaction->save();
+                // SEND WA
+                $isSendWA = env('IS_SEND_WA');
+    
+                if ($isSendWA) {
+                    $phone = GlobalHelper::phoneConvert($transaction->phone);
+                    $qontak = new QontakService();
+    
+                    try {
+                        $qontak->sendWhatsApp($phone, [
+                            "name"            => $transaction->name,
+                            "order_id"        => $transaction->midtrans_order_id,
+                        ]);
+    
+                        DB::table('transactions')->where('id',$transaction->id)->update([
+                            'wa_status'  => 1,
+                        ]);
+                    } catch (\Throwable $exception) {
+                        Log::error('Failed to send whatsapp.', [
+                            "name"            => $transaction->name,
+                            "order_id"        => $transaction->midtrans_order_id,
+                        ]);
+                    }
+                }
             }
 
-            // SEND WA
-			$isSendWA = env('IS_SEND_WA');
-
-			if ($isSendWA) {
-				$phone = GlobalHelper::phoneConvert($transaction->phone);
-				$qontak = new QontakService();
-
-				try {
-					$qontak->sendWhatsApp($phone, [
-						"name"            => $transaction->name,
-						"order_id"        => $transaction->midtrans_order_id,
-					]);
-
-					DB::table('transactions')->where('id',$transaction->id)->update([
-						'wa_status'  => 1,
-					]);
-				} catch (\Throwable $exception) {
-					Log::error('Failed to send whatsapp.', [
-						"name"            => $transaction->name,
-						"order_id"        => $transaction->midtrans_order_id,
-					]);
-				}
-			}
 
             DB::commit();
 
