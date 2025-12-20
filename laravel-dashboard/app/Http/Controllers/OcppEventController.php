@@ -644,8 +644,6 @@ class OcppEventController extends Controller
             //         ]);
             // }
 
-            DB::commit();
-
             // 4. → Logging ke webhook_logs
             $p['station_code'] = $stationCode;
             $p['connector']    = $connectorNum;
@@ -671,8 +669,10 @@ class OcppEventController extends Controller
                                         ->where('stop_time', null)
                                         ->orderBy('id', 'desc')
                                         ->first();
-			$transaction->stop_time = date('Y-m-d H:i:s');
-			$transaction->save();
+            if ($transaction) {
+                $transaction->stop_time = date('Y-m-d H:i:s');
+                $transaction->save();
+            }
 
             // SEND WA
 			$isSendWA = env('IS_SEND_WA');
@@ -697,6 +697,8 @@ class OcppEventController extends Controller
 					]);
 				}
 			}
+
+            DB::commit();
 
             return $this->reply(true, 'StopTransaction saved');
 
