@@ -49,6 +49,9 @@ Route::middleware(['auth'])->group(function () {
                 Route::get('/get-transactions', [StationDetailsController::class, 'getDataTransactions'])->name('stations.details.transactions.get-transactions');
                 Route::get('/export-excel-transactions', [StationDetailsController::class, 'exportExcelTransactions'])->name('stations.details.transactions.export-excel-transactions');
             });
+            Route::group(['prefix' => 'location'], function () {
+                Route::post('/save-station-location', [StationDetailsController::class, 'saveStationLocation'])->name('stations.details.location.save-station-location');
+            });
         });
     });
 
@@ -56,6 +59,7 @@ Route::middleware(['auth'])->group(function () {
         Route::group(['prefix' => 'chargepoints'], function () {
             Route::get('/', [ChargepointsTransactionsController::class, 'index'])->name('transactions.chargepoints');
             Route::get('/get-data', [ChargepointsTransactionsController::class, 'getData'])->name('transactions.chargepoints.get-data');
+            Route::get('/export-excel', [ChargepointsTransactionsController::class, 'exportExcel'])->name('transactions.chargepoints.export-excel');
         });
     });
 

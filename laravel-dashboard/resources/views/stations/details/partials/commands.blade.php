@@ -73,17 +73,17 @@
                 <div class="card-body p-0">
                     <div class="list-group list-group-flush action-sidebar-nav" id="menu-tabs" role="tablist">
 
-                        <a class="list-group-item list-group-item-action active"
+                        {{-- <a class="list-group-item list-group-item-action active"
                            id="core-tab" data-toggle="list" href="#core-panel" role="tab">
                             <i class="fas fa-cog mr-2"></i> Core
-                        </a>
+                        </a> --}}
 
-                        <a class="list-group-item list-group-item-action"
+                        <a class="list-group-item list-group-item-action active"
                            id="transaction-tab" data-toggle="list" href="#transaction-panel" role="tab">
                             <i class="fas fa-exchange-alt mr-2"></i> Transaction
                         </a>
 
-                        <a class="list-group-item list-group-item-action"
+                        {{-- <a class="list-group-item list-group-item-action"
                            id="firmware-tab" data-toggle="list" href="#firmware-panel" role="tab">
                             <i class="fas fa-microchip mr-2"></i> Firmware
                         </a>
@@ -91,7 +91,7 @@
                         <a class="list-group-item list-group-item-action"
                            id="locallist-tab" data-toggle="list" href="#locallist-panel" role="tab">
                             <i class="fas fa-list-ul mr-2"></i> Local list
-                        </a>
+                        </a> --}}
 
                     </div>
                 </div>
@@ -106,7 +106,7 @@
                 <!-- ======================================================
                      PANEL: CORE
                 ====================================================== -->
-                <div class="tab-pane fade show active" id="core-panel" role="tabpanel">
+                {{-- <div class="tab-pane fade show active" id="core-panel" role="tabpanel">
 
                     <!-- RESET STATION -->
                     <div class="card action-card mb-3">
@@ -218,13 +218,13 @@
                         </div>
                     </div>
 
-                </div>
+                </div> --}}
 
 
                 <!-- ======================================================
                      PANEL: TRANSACTION
                 ====================================================== -->
-                <div class="tab-pane fade" id="transaction-panel" role="tabpanel">
+                <div class="tab-pane fade show active" id="core-panel" role="tabpanel">
 
                     <!-- REMOTE START -->
                     <div class="card action-card mb-3">
@@ -285,7 +285,7 @@
                 <!-- ======================================================
                      PANEL: FIRMWARE
                 ====================================================== -->
-                <div class="tab-pane fade" id="firmware-panel" role="tabpanel">
+                {{-- <div class="tab-pane fade" id="firmware-panel" role="tabpanel">
 
                     <div class="card action-card mb-3">
                         <div class="card-body">
@@ -294,13 +294,13 @@
                         </div>
                     </div>
 
-                </div>
+                </div> --}}
 
 
                 <!-- ======================================================
                      PANEL: LOCAL LIST
                 ====================================================== -->
-                <div class="tab-pane fade" id="locallist-panel" role="tabpanel">
+                {{-- <div class="tab-pane fade" id="locallist-panel" role="tabpanel">
 
                     <div class="card action-card mb-3">
                         <div class="card-body">
@@ -309,7 +309,7 @@
                         </div>
                     </div>
 
-                </div>
+                </div> --}}
 
             </div>
         </div>
