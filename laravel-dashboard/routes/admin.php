@@ -67,6 +67,7 @@ Route::middleware(['auth'])->group(function () {
         Route::group(['prefix' => 'tariff'], function () {
             Route::get('/', [TariffController::class, 'index'])->name('master.tariff');
             Route::get('/get-data', [TariffController::class, 'getData'])->name('master.tariff.get-data');
+            Route::post('/add-tariff', [TariffController::class, 'addTariff'])->name('master.tariff.add-tariff');
         });
     });
 

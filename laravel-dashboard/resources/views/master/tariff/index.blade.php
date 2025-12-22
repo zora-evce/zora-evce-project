@@ -36,7 +36,7 @@
                         <div class="col-md-12">
                             <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button>
-                            <button type="button" class="btn btn-sm btn-primary" id="btn_register_new_station" data-toggle="modal" data-target="#registerStationModal"><i class="fas fa-plus mr-2"></i>Add New Tariff</button>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn_register_new_station" data-toggle="modal" data-target="#addTariff"><i class="fas fa-plus mr-2"></i>Add New Tariff</button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_export"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
                         </div>
                     </div>
@@ -86,6 +86,7 @@
             <!-- /.modal-dialog -->
         </div>
     </section>
+    @include('master.tariff.partials.add-tariff-modal')
     <script>
         // Standard Select2 for Status
         const $filterStatus = $('#filter_status').select2({
