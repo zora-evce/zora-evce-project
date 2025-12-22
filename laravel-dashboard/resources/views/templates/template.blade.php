@@ -154,16 +154,16 @@
                                         <p>Chargepoints</p>
                                     </a>
                                 </li>
-                                <li class="nav-item">
+                                {{-- <li class="nav-item">
                                     <a href="{{ route('cpo.dashboard') }}"
                                         class="nav-link {{ Str::contains(Route::currentRouteName(), 'program-mcu') ? 'active' : '' }}">
                                         <i class="far fa-circle nav-icon"></i>
                                         <p>Cards</p>
                                     </a>
-                                </li>
+                                </li> --}}
                             </ul>
                         </li>
-                        <li class="nav-item">
+                        {{-- <li class="nav-item">
                             <a href="{{ route('cpo.dashboard') }}"
                                 class="nav-link">
                                 <i class="nav-icon fas fa-money-check"></i>
@@ -180,7 +180,7 @@
                                     Supports
                                 </p>
                             </a>
-                        </li>
+                        </li> --}}
                         <li class="nav-item">
                             <a href="{{ route('cpo.users') }}"
                                 class="nav-link {{ Route::is('cpo.users*') ? 'active' : '' }}">
@@ -217,7 +217,7 @@
                                 </li>
                             </ul>
                         </li>
-                        <li class="nav-item">
+                        {{-- <li class="nav-item">
                             <a href="{{ route('cpo.dashboard') }}"
                                 class="nav-link">
                                 <i class="nav-icon fas fa-question-circle"></i>
@@ -225,7 +225,7 @@
                                     Help
                                 </p>
                             </a>
-                        </li>
+                        </li> --}}
                     </ul>
                 </nav>
                 <!-- /.sidebar-menu -->

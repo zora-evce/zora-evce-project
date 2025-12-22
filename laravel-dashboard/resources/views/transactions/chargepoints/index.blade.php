@@ -1,45 +1,46 @@
 @extends('templates/template')
 @section('content')
     <style>
-        .btn-group .btn-divider {
+        /* .btn-group .btn-divider {
             width: 2px;
             margin: 0 0px;
             height: 24px;
             align-self: center;
-        }
+        } */
     </style>
     <section class="content">
         <div class="container-fluid">
             <div class="card border-0 shadow-sm rounded-4 mb-4">
                 <div class="card-header py-3">
                     <h5 class="card-title mb-0 fw-semibold">
-                        <i class="fas fa-filter me-1"></i> Data
+                        <i class="fas fa-filter me-1"></i> Chargepoints
                     </h5>
                 </div>
                 <div class="card-body">
                     <div class="row g-4">
-                        <div class="col-md-2">
+                        {{-- <div class="col-md-2">
                             <label for="filter_name" class="form-label">Charging Station ID</label>
-                            <input type="text" class="form-control" id="filter_name" placeholder="">
-                        </div>
+                            <input type="text" class="form-control form-control-sm" id="filter_name" placeholder="">
+                        </div> --}}
                         <div class="col-md-2">
-                            <label for="filter_name" class="form-label">Transaction ID</label>
-                            <input type="text" class="form-control" id="filter_name" placeholder=".">
+                            <label for="filter_transaction_id" class="form-label">Transaction ID</label>
+                            <input type="text" class="form-control form-control-sm" id="filter_transaction_id" placeholder=".">
                         </div>
-                        <div class="col-md-2">
+                        {{-- <div class="col-md-2">
                             <label for="filter_name" class="form-label">Connector ID</label>
-                            <input type="text" class="form-control" id="filter_name" placeholder=".">
+                            <input type="text" class="form-control form-control-sm" id="filter_name" placeholder=".">
                         </div>
                         <div class="col-md-2">
                             <label for="filter_name" class="form-label">Status</label>
-                            <input type="text" class="form-control" id="filter_name" placeholder="">
-                        </div>
+                            <input type="text" class="form-control form-control-sm" id="filter_name" placeholder="">
+                        </div> --}}
                     </div>
                     <br>
                     <div class="row g-4">
                         <div class="col-md-12">
                             <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn_export_excel"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
                         </div>
                     </div>
                     <br>
@@ -59,7 +60,7 @@
                                             <th>Stop Time</th>
                                             <th>Total Time</th>
                                             <th>Total Cost</th>
-                                            <th style="width: 80px;"><i class="fas fa-cogs"></i></th>
+                                            {{-- <th style="width: 80px;"><i class="fas fa-cogs"></i></th> --}}
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -86,25 +87,10 @@
 
                     </div>
                 </div>
-                <!-- /.modal-content -->
             </div>
-            <!-- /.modal-dialog -->
         </div>
     </section>
     <script>
-        // Standard Select2 for Status
-        const $filterStatus = $('#filter_status').select2({
-            placeholder: 'All Statuses',
-            allowClear: true,
-            theme: 'bootstrap4' // Assuming you use Bootstrap 4 with AdminLTE
-        });
-
-        // Standard Select2 for Roaming Type
-        const $filterRoaming = $('#filter_roaming').select2({
-            placeholder: 'All Types',
-            allowClear: true,
-            theme: 'bootstrap4'
-        });
         let table = $("#auditTable").DataTable({
             responsive: true,
             lengthChange: true,
@@ -116,6 +102,7 @@
                 url: '{{ route("cpo.transactions.chargepoints.get-data") }}',
                 type: 'GET',
                 data: function(d) {
+                    d.transaction_id = $('#filter_transaction_id').val();
                 }
             },
             columns: [{
@@ -133,7 +120,7 @@
                     orderable: true
                 },
                 {
-                    data: 'transactionId',
+                    data: 'transaction_id',
                     name: 'Transaction ID',
                     searchable: true,
                     orderable: true
@@ -180,40 +167,45 @@
                     searchable: true,
                     orderable: true
                 },
-                {
-                    data: null,
-                    render: function(data, type, row) {
-                        let stationId = row.id;
-                        return `
-                            <div class="btn-group align-items-center" role="group" aria-label="Station Actions">
-                                <a href="" class="btn btn-primary btn-sm action-detail">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                            </div>
-                        `;
-                    }
-                }
+                // {
+                //     data: null,
+                //     render: function(data, type, row) {
+                //         let stationId = row.id;
+                //         return `
+                //             <div class="btn-group align-items-center" role="group" aria-label="Station Actions">
+                //                 <a href="" class="btn btn-primary btn-sm action-detail">
+                //                     <i class="fas fa-eye"></i>
+                //                 </a>
+                //             </div>
+                //         `;
+                //     }
+                // }
             ],
             order: [
                 [1, 'asc']
             ],
         });
 
-        // Filter button click event
         $('#btn_filter').on('click', function() {
-            table.draw(); // Redraw the table, which re-triggers the AJAX call with new data
+            table.draw();
         });
 
-        // Reset button click event
         $('#btn_reset').on('click', function() {
-            // Reset all filter inputs to their default state
-            $('#filter_name').val('');
-            $filterStatus.val(null).trigger('change'); // Reset Select2
-            $filterRoaming.val(null).trigger('change');
-            $filterCity.val(null).trigger('change'); // Reset AJAX Select2
+            $('#filter_transaction_id').val('');
 
-            // Redraw the table
             table.draw();
+        });
+
+        $('#btn_export_excel').on('click', function(e) {
+            e.preventDefault();
+            let params = {
+                filter_transaction_id: $('#filter_transaction_id').val() || ''
+            };
+
+            let url = '{{ route("cpo.transactions.chargepoints.export-excel") }}'
+                + '?' + $.param(params);
+
+            window.location.href = url;
         });
     </script>
 @endsection

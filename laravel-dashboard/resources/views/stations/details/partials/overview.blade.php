@@ -79,7 +79,7 @@
             <div class="card-body p-4 bg-white">
                 <div class="ratio ratio-1x1">
                     <iframe
-                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3961.264535647068!2d107.62815717585183!3d-6.858865067105696!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e68e0b82dc93d87%3A0xf664c059175258b1!2sTaman%20Hutan%20Raya%20Ir.%20H.%20Djuanda!5e0!3m2!1sen!2sid!4v1762875505053!5m2!1sen!2sid"
+                        src="{{ $gmap_url }}"
                         style="border:0;"
                         width="100%"
                         height="500"
@@ -193,7 +193,6 @@
 <div class="row g-4">
     <div class="col-md-12">
         <button type="button" class="btn btn-sm btn-primary" id="btn_register_new_connector" data-toggle="modal" data-target="#registerConnectorModal"><i class="fas fa-plus mr-2"></i>Register New Connector</button>
-        <button type="button" class="btn btn-sm btn-primary" id="btn_add"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
     </div>
 </div>
 @include('stations.details.partials.modal.register-connector-modal')

@@ -23,7 +23,7 @@
                         <th>Stop Time</th>
                         <th>Total Time</th>
                         <th>Total Cost</th>
-                        <th style="width: 80px;"><i class="fas fa-cogs"></i></th>
+                        {{-- <th style="width: 80px;"><i class="fas fa-cogs"></i></th> --}}
                     </tr>
                 </thead>
                 <tbody>
@@ -133,19 +133,19 @@
                     searchable: true,
                     orderable: true
                 },
-                {
-                    data: null,
-                    render: function(data, type, row) {
-                        let stationId = row.id;
-                        return `
-                            <div class="btn-group align-items-center" role="group" aria-label="Station Actions">
-                                <a href="" class="btn btn-primary btn-sm action-detail">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                            </div>
-                        `;
-                    }
-                }
+                // {
+                //     data: null,
+                //     render: function(data, type, row) {
+                //         let stationId = row.id;
+                //         return `
+                //             <div class="btn-group align-items-center" role="group" aria-label="Station Actions">
+                //                 <a href="" class="btn btn-primary btn-sm action-detail">
+                //                     <i class="fas fa-eye"></i>
+                //                 </a>
+                //             </div>
+                //         `;
+                //     }
+                // }
             ],
             order: [
                 [1, 'asc']

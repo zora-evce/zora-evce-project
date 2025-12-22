@@ -16,6 +16,12 @@ trait OverviewTrait
         $station_id = $station->id;
         $station = StationsV::findOrFail($station_id);
         $data = null;
+        $gmap_embed = $station->gmap_embed;
+        $gmap_url = null;
+        if (!empty($gmap_embed)) {
+            preg_match('/src="([^"]+)"/', $gmap_embed, $matches);
+            $gmap_url = $matches[1] ?? null;
+        }
         return view('stations.details.partials.' . $tab, get_defined_vars());
     }
 
