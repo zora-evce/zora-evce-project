@@ -58,7 +58,7 @@
                             <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_register_new_station" data-toggle="modal" data-target="#registerStationModal"><i class="fas fa-plus mr-2"></i>Register New Station</button>
-                            <button type="button" class="btn btn-sm btn-primary" id="btn_add"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn_export_excel"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
                         </div>
                     </div>
                     <br>
@@ -122,6 +122,22 @@
             allowClear: true,
             theme: 'bootstrap4'
         });
+
+        $('#btn_export_excel').on('click', function(e) {
+            e.preventDefault();
+            let params = {
+                filter_code: $('#filter_code').val() || '',
+                filter_name: $('#filter_name').val() || '',
+                filter_status: $('#filter_status').val() || '',
+                filter_city: $('#filter_city').val() || '',
+            };
+
+            let url = '{{ route("cpo.stations.export-excel") }}'
+                + '?' + $.param(params);
+
+            window.location.href = url;
+        });
+
         let table = $("#auditTable").DataTable({
             responsive: true,
             lengthChange: true,

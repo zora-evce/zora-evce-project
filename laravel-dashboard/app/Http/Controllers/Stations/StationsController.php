@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Stations;
 
+use App\Exports\StationsExport;
 use App\Helpers\ConstantsHelper;
 use App\Helpers\GlobalHelper;
 use App\Http\Controllers\Controller;
@@ -15,6 +16,7 @@ use App\Models\Vendors;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class StationsController extends Controller
 {
@@ -41,6 +43,13 @@ class StationsController extends Controller
             $query = $query->where('city_id', $request->get('filter_city'));
         }
         return response()->json(GlobalHelper::dataTable($request, $query));
+    }
+
+    public function exportExcel(Request $request)
+    {
+        $filters = $request->only(['filter_code', 'filter_name', 'filter_status', 'filter_city']);
+        $fileName = 'Stations' . '.xlsx';
+        return Excel::download(new StationsExport($filters), $fileName);
     }
 
     public function detailTable($id)

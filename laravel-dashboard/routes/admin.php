@@ -28,11 +28,11 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/get-data', [StationsController::class, 'getData'])->name('stations.get-data');
         Route::get('/detail-table/{id}', [StationsController::class, 'detailTable'])->name('stations.detail-table');
         Route::post('/register-new-station', [StationsController::class, 'registerNewStation'])->name('stations.register-new-station');
+        Route::get('/export-excel', [StationsController::class, 'exportExcel'])->name('stations.export-excel');
         Route::group(['prefix' => 'details'], function () {
             Route::get('/', [StationDetailsController::class, 'indexDetails'])->name('stations.details');
             Route::get('/get-connectors', [StationDetailsController::class, 'getConnectors'])->name('stations.details.get-connectors');
             Route::get('/{id}/tab/{tab}', [StationDetailsController::class, 'loadTab'])->name('stations.details.tab');
-            Route::get('/get-transactions', [StationDetailsController::class, 'getDataTransactions'])->name('stations.details.get-transactions');
             Route::get('/get-ocpp-logs', [StationDetailsController::class, 'getDataOcppLogs'])->name('stations.details.get-ocpp-logs');
             Route::group(['prefix' => 'overview'], function () {
                 Route::post('/register-new-connector', [StationDetailsController::class, 'registerNewConnector'])->name('stations.details.overview.register-new-connector');
@@ -44,6 +44,10 @@ Route::middleware(['auth'])->group(function () {
             Route::group(['prefix' => 'settings'], function () {
                 Route::get('/download-qr', [StationDetailsController::class, 'downloadQr'])->name('stations.details.settings.download-qr');
                 Route::post('/save-settings-section', [StationDetailsController::class, 'saveSettingsSection'])->name('stations.details.settings.save-settings-section');
+            });
+            Route::group(['prefix' => 'transactions'], function () {
+                Route::get('/get-transactions', [StationDetailsController::class, 'getDataTransactions'])->name('stations.details.transactions.get-transactions');
+                Route::get('/export-excel-transactions', [StationDetailsController::class, 'exportExcelTransactions'])->name('stations.details.transactions.export-excel-transactions');
             });
         });
     });
