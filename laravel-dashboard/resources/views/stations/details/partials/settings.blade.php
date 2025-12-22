@@ -59,6 +59,10 @@
                             @endif
                         </select>
                     </div>
+                    <div class="form-group">
+                        <label class="form-label" for="authKey">Auth Key</label>
+                        <input type="text" class="form-control form-control-sm" id="authKey" name="auth_key" placeholder="" value="{{ !empty($data['settings']['auth_key']) ? $data['settings']['auth_key'] : '' }}">
+                    </div>
                 </div>
                 <div class="card-footer">
                     <button type="submit" class="btn btn-sm btn-primary action-save"><i class="fas fa-save mr-2"></i><span>Save</span></button>
