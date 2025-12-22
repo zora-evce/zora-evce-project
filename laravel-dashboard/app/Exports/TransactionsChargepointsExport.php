@@ -34,7 +34,7 @@ class TransactionsChargepointsExport implements FromCollection, WithHeadings
                 'station_code' => $item->code,
                 'connector_id' => $item->connector_id,
                 'address' => $item->address,
-                'payment_status' => $item->payment_status,
+                'payment_status' => $item->payment_status_name,
                 'start_time' => $item->start_time,
                 'stop_time' => $item->stop_time,
                 'total_time' => !empty($item->total_time) ? $item->total_time . ' Minutes' : '-',
