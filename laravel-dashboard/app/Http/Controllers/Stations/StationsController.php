@@ -6,6 +6,8 @@ use App\Helpers\ConstantsHelper;
 use App\Helpers\GlobalHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Brands;
+use App\Models\City;
+use App\Models\LookupC;
 use App\Models\Models;
 use App\Models\Stations;
 use App\Models\StationsV;
@@ -18,7 +20,7 @@ class StationsController extends Controller
 {
     public function index()
     {
-        $data = self::bundleDataRegister();
+        $data = self::bundleDataStations();
         return view('/stations/index', get_defined_vars());
     }
 
@@ -26,6 +28,18 @@ class StationsController extends Controller
     {
         $model = new StationsV();
         $query = $model->select();
+        if (!empty($request->get('filter_code'))) {
+            $query = $query->where('code', 'ILIKE', '%' . $request->get('filter_code') . '%');
+        }
+        if (!empty($request->get('filter_name'))) {
+            $query = $query->where('name', 'ILIKE', '%' . $request->get('filter_name') . '%');
+        }
+        if (!empty($request->get('filter_status'))) {
+            $query = $query->where('connectivity_status', $request->get('filter_status'));
+        }
+        if (!empty($request->get('filter_city'))) {
+            $query = $query->where('city_id', $request->get('filter_city'));
+        }
         return response()->json(GlobalHelper::dataTable($request, $query));
     }
 
@@ -63,15 +77,19 @@ class StationsController extends Controller
         }
     }
 
-    private function bundleDataRegister()
+    private function bundleDataStations()
     {
+        $connectivity_status = LookupC::where('lookup_type', ConstantsHelper::CONNECTIVITY_STATUS)->get();
+        $city = City::all();
         $brands = Brands::all();
         $vendors = Vendors::all();
         $models = Models::all();
         $data = [
+            'connectivity_status' => $connectivity_status,
+            'city' => $city,
             'brands' => $brands,
             'vendors' => $vendors,
-            'models' => $models,
+            'models' => $models
         ];
         return $data;
     }
