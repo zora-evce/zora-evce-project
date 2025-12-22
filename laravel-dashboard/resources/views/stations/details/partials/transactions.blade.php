@@ -1,39 +1,34 @@
 <div class="row g-4">
-    <!-- Information Card -->
     <div class="col-md-12">
-        <div class="card border-0 shadow-sm rounded-4">
-            <div class="card-header bg-primary text-white text-center py-3">
-                <h5 class="card-title mb-0 fw-semibold">
-                    Transactions
-                </h5>
-            </div>
-            <div class="card-body p-4 bg-white">
-                <div class="row g-4">
-                    <div class="col-md-12">
-                        <div class="table-responsive">
-                            <table id="auditTable" class="table table-hover align-middle">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th style="width: 30px;">No</th>
-                                        <th style="width: 30px;">Chargin Station ID</th>
-                                        <th>Transaction ID</th>
-                                        <th>Connector ID</th>
-                                        <th>Address</th>
-                                        <th>Payment Status</th>
-                                        <th>Start Time</th>
-                                        <th>Stop Time</th>
-                                        <th>Total Time</th>
-                                        <th>Total Cost</th>
-                                        <th style="width: 80px;"><i class="fas fa-cogs"></i></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <div id="colvis-container" style="display: inline-block; margin-left: 5px; vertical-align: middle;"></div>
+        {{-- <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
+        <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button> --}}
+        <button type="button" class="btn btn-sm btn-primary" id="btn_export_excel"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
+    </div>
+</div>
+<br>
+<div class="row g-4">
+    <div class="col-md-12">
+        <div class="table-responsive">
+            <table id="auditTable" class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 30px;">No</th>
+                        <th style="width: 30px;">Chargin Station ID</th>
+                        <th>Transaction ID</th>
+                        <th>Connector ID</th>
+                        <th>Address</th>
+                        <th>Payment Status</th>
+                        <th>Start Time</th>
+                        <th>Stop Time</th>
+                        <th>Total Time</th>
+                        <th>Total Cost</th>
+                        <th style="width: 80px;"><i class="fas fa-cogs"></i></th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
@@ -42,7 +37,18 @@
 <script>
     $(function() {
         let stationId = "{{ $station_id }}";
-        console.log(stationId);
+
+        $('#btn_export_excel').on('click', function(e) {
+            e.preventDefault();
+            let params = {
+                station_id: stationId || '',
+            };
+
+            let url = '{{ route("cpo.stations.details.transactions.export-excel-transactions") }}'
+                + '?' + $.param(params);
+
+            window.location.href = url;
+        });
 
         let table = $("#auditTable").DataTable({
             responsive: true,
@@ -52,7 +58,7 @@
             processing: true,
             serverSide: true,
             ajax: {
-                url: '{{ route("cpo.stations.details.get-transactions") }}',
+                url: '{{ route("cpo.stations.details.transactions.get-transactions") }}',
                 type: 'GET',
                 data: function(d) {
                     d.station_id = stationId;
@@ -73,7 +79,7 @@
                     orderable: true
                 },
                 {
-                    data: 'transactionId',
+                    data: 'transaction_id',
                     name: 'Transaction ID',
                     searchable: true,
                     orderable: true
@@ -112,7 +118,14 @@
                     data: 'total_time',
                     name: 'Total Time',
                     searchable: true,
-                    orderable: true
+                    orderable: true,
+                    render: function(data, type, row) {
+                        if (data != null || data != undefined) {
+                            return data + ' Minutes';
+                        } else {
+                            return '-';
+                        }
+                    }
                 },
                 {
                     data: 'total_cost',

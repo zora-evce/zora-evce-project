@@ -19,6 +19,10 @@
                 <div class="card-body">
                     <div class="row g-4">
                         <div class="col-md-2">
+                            <label for="filter_code" class="form-label">Station Code</label>
+                            <input type="text" class="form-control form-control-sm" id="filter_code" placeholder="Search by code...">
+                        </div>
+                        <div class="col-md-2">
                             <label for="filter_name" class="form-label">Station Name</label>
                             <input type="text" class="form-control form-control-sm" id="filter_name" placeholder="Search by name...">
                         </div>
@@ -26,25 +30,24 @@
                             <label for="filter_status" class="form-label">Status</label>
                             <select class="form-control form-control-sm" id="filter_status" style="width: 100%;">
                                 <option value="">All Statuses</option>
-                                <option value="available">Available</option>
-                                <option value="unavailable">Unavailable</option>
-                                <option value="charging">Charging</option>
-                                <option value="offline">Offline</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2">
-                            <label for="filter_roaming" class="form-label">Roaming Type</label>
-                            <select class="form-control form-control-sm" id="filter_roaming" style="width: 100%;">
-                                <option value="">All Types</option>
-                                {{-- These should ideally be populated from your DB via Blade --}}
-                                <option value="1">Public</option>
-                                <option value="2">Private</option>
+                                @if (!empty($data['connectivity_status']))
+                                    @foreach ($data['connectivity_status'] as $data_status)
+                                        <option value="{{ $data_status->lookup_code }}">{{ $data_status->lookup_value }}
+                                        </option>
+                                    @endforeach
+                                @endif
                             </select>
                         </div>
                         <div class="col-md-2">
                             <label for="filter_city" class="form-label">City</label>
                             <select class="form-control form-control-sm" id="filter_city" style="width: 100%;">
                                 <option value="">Select a City</option>
+                                @if (!empty($data['city']))
+                                    @foreach ($data['city'] as $data_city)
+                                        <option value="{{ $data_city->city_id }}">{{ $data_city->city_name }}
+                                        </option>
+                                    @endforeach
+                                @endif
                             </select>
                         </div>
                     </div>
@@ -55,7 +58,7 @@
                             <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_register_new_station" data-toggle="modal" data-target="#registerStationModal"><i class="fas fa-plus mr-2"></i>Register New Station</button>
-                            <button type="button" class="btn btn-sm btn-primary" id="btn_add"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn_export_excel"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
                         </div>
                     </div>
                     <br>
@@ -103,26 +106,38 @@
 
                     </div>
                 </div>
-                <!-- /.modal-content -->
             </div>
-            <!-- /.modal-dialog -->
         </div>
     </section>
     @include('stations.partials.register-station-modal')
     <script>
-        // Standard Select2 for Status
         const $filterStatus = $('#filter_status').select2({
             placeholder: 'All Statuses',
             allowClear: true,
-            theme: 'bootstrap4' // Assuming you use Bootstrap 4 with AdminLTE
+            theme: 'bootstrap4'
         });
 
-        // Standard Select2 for Roaming Type
-        const $filterRoaming = $('#filter_roaming').select2({
+        const $filterCity = $('#filter_city').select2({
             placeholder: 'All Types',
             allowClear: true,
             theme: 'bootstrap4'
         });
+
+        $('#btn_export_excel').on('click', function(e) {
+            e.preventDefault();
+            let params = {
+                filter_code: $('#filter_code').val() || '',
+                filter_name: $('#filter_name').val() || '',
+                filter_status: $('#filter_status').val() || '',
+                filter_city: $('#filter_city').val() || '',
+            };
+
+            let url = '{{ route("cpo.stations.export-excel") }}'
+                + '?' + $.param(params);
+
+            window.location.href = url;
+        });
+
         let table = $("#auditTable").DataTable({
             responsive: true,
             lengthChange: true,
@@ -144,9 +159,10 @@
                 url: '{{ route("cpo.stations.get-data") }}',
                 type: 'GET',
                 data: function(d) {
+                    d.filter_code = $('#filter_code').val();
                     d.filter_name = $('#filter_name').val();
                     d.filter_status = $filterStatus.val();
-                    d.filter_roaming = $filterRoaming.val();
+                    d.filter_city = $filterCity.val();
                 }
             },
             columns: [{
@@ -259,21 +275,29 @@
         });
         table.buttons().container().appendTo('#colvis-container');
 
-        // Filter button click event
         $('#btn_filter').on('click', function() {
-            table.draw(); // Redraw the table, which re-triggers the AJAX call with new data
+            table.draw();
         });
 
-        // Reset button click event
         $('#btn_reset').on('click', function() {
-            // Reset all filter inputs to their default state
+            $('#filter_code').val('');
             $('#filter_name').val('');
-            $filterStatus.val(null).trigger('change'); // Reset Select2
-            $filterRoaming.val(null).trigger('change');
-            $filterCity.val(null).trigger('change'); // Reset AJAX Select2
+            $filterStatus.val(null).trigger('change');
+            $filterCity.val(null).trigger('change');
 
-            // Redraw the table
             table.draw();
+        });
+
+        $("#filter_code").keyup(function(event) {
+            if (event.keyCode === 13) {
+                $("#btn_filter").click();
+            }
+        });
+
+        $("#filter_name").keyup(function(event) {
+            if (event.keyCode === 13) {
+                $("#btn_filter").click();
+            }
         });
 
         const detailRows = [];
