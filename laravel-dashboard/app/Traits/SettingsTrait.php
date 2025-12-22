@@ -36,6 +36,7 @@ trait SettingsTrait
             'brand_id' => $model_station->brand_id,
             'vendor_id' => $model_station->vendor_id,
             'model_id' => $model_station->model_id,
+            'auth_key' => $model_station->auth_key
         ];
         $brands = Brands::all();
         $vendors = Vendors::all();
