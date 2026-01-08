@@ -74,5 +74,11 @@
             allowClear: true,
             theme: 'bootstrap4'
         });
+
+        const IS_ROLE_2 = @json(auth()->check() && auth()->user()->id_role == 2);
+
+        if (IS_ROLE_2) {
+            $('input, select, textarea, button').prop('disabled', true);
+        }
     });
 </script>

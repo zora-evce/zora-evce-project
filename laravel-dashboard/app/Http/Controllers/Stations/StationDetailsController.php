@@ -18,6 +18,7 @@ use App\Traits\TariffTrait;
 use App\Traits\TechnicalInformationTrait;
 use App\Traits\TransactionsTrait;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class StationDetailsController extends Controller
 {
@@ -49,9 +50,11 @@ class StationDetailsController extends Controller
     private static function getTabs()
     {
         $lookup = LookupC::select('lookup_id', 'lookup_code', 'lookup_value', 'additional_value')
-            ->where('lookup_type', 'station_detail_tab')
-            ->orderBy('lookup_order', 'asc')
-            ->get();
+            ->where('lookup_type', 'station_detail_tab');
+        if (auth()->user()->id_role == 2){
+            $lookup->whereRaw("additional_value::jsonb ->> 'role' = '2'");
+        }
+        $lookup = $lookup->orderBy('lookup_order', 'asc')->get();
 
         $tabs = $lookup->map(function ($tab) {
             $data = json_decode($tab->additional_value, true);
@@ -60,6 +63,7 @@ class StationDetailsController extends Controller
                 'lookup_code' => $tab->lookup_code,
                 'lookup_value' => $tab->lookup_value,
                 'tab_name' => $data['tab_name'] ?? null,
+                'role' => $data['role'] ?? null,
             ];
         });
         return $tabs;

@@ -16,6 +16,7 @@ use App\Models\Vendors;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
 class StationsController extends Controller
@@ -30,6 +31,10 @@ class StationsController extends Controller
     {
         $model = new StationsV();
         $query = $model->select();
+        $auth = auth()->user();
+        if ($auth->id_role == 2){
+            $query = $query->where('account_id', $auth->partner_id);
+        }
         if (!empty($request->get('filter_code'))) {
             $query = $query->where('code', 'ILIKE', '%' . $request->get('filter_code') . '%');
         }

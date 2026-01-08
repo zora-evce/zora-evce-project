@@ -111,6 +111,12 @@
     </section>
     @include('stations.partials.register-station-modal')
     <script>
+        const IS_ROLE_2 = @json(auth()->check() && auth()->user()->id_role == 2);
+
+        if (IS_ROLE_2) {
+            $('#btn_register_new_station').hide();
+        }
+
         const $filterStatus = $('#filter_status').select2({
             placeholder: 'All Statuses',
             allowClear: true,

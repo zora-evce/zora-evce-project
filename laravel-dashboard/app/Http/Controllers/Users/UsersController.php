@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Users;
 
+use App\Helpers\ConstantsHelper;
 use App\Helpers\GlobalHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
@@ -9,6 +10,7 @@ use App\Models\Partner;
 use App\Models\Stations;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -24,6 +26,10 @@ class UsersController extends Controller
     {
         $model = new Account();
         $query = $model->select();
+        $auth = auth()->user();
+        if ($auth->id_role == 2){
+            $query = $query->where('account_id', $auth->partner_id);
+        }
         return response()->json(GlobalHelper::dataTable($request, $query));
     }
 
@@ -32,7 +38,7 @@ class UsersController extends Controller
         $partners = Partner::orderBy('partner_name')->get();
         $accountId = $request->get('account_id');
         return view('users.partials.form', [
-            'user' => null, 
+            'user' => null,
             'partners' => $partners,
             'account_id' => $accountId
         ]);
@@ -226,13 +232,13 @@ class UsersController extends Controller
     public function detail($id)
     {
         $account = Account::findOrFail($id);
-        
+
         // Get stations where stations.account_id = accounts.account_id
         $stations = Stations::where('account_id', $account->account_id)->get();
-        
+
         // Get users where users.partner_id = accounts.account_id
         $users = User::where('partner_id', $account->account_id)->get();
-        
+
         return view('users.detail', [
             'account' => $account,
             'stations' => $stations,
@@ -245,22 +251,50 @@ class UsersController extends Controller
         $user = auth()->user();
         $account = null;
         $stations = collect([]);
-        
+
         // Get account where users.partner_id = accounts.account_id
         if ($user->partner_id) {
             $account = Account::where('account_id', $user->partner_id)->first();
-            
+
             // Get stations where stations.account_id = users.partner_id
             if ($account) {
                 $stations = Stations::where('account_id', $user->partner_id)->get();
             }
         }
-        
+
         return view('users.my-account', [
             'user' => $user,
             'account' => $account,
             'stations' => $stations
         ]);
+    }
+
+    public function createAccount(Request $request)
+    {
+        $post = ($request->post());
+        DB::beginTransaction();
+        $model = new Account();
+        unset($post['_token']);
+        $query = $model->select('account_code')->where('account_code', $post['account_code'])->first();
+        if (!empty($query)) {
+            return redirect()->back()->with([
+                'error' => 'Account Code Already Used!'
+            ]);
+        }
+        $model->attributes = $post;
+        if ($model->validate() === true) {
+            if ($model->save()) {
+                DB::commit();
+                return redirect()->back()->with([
+                    'success' => ConstantsHelper::MESSAGE_SUCCESS_SAVE
+                ]);
+            }
+        } else {
+            DB::rollback();
+            return redirect()->back()->with([
+                'error' => $model->validate()
+            ]);
+        }
     }
 }
 

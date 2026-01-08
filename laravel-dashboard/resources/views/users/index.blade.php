@@ -28,9 +28,10 @@
                     <br>
                     <div class="row g-4">
                         <div class="col-md-12">
+                            <div id="colvis-container" style="display: inline-block; margin-left: 5px; vertical-align: middle;"></div>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button>
-                            <div id="colvis-container" style="display: inline-block; margin-left: 5px; vertical-align: middle;"></div>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn_add_new_account" data-toggle="modal" data-target="#addAccount"><i class="fas fa-plus mr-2"></i>Add New Account</button>
                         </div>
                     </div>
                     <br>
@@ -59,7 +60,13 @@
             </div>
         </div>
     </section>
+    @include('users.partials.add-new-account-modal')
     <script>
+        const IS_ROLE_2 = @json(auth()->check() && auth()->user()->id_role == 2);
+
+        if (IS_ROLE_2) {
+            $('#btn_add_new_account').hide();
+        }
         let table = $("#auditTable").DataTable({
             responsive: true,
             lengthChange: true,
