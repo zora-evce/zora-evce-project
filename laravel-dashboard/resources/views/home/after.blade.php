@@ -161,6 +161,8 @@
                         <i class="bi bi-check-circle-fill error-icon"></i>
                         <h1>Thank You!</h1>
                         <p>Your payment has been received successfully. You can now proceed with your charging session.</p>
+                        <p>Your charging will end in</p>
+                        <h2 id="countdown" style="color:#00B23C">00:00:00</h2>
                         <p>If you need to manually force stop the charging, use the button below:</p>
                         <a href="{{ route('zora.stop') }}" class="error-button danger">Force Stop Charging</a>
                     </div>
@@ -642,5 +644,37 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/SimpleLightbox/2.1.0/simpleLightbox.min.js"></script>
         <!-- Core theme JS-->
         <script src="{{ asset('templates/sb/js/scripts.js') }}"></script>
+
+        <script>
+            const endAt = {{ $chargingEndAt }} * 1000; // server timestamp (ms)
+
+            function pad(num) {
+                return num.toString().padStart(2, '0');
+            }
+
+            function updateCountdown() {
+                const now = Date.now();
+                let diff = endAt - now;
+
+                if (diff <= 0) {
+                    document.getElementById('countdown').innerHTML = '00:00:00';
+                    // optional: trigger finish event
+                    return;
+                }
+
+                const totalSeconds = Math.floor(diff / 1000);
+
+                const hours   = Math.floor(totalSeconds / 3600);
+                const minutes = Math.floor((totalSeconds % 3600) / 60);
+                const seconds = totalSeconds % 60;
+
+                document.getElementById('countdown').innerHTML =
+                    `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+
+                setTimeout(updateCountdown, 1000);
+            }
+
+            updateCountdown();
+        </script>
     </body>
 </html>
