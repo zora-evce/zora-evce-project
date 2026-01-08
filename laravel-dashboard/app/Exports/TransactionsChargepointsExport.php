@@ -24,6 +24,10 @@ class TransactionsChargepointsExport implements FromCollection, WithHeadings
     {
         $model = new TransactionsV();
         $query = $model->select();
+        $auth = auth()->user();
+        if ($auth->id_role == 2){
+            $query = $query->where('account_id', $auth->partner_id);
+        }
         if (!empty($this->filters['transaction_id'])) {
             $query = $query->where('transaction_id', $this->filters['transaction_id']);
         }
