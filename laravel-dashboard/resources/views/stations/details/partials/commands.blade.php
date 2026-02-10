@@ -258,25 +258,26 @@
 
                     <!-- REMOTE STOP -->
                     <div class="card action-card mb-3">
-                        <div class="card-body d-flex flex-wrap align-items-center">
+                        <form id="remoteStopForm">
+                        @csrf
+                            <div class="card-body d-flex flex-wrap align-items-center">
 
-                            <div class="d-flex align-items-center">
-                                <div class="badge-step mr-3">02</div>
-                                <div>
-                                    <h6 class="action-title mb-1">Remote Stop</h6>
-                                    <small class="text-muted">Stop session charging stations</small>
+                                <div class="d-flex align-items-center">
+                                    <div class="badge-step mr-3">02</div>
+                                    <div>
+                                        <h6 class="action-title mb-1">Remote Stop</h6>
+                                        <small class="text-muted">Stop session charging stations</small>
+                                    </div>
                                 </div>
+
+                                <div class="action-form">
+                                    <input type="text" class="form-control form-control-sm mr-2" name="transactionId" placeholder="Transaction ID" style="width:150px;">
+
+                                    <button class="btn btn-sm btn-danger" id="btnRemoteStop">Stop</button>
+                                </div>
+
                             </div>
-
-                            <div class="action-form">
-                                <select class="form-control form-control-sm mr-3" style="width:120px;">
-                                    <option>1</option><option>2</option>
-                                </select>
-
-                                <button class="btn btn-sm btn-danger">Stop</button>
-                            </div>
-
-                        </div>
+                        </form>
                     </div>
 
                 </div>
@@ -316,3 +317,56 @@
         <!-- END CONTENT COLUMN -->
     </div>
 </div>
+
+<script>
+$(function () {
+
+    $('#btnRemoteStop').on('click', function (e) {
+        e.preventDefault();
+
+        let $btn = $(this);
+        let $form = $('#remoteStopForm');
+        Swal.fire({
+            title: 'Attention!',
+            text: "Are you sure you want to save this?",
+            type: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Save',
+            cancelButtonText: "Cancel"
+        }).then((result) => {
+            if (result.value) {
+                $.ajax({
+                    url: "{{ route('cpo.stop.action') }}",
+                    type: "POST",
+                    data: $form.serialize(),
+                    beforeSend: function () {
+                        $btn.prop('disabled', true).text('Stopping...');
+                    },
+                    success: function (res) {
+                        if (res.status === true) {
+                            toastr.success(res.message || 'Remote stop command sent');
+                        } else {
+                            toastr.error(res.message || 'Failed to stop charging');
+                        }
+                    },
+                    error: function (xhr) {
+
+                        if (xhr.status === 422) {
+                            toastr.error('Validation error');
+                        } else if (xhr.status === 401 || xhr.status === 403) {
+                            toastr.error('Session expired, please login again');
+                        } else {
+                            toastr.error('Server error');
+                        }
+                    },
+                    complete: function () {
+                        $btn.prop('disabled', false).text('Stop');
+                    }
+                });
+            }
+        });
+
+    });
+
+});
+</script>

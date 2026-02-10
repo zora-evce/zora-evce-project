@@ -6,6 +6,7 @@ use App\Http\Controllers\Stations\StationDetailsController;
 use App\Http\Controllers\Stations\StationsController;
 use App\Http\Controllers\Users\UsersController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Master\TariffController;
 use Illuminate\Support\Facades\Route;
 
@@ -84,4 +85,7 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::get('/my-account', [UsersController::class, 'myAccount'])->name('my-account');
+    Route::group(['prefix' => 'actions'], function () {
+        Route::post('/stop/action', [HomeController::class, 'stopAction'])->name('stop.action');
+    });
 });
