@@ -189,6 +189,11 @@ class PaymentController extends Controller
                 ]);
             }
         }
-        return view('home.after');
+        
+        $chargingEndAt = session()->has('charging_end_at')
+        ? session('charging_end_at')->timestamp
+        : null;
+
+        return view('home.after', compact('chargingEndAt'));
     }
 }

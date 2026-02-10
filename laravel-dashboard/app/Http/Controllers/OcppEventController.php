@@ -337,6 +337,14 @@ class OcppEventController extends Controller
             // $transaction->id_job_stop = $jobId;
             $transaction->save();
 
+            // SET FOR COUNTDOWN
+            $chargingEndAt = Carbon::now()->addMinutes($delayMinutes);
+            session([
+                'charging_started_at' => Carbon::now(),
+                'charging_end_at' => $chargingEndAt,
+                'charging_duration' => $delayMinutes
+            ]);
+
             return $this->reply(true, 'StartTransaction saved');
             // }
         } catch (\Throwable $e) {
