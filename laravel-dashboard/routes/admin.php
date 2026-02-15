@@ -38,6 +38,10 @@ Route::middleware(['auth'])->group(function () {
             Route::group(['prefix' => 'overview'], function () {
                 Route::post('/register-new-connector', [StationDetailsController::class, 'registerNewConnector'])->name('stations.details.overview.register-new-connector');
             });
+            Route::group(['prefix' => 'commands'], function () {
+                Route::post('/start-transaction-command', [StationDetailsController::class, 'startTransactionCommand'])->name('stations.details.commands.start-transaction-command')
+                ->withoutMiddleware(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class);
+            });
             Route::group(['prefix' => 'tariff'], function () {
                 Route::post('/save-tariff', [StationDetailsController::class, 'saveTariff'])->name('stations.details.tariff.save-tariff');
                 Route::get('/get-tariff-in-use', [StationDetailsController::class, 'getTariffInUse'])->name('stations.details.tariff.get-tariff-in-use');
