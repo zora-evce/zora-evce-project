@@ -240,7 +240,7 @@
                                 </div>
 
                                 <div class="action-form">
-                                    <input type="text" class="form-control form-control-sm mr-2" placeholder="RFID / Card" style="width:150px;">
+                                    <input type="text" class="form-control form-control-sm mr-2" placeholder="Transaction ID" style="width:150px;">
                                     <button class="btn btn-sm btn-primary" id="btnRemoteStart">Start</button>
                                 </div>
 
