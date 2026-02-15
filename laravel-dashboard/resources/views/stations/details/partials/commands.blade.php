@@ -228,32 +228,24 @@
 
                     <!-- REMOTE START -->
                     <div class="card action-card mb-3">
-                        <div class="card-body d-flex flex-wrap align-items-center">
-
-                            <div class="d-flex align-items-center">
-                                <div class="badge-step mr-3">01</div>
-                                <div>
-                                    <h6 class="action-title mb-1">Remote Start</h6>
-                                    <small class="text-muted">Start session charging stations</small>
+                        <form id="remoteStopForm">
+                        @csrf
+                            <div class="card-body d-flex flex-wrap align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <div class="badge-step mr-3">01</div>
+                                    <div>
+                                        <h6 class="action-title mb-1">Remote Start</h6>
+                                        <small class="text-muted">Start session charging stations</small>
+                                    </div>
                                 </div>
+
+                                <div class="action-form">
+                                    <input type="text" class="form-control form-control-sm mr-2" placeholder="RFID / Card" style="width:150px;">
+                                    <button class="btn btn-sm btn-primary" id="btnRemoteStart">Start</button>
+                                </div>
+
                             </div>
-
-                            <div class="action-form">
-                                <select class="form-control form-control-sm mr-2" style="width:80px;">
-                                    <option>1</option><option>2</option>
-                                </select>
-
-                                <select class="form-control form-control-sm mr-2" style="width:120px;">
-                                    <option>1223</option><option>2333</option>
-                                </select>
-
-                                <input type="text" class="form-control form-control-sm mr-2"
-                                       placeholder="RFID / Card" style="width:150px;">
-
-                                <button class="btn btn-sm btn-primary">Start</button>
-                            </div>
-
-                        </div>
+                        </form>
                     </div>
 
                     <!-- REMOTE STOP -->
@@ -343,13 +335,14 @@ $(function () {
                         $btn.prop('disabled', true).text('Stopping...');
                     },
                     success: function (res) {
-                        if (res.status === true) {
+                        if (res.ok === true) {
                             toastr.success(res.message || 'Remote stop command sent');
                         } else {
                             toastr.error(res.message || 'Failed to stop charging');
                         }
                     },
                     error: function (xhr) {
+                        console.log(xhr);
 
                         if (xhr.status === 422) {
                             toastr.error('Validation error');
@@ -361,6 +354,54 @@ $(function () {
                     },
                     complete: function () {
                         $btn.prop('disabled', false).text('Stop');
+                    }
+                });
+            }
+        });
+
+    });
+
+    $('#btnRemoteStart').on('click', function (e) {
+        e.preventDefault();
+
+        let $btn = $(this);
+        let $form = $('#remoteStartForm');
+        Swal.fire({
+            title: 'Attention!',
+            text: "Are you sure you want to save this?",
+            type: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Save',
+            cancelButtonText: "Cancel"
+        }).then((result) => {
+            if (result.value) {
+                $.ajax({
+                    url: "{{ route('cpo.stations.details.commands.start-transaction-command') }}",
+                    type: "POST",
+                    data: $form.serialize(),
+                    beforeSend: function () {
+                        $btn.prop('disabled', true).text('Starting...');
+                    },
+                    success: function (res) {
+                        if (res.ok == true) {
+                            toastr.success(res.message || 'Remote stop command sent');
+                        } else {
+                            toastr.error(res.message || 'Failed to stop charging');
+                        }
+                    },
+                    error: function (xhr) {
+                        console.log(xhr);
+
+                        if (xhr.status === 422) {
+                            toastr.error('Validation error');
+                        } else if (xhr.status === 401 || xhr.status === 403) {
+                            toastr.error('Session expired, please login again');
+                        } else {
+                            toastr.error('Server error');
+                        }
+                    },
+                    complete: function () {
+                        $btn.prop('disabled', false).text('Start');
                     }
                 });
             }

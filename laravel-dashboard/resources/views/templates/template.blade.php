@@ -154,42 +154,19 @@
                                         <p>Chargepoints</p>
                                     </a>
                                 </li>
-                                {{-- <li class="nav-item">
-                                    <a href="{{ route('cpo.dashboard') }}"
-                                        class="nav-link {{ Str::contains(Route::currentRouteName(), 'program-mcu') ? 'active' : '' }}">
-                                        <i class="far fa-circle nav-icon"></i>
-                                        <p>Cards</p>
-                                    </a>
-                                </li> --}}
                             </ul>
                         </li>
-                        {{-- <li class="nav-item">
-                            <a href="{{ route('cpo.dashboard') }}"
-                                class="nav-link">
-                                <i class="nav-icon fas fa-money-check"></i>
-                                <p>
-                                    Billing and Payment Informations
-                                </p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="{{ route('cpo.dashboard') }}"
-                                class="nav-link">
-                                <i class="nav-icon fas fa-info-circle"></i>
-                                <p>
-                                    Supports
-                                </p>
-                            </a>
-                        </li> --}}
-                        <li class="nav-item">
-                            <a href="{{ route('cpo.users') }}"
-                                class="nav-link {{ Route::is('cpo.users*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-users"></i>
-                                <p>
-                                    Accounts
-                                </p>
-                            </a>
-                        </li>
+                        @if (Auth::user()->id_role == 1)
+                            <li class="nav-item">
+                                <a href="{{ route('cpo.users') }}"
+                                    class="nav-link {{ Route::is('cpo.users*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-users"></i>
+                                    <p>
+                                        Accounts
+                                    </p>
+                                </a>
+                            </li>
+                        @endif
                         <li class="nav-item">
                             <a href="{{ route('cpo.my-account') }}"
                                 class="nav-link {{ Route::is('cpo.my-account') ? 'active' : '' }}">
@@ -199,33 +176,26 @@
                                 </p>
                             </a>
                         </li>
-                        <li class="nav-item menu-closed">
-                            <a href="#"
-                                class="nav-link {{ Route::is('cpo.master*') ? 'active' : '' }} }}">
-                                <i class="nav-icon fas fa-server"></i>
-                                <p>
-                                    Master
-                                    <i class="right fas fa-angle-left"></i>
-                                </p>
-                            </a>
-                            <ul class="nav nav-treeview">
-                                <li class="nav-item">
-                                    <a href="{{ route('cpo.master.tariff') }}" class="nav-link {{ Route::is('cpo.master.tariff') ? 'active' : '' }}">
-                                        <i class="fas fa-usd-circle nav-icon"></i>
-                                        <p>Tariff</p>
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
-                        {{-- <li class="nav-item">
-                            <a href="{{ route('cpo.dashboard') }}"
-                                class="nav-link">
-                                <i class="nav-icon fas fa-question-circle"></i>
-                                <p>
-                                    Help
-                                </p>
-                            </a>
-                        </li> --}}
+                        @if (Auth::user()->id_role == 1)
+                            <li class="nav-item menu-closed">
+                                <a href="#"
+                                    class="nav-link {{ Route::is('cpo.master*') ? 'active' : '' }} }}">
+                                    <i class="nav-icon fas fa-server"></i>
+                                    <p>
+                                        Master
+                                        <i class="right fas fa-angle-left"></i>
+                                    </p>
+                                </a>
+                                <ul class="nav nav-treeview">
+                                    <li class="nav-item">
+                                        <a href="{{ route('cpo.master.tariff') }}" class="nav-link {{ Route::is('cpo.master.tariff') ? 'active' : '' }}">
+                                            <i class="fas fa-usd-circle nav-icon"></i>
+                                            <p>Tariff</p>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                        @endif
                     </ul>
                 </nav>
                 <!-- /.sidebar-menu -->
