@@ -6,6 +6,7 @@ use App\Services\CheckoutService;
 use App\Models\Transaction;
 use App\Helpers\GlobalHelper;
 use App\Mail\PaymentReceipt;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\DB;
