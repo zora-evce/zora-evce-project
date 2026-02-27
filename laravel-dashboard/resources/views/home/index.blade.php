@@ -1262,8 +1262,8 @@
                                                     //     redirectUrl += ("?token=" + encodeURIComponent(sessionToken));
                                                     // }
 
-                                                    var redirectUrl = "{{ route('zora.my.charging') }}";
-                                                    redirectUrl += ("?token=" + encodeURIComponent(res.tokenid));
+                                                    var redirectUrl = "{{ route('zora.my.charging', ['token' => 'PLACEHOLDER']) }}";
+                                                    redirectUrl = redirectUrl.replace('PLACEHOLDER', encodeURIComponent(res.tokenid));
 
                                                     setTimeout(function() {
                                                         window.location.href = redirectUrl;
