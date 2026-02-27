@@ -174,6 +174,7 @@ class PaymentController extends Controller
         return response()->json([
             'exists' => true,
             'payment_status' => (int) ($transaction->payment_status ?? 0),
+            'tokenid' => Crypt::encryptString($transaction->id)
         ]);
     }
 
