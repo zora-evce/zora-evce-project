@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Dashboard;
 
+use App\Helpers\GlobalHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Connector;
 use App\Models\Stations;
@@ -68,7 +69,7 @@ class DashboardController extends Controller
             ->when($idRole === 2, fn ($q) => $q->whereIn('station_id', $stationIds))
             ->where('payment_status', 1)
             ->sum('total_price');
-        $sumPrice = 'Rp ' . number_format($sumPrice, 0, ',', '.');
+        $sumPrice = GlobalHelper::convertToRupiah($sumPrice);
 
         $st = Connector::query()
             ->when($idRole === 2, fn ($q) => $q->whereIn('station_id', $stationIds))
