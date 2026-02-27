@@ -83,6 +83,13 @@
                                 <a href="#" class="font-weight-bold text-primary">{{ $transactions['finished'] ?? 0 }}</a>
                             </div>
 
+                            <div class="d-flex justify-content-between align-items-center stat-row">
+                                <div>
+                                    <div class="text-muted small text-uppercase stat-label">Total Pice</div>
+                                </div>
+                                <a href="#" class="font-weight-bold text-primary">{{ $transactions['sum_price'] ?? 0 }}</a>
+                            </div>
+
                             {{-- <div class="mt-auto pt-2">
                                 <a href="#" class="small text-secondary d-inline-flex align-items-center">
                                     More <span class="ml-1">&rsaquo;</span>

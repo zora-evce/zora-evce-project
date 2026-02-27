@@ -161,4 +161,9 @@ class GlobalHelper {
 
         return $number; // fallback
     }
+
+    public static function convertToRupiah($value)
+    {
+        return 'Rp ' . number_format($value, 0, ',', '.');
+    }
 }

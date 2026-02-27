@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Dashboard;
 
+use App\Helpers\GlobalHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Connector;
 use App\Models\Stations;
@@ -64,6 +65,12 @@ class DashboardController extends Controller
             ")
             ->first();
 
+        $sumPrice = Transaction::query()
+            ->when($idRole === 2, fn ($q) => $q->whereIn('station_id', $stationIds))
+            ->where('payment_status', 1)
+            ->sum('total_price');
+        $sumPrice = GlobalHelper::convertToRupiah($sumPrice);
+
         $st = Connector::query()
             ->when($idRole === 2, fn ($q) => $q->whereIn('station_id', $stationIds))
             ->selectRaw("
@@ -90,6 +97,7 @@ class DashboardController extends Controller
             'transactions' => [
                 'ongoing'  => (int) ($tx->ongoing ?? 0),
                 'finished' => (int) ($tx->finished ?? 0),
+                'sum_price'=> $sumPrice
             ],
             'stations' => [
                 'online'  => (int) ($st->online ?? 0),
