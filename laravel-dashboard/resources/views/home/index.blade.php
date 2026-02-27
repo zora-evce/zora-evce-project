@@ -1257,12 +1257,17 @@
                                                 if (res && res.payment_status === 1) {
                                                     clearInterval(pollIntervalId);
 
-                                                    var redirectUrl = "{{ route('zora.checkout.after') }}";
-                                                    if (sessionToken) {
-                                                        redirectUrl += ("?token=" + encodeURIComponent(sessionToken));
-                                                    }
+                                                    // var redirectUrl = "{{ route('zora.checkout.after') }}";
+                                                    // if (sessionToken) {
+                                                    //     redirectUrl += ("?token=" + encodeURIComponent(sessionToken));
+                                                    // }
 
-                                                    window.location.href = redirectUrl;
+                                                    var redirectUrl = "{{ route('zora.my.charging') }}";
+                                                    redirectUrl += ("?token=" + encodeURIComponent(res.tokenid));
+
+                                                    setTimeout(function() {
+                                                        window.location.href = redirectUrl;
+                                                    }, 3000);
                                                 }
                                             })
                                             .fail(function(){
