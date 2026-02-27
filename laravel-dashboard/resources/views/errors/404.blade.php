@@ -272,7 +272,7 @@
                         <h6 class="mt-3 mb-2" style="display: block; font-size: 1.1rem; font-weight: bold; margin-top: 1rem; color: #212529;">12. Official Contact</h6>
                         <p>For questions or issues related to service usage:</p>
                         <p><strong>PT Mega Energi Biru Indonesia (Zora)</strong><br>
-                        Email: office@mebi.co.id<br>
+                        Email: customersupport@mebi.co.id<br>
                         WhatsApp Hotline: +6281110014171<br>
                         Operational Hours: 08:00 – 17:00</p>
                     </div>
@@ -399,7 +399,7 @@
                         <h6 class="mt-3 mb-2" style="display: block; font-size: 1.1rem; font-weight: bold; margin-top: 1rem; color: #212529;">10. Privacy Contact</h6>
                         <p>For questions or requests regarding personal data, customers can contact:</p>
                         <p><strong>PT Mega Energi Biru Indonesia (Zora)</strong><br>
-                        Email: office@mebi.co.id<br>
+                        Email: customersupport@mebi.co.id<br>
                         WhatsApp Hotline: +6281110014171<br>
                         Operational Hours: 08:00 – 17:00</p>
                     </div>
@@ -504,7 +504,7 @@
                         <h6 class="mt-3 mb-2" style="display: block; font-size: 1.1rem; font-weight: bold; margin-top: 1rem; color: #212529;">7. Refund Request Contact</h6>
                         <p>Refund requests can be submitted to:</p>
                         <p><strong>PT Mega Energi Biru Indonesia (Zora)</strong><br>
-                        Email: office@mebi.co.id<br>
+                        Email: refund.support@mebi.co.id<br>
                         WhatsApp Hotline: +6281110014171<br>
                         Operational Hours: 08:00 – 17:00</p>
                     </div>
@@ -601,7 +601,7 @@
                         <h6 class="mt-3 mb-2" style="display: block; font-size: 1.1rem; font-weight: bold; margin-top: 1rem; color: #212529;">8. Customer Service Contact</h6>
                         <p>For assistance regarding transactions, service delivery, or complaints:</p>
                         <p><strong>PT Mega Energi Biru Indonesia (Zora)</strong><br>
-                        Email: office@mebi.co.id<br>
+                        Email: customersupport@mebi.co.id<br>
                         WhatsApp Hotline: +6281110014171<br>
                         Operational Hours: 08:00 – 17:00</p>
                     </div>

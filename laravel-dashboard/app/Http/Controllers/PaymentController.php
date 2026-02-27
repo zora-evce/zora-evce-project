@@ -96,7 +96,10 @@ class PaymentController extends Controller
         if ($shouldSendReceipt) {
             $emailStatus = 0;
             try {
-                Mail::to($transaction->email)->send(new PaymentReceipt($transaction));
+                Mail::to([
+                    $transaction->email,
+                    'customercare@mebi.co.id'
+                ])->send(new PaymentReceipt($transaction));
                 $emailStatus = 1;
             } catch (\Throwable $exception) {
                 Log::error('Failed to send payment receipt email.', [

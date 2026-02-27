@@ -25,6 +25,39 @@ class HomeController extends Controller
         return view('welcome');
     }
 
+    public function myCharging($token)
+    {
+        $token_d = Crypt::decryptString($token);
+        $transaction = Transaction::find($token_d);
+
+        if ($transaction) {
+            if ($transaction->stop_time != NULL) {
+                return response()->view('errors.404', [], 404);
+            } else {
+                $now = Carbon::parse($transaction->start_time);
+                $delayMinutes = ($transaction->duration) * 60;
+
+                session()->put([
+                    'charging_started_at' => $now,
+                    'charging_end_at' => $now->copy()->addMinutes($delayMinutes),
+                    'charging_duration' => $delayMinutes
+                ]);
+
+                $chargingEndAt = session()->has('charging_end_at')
+                ? session('charging_end_at')->timestamp
+                : null;
+
+                return view('home.after', compact('chargingEndAt'));
+            }
+        } else {
+            return response()->view('errors.404', [], 404);
+        }
+    }
+
+    public function test()
+    {
+
+    }
     public function start($station_code, $connector_code)
     {
         try {
