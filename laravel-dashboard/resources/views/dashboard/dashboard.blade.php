@@ -85,7 +85,7 @@
 
                             <div class="d-flex justify-content-between align-items-center stat-row">
                                 <div>
-                                    <div class="text-muted small text-uppercase stat-label">Total Pice</div>
+                                    <div class="text-muted small text-uppercase stat-label">Total Price</div>
                                 </div>
                                 <a href="#" class="font-weight-bold text-primary">{{ $transactions['sum_price'] ?? 0 }}</a>
                             </div>
