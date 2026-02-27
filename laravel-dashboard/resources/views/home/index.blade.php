@@ -656,7 +656,7 @@
                         <h6 class="mt-3 mb-2" style="display: block; font-size: 1.1rem; font-weight: bold; margin-top: 1rem; color: #212529;">12. Official Contact</h6>
                         <p>For questions or issues related to service usage:</p>
                         <p><strong>PT Mega Energi Biru Indonesia (Zora)</strong><br>
-                        Email: office@mebi.co.id<br>
+                        Email: customersupport@mebi.co.id<br>
                         WhatsApp Hotline: +6281110014171<br>
                         Operational Hours: 08:00 – 17:00</p>
                     </div>
@@ -783,7 +783,7 @@
                         <h6 class="mt-3 mb-2" style="display: block; font-size: 1.1rem; font-weight: bold; margin-top: 1rem; color: #212529;">10. Privacy Contact</h6>
                         <p>For questions or requests regarding personal data, customers can contact:</p>
                         <p><strong>PT Mega Energi Biru Indonesia (Zora)</strong><br>
-                        Email: office@mebi.co.id<br>
+                        Email: customersupport@mebi.co.id<br>
                         WhatsApp Hotline: +6281110014171<br>
                         Operational Hours: 08:00 – 17:00</p>
                     </div>
@@ -888,7 +888,7 @@
                         <h6 class="mt-3 mb-2" style="display: block; font-size: 1.1rem; font-weight: bold; margin-top: 1rem; color: #212529;">7. Refund Request Contact</h6>
                         <p>Refund requests can be submitted to:</p>
                         <p><strong>PT Mega Energi Biru Indonesia (Zora)</strong><br>
-                        Email: office@mebi.co.id<br>
+                        Email: refund.support@mebi.co.id<br>
                         WhatsApp Hotline: +6281110014171<br>
                         Operational Hours: 08:00 – 17:00</p>
                     </div>
@@ -985,7 +985,7 @@
                         <h6 class="mt-3 mb-2" style="display: block; font-size: 1.1rem; font-weight: bold; margin-top: 1rem; color: #212529;">8. Customer Service Contact</h6>
                         <p>For assistance regarding transactions, service delivery, or complaints:</p>
                         <p><strong>PT Mega Energi Biru Indonesia (Zora)</strong><br>
-                        Email: office@mebi.co.id<br>
+                        Email: customersupport@mebi.co.id<br>
                         WhatsApp Hotline: +6281110014171<br>
                         Operational Hours: 08:00 – 17:00</p>
                     </div>
@@ -1019,6 +1019,7 @@
         <!-- Midtrans Snap.js (Sandbox) -->
         <script type="text/javascript" src="https://app.sandbox.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script>
         {{-- <script type="text/javascript" src="https://app.midtrans.com/snap/snap.js" data-client-key="{{ config('midtrans.client_key') }}"></script> --}}
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
         <script>
             $(document).ready(function(){
@@ -1191,82 +1192,122 @@
                 $(document).on("click", "#mainForm4 .btn-next", function(e){
                     e.preventDefault();
                     var $btn = $(this);
-                    function getQueryParam(name) {
-                        var params = new URLSearchParams(window.location.search);
-                        return params.get(name);
-                    }
-                    var sessionToken = getQueryParam('token');
-                    var amount = computePaymentAmount();
-                    if (!amount) { return; }
 
-                    $btn.prop("disabled", true).text("Processing...");
+                    Swal.fire({
+                        title: "Confirmation",
+                        text: "Please make sure the charger is properly connected to your vehicle before proceeding.",
+                        icon: "warning",
+                        showCancelButton: true,
+                        confirmButtonText: "Yes, Continue",
+                        cancelButtonText: "Cancel",
+                        confirmButtonColor: "#3085d6",
+                        cancelButtonColor: "#d33"
+                    }).then((result) => {
 
-                    $.ajax({
-                        url: "{{ route('zora.checkout') }}",
-                        method: "POST",
-                        data: {
-                            _token: $("meta[name='csrf-token']").attr("content"),
-                            quantity: 1,
-                            duration: $("#duration").val(),
-                            name: $("#name").val(),
-                            email: $("#email").val(),
-                            phone_number: $("#phone").val(),
-                            station_id: {{ $station->id }},
-                            connector_id: {{ $connector->id }},
-                            tariff_code: "{{ $products->tariff_code }}",
+                        if (!result.isConfirmed) {
+                            return;
                         }
-                    }).done(function(response){
-                        if (response && response.snap_token && window.snap) {
-                            var orderId = response.transaction && response.transaction.midtrans_order_id
-                                ? response.transaction.midtrans_order_id
-                                : null;
-                            var pollIntervalId = null;
-                            function startPollingIfPossible() {
-                                if (!orderId) return;
-                                var statusUrl = "{{ route('zora.checkout.status', ['orderId' => 'PLACEHOLDER']) }}".replace('PLACEHOLDER', encodeURIComponent(orderId));
-                                pollIntervalId = setInterval(function(){
-                                    $.getJSON(statusUrl)
-                                        .done(function(res){
-                                            if (res && res.payment_status === 1) {
-                                                clearInterval(pollIntervalId);
-                                                var redirectUrl = "{{ route('zora.checkout.after') }}";
-                                                if (sessionToken) {
-                                                    redirectUrl += ("?token=" + encodeURIComponent(sessionToken));
-                                                }
-                                                window.location.href = redirectUrl;
-                                            }
-                                        })
-                                        .fail(function(){ /* ignore until next tick */ });
-                                }, 3000);
+
+                        function getQueryParam(name) {
+                            var params = new URLSearchParams(window.location.search);
+                            return params.get(name);
+                        }
+
+                        var sessionToken = getQueryParam('token');
+                        var amount = computePaymentAmount();
+                        if (!amount) { 
+                            return; 
+                        }
+
+                        $btn.prop("disabled", true).text("Processing...");
+
+                        $.ajax({
+                            url: "{{ route('zora.checkout') }}",
+                            method: "POST",
+                            data: {
+                                _token: $("meta[name='csrf-token']").attr("content"),
+                                quantity: 1,
+                                duration: $("#duration").val(),
+                                name: $("#name").val(),
+                                email: $("#email").val(),
+                                phone_number: $("#phone").val(),
+                                station_id: {{ $station->id }},
+                                connector_id: {{ $connector->id }},
+                                tariff_code: "{{ $products->tariff_code }}",
                             }
-                            window.snap.pay(response.snap_token, {
-                                onSuccess: function(result){
-                                    // Start polling for server-side settlement notification
-                                    startPollingIfPossible();
-                                },
-                                onPending: function(result){
-                                    alert("Waiting payment...");
-                                    startPollingIfPossible();
-                                    $btn.prop("disabled", false).text("Pay");
-                                },
-                                onError: function(result){
-                                    alert("Error on payment!");
-                                    $btn.prop("disabled", false).text("Pay");
-                                },
-                                onClose: function(){
-                                    alert("Prompt closed without completing payment");
-                                    $btn.prop("disabled", false).text("Pay");
+                        }).done(function(response){
+
+                            if (response && response.snap_token && window.snap) {
+
+                                var orderId = response.transaction && response.transaction.midtrans_order_id
+                                    ? response.transaction.midtrans_order_id
+                                    : null;
+
+                                var pollIntervalId = null;
+
+                                function startPollingIfPossible() {
+                                    if (!orderId) return;
+
+                                    var statusUrl = "{{ route('zora.checkout.status', ['orderId' => 'PLACEHOLDER']) }}"
+                                        .replace('PLACEHOLDER', encodeURIComponent(orderId));
+
+                                    pollIntervalId = setInterval(function(){
+                                        $.getJSON(statusUrl)
+                                            .done(function(res){
+                                                if (res && res.payment_status === 1) {
+                                                    clearInterval(pollIntervalId);
+
+                                                    var redirectUrl = "{{ route('zora.checkout.after') }}";
+                                                    if (sessionToken) {
+                                                        redirectUrl += ("?token=" + encodeURIComponent(sessionToken));
+                                                    }
+
+                                                    window.location.href = redirectUrl;
+                                                }
+                                            })
+                                            .fail(function(){
+                                                // ignore error, retry next interval
+                                            });
+                                    }, 3000);
                                 }
-                            });
-                        } else {
-                            alert("Unable to start payment.");
+
+                                window.snap.pay(response.snap_token, {
+
+                                    onSuccess: function(result){
+                                        startPollingIfPossible();
+                                    },
+
+                                    onPending: function(result){
+                                        Swal.fire("Waiting Payment", "Your payment is being processed.", "info");
+                                        startPollingIfPossible();
+                                        $btn.prop("disabled", false).text("Pay");
+                                    },
+
+                                    onError: function(result){
+                                        Swal.fire("Payment Failed", "An error occurred during payment.", "error");
+                                        $btn.prop("disabled", false).text("Pay");
+                                    },
+
+                                    onClose: function(){
+                                        Swal.fire("Cancelled", "Payment popup was closed.", "warning");
+                                        $btn.prop("disabled", false).text("Pay");
+                                    }
+
+                                });
+
+                            } else {
+                                Swal.fire("Error", "Unable to start payment.", "error");
+                                $btn.prop("disabled", false).text("Pay");
+                            }
+
+                        }).fail(function(xhr){
+                            Swal.fire("Error", "Failed to create transaction.", "error");
                             $btn.prop("disabled", false).text("Pay");
-                        }
-                    }).fail(function(xhr){
-                        alert("Failed to create transaction.");
-                        $btn.prop("disabled", false).text("Pay");
-                    });
-                });
+                        });
+
+                    }); // ← penutup Swal.then()
+
+                }); // ← penutup click handler
 
                 // Next button handler with validation gates
                 $(document).on("click", ".btn-next", function(){

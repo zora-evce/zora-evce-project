@@ -338,10 +338,10 @@ class OcppEventController extends Controller
             $transaction->save();
 
             // SET FOR COUNTDOWN
-            $chargingEndAt = Carbon::now()->addMinutes($delayMinutes);
-            session([
-                'charging_started_at' => Carbon::now(),
-                'charging_end_at' => $chargingEndAt,
+            // $chargingEndAt = Carbon::now()->addMinutes($delayMinutes);
+            session()->put([
+                'charging_started_at' => now(),
+                'charging_end_at' => now()->addMinutes($delayMinutes),
                 'charging_duration' => $delayMinutes
             ]);
 

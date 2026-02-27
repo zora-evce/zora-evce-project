@@ -5,6 +5,7 @@ use Midtrans\Snap;
 use Midtrans\Config;
 use App\Repositories\TransactionRepositoryInterface;
 use App\Models\TransactionidPool;
+use App\Models\Transaction;
 use App\Helpers\GlobalHelper;
 
 class CheckoutService
@@ -51,6 +52,30 @@ class CheckoutService
         }
 
         // 4. Save Transaction as per the requirement
+        $checkTransaction = Transaction::where([
+            'name'           => $data['customer_name'],
+            'email'          => $data['customer_email'],
+            'phone'          => $data['customer_phone'],
+            'station_id'     => $station_id,
+            'connector_id'   => $connector_id,
+            'tariff_code'    => $tariff_code,
+            'executed_price' => $executed_price,
+            'tax'            => $tax,
+            'total_price'    => $total_price,
+            'duration'       => $duration,
+            'email_status'   => 0,
+            'wa_status'      => 0,
+            'start_time'     => null,
+            'stop_time'      => null,
+            'trx_id'         => null
+        ])
+        ->where('payment_status', '!=', 1)
+        ->first();
+
+        if ($checkTransaction) {
+            Transaction::find($checkTransaction->id)?->delete();
+        }
+
         $transaction = $this->repo->create([
             'transactionId'     => $transactionId,
             'name'              => $data['customer_name'] ?? null,
@@ -76,6 +101,7 @@ class CheckoutService
         $orderId = 'ZOR-' . $transactionId . '-' . time();
         $transaction->midtrans_order_id = $orderId;
         $transaction->save();
+        $dataTransaction = $transaction;
 
         // Save transactionId to transactionid_pool
         $pool = new TransactionidPool;
@@ -103,6 +129,6 @@ class CheckoutService
 
         $snapToken = \Midtrans\Snap::getSnapToken($params);
 
-        return ['transaction' => $transaction, 'snap_token' => $snapToken];
+        return ['transaction' => $dataTransaction, 'snap_token' => $snapToken];
     }
 }
