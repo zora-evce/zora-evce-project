@@ -19,5 +19,6 @@ class ConstantsHelper {
     // Lookup Type
     const LOCATION_TYPE = 'location_type';
     const CONNECTIVITY_STATUS = 'connectivity_status';
+    const PAYMENT_STATUS = 'payment_status';
 
 }

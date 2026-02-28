@@ -52,6 +52,7 @@ Route::middleware(['auth'])->group(function () {
             });
             Route::group(['prefix' => 'transactions'], function () {
                 Route::get('/get-transactions', [StationDetailsController::class, 'getDataTransactions'])->name('stations.details.transactions.get-transactions');
+                Route::get('/detail-table/{id}', [StationDetailsController::class, 'transactionsDetailTable'])->name('stations.details.transactions.detail-table');
                 Route::get('/export-excel-transactions', [StationDetailsController::class, 'exportExcelTransactions'])->name('stations.details.transactions.export-excel-transactions');
             });
             Route::group(['prefix' => 'location'], function () {

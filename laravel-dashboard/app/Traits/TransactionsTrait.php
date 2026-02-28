@@ -2,11 +2,14 @@
 namespace App\Traits;
 
 use App\Exports\TransactionsStationsExport;
+use App\Helpers\ConstantsHelper;
 use App\Helpers\GlobalHelper;
 use App\Models\Connectors;
+use App\Models\LookupC;
 use App\Models\Stations;
 use App\Models\TransactionsV;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
 trait TransactionsTrait
@@ -14,7 +17,7 @@ trait TransactionsTrait
     public function renderTransactions($tab, Stations $station, Request $request)
     {
         $station_id = $station->id;
-        $data = null;
+        $data = self::bundleDataTransactions();
         return view('stations.details.partials.' . $tab, get_defined_vars());
     }
 
@@ -25,6 +28,14 @@ trait TransactionsTrait
         return response()->json(GlobalHelper::dataTable($request, $query));
     }
 
+    public function transactionsDetailTable($id)
+    {
+        $model = new TransactionsV();
+        $data = $model->select()->where('id', $id)->first();
+        Log::info($data);
+        return view('stations.details.partials.transactions-partials.detail-table', compact('data'))->render();
+    }
+
     public function exportExcelTransactions(Request $request)
     {
         $filters = $request->only(['station_id']);
@@ -33,5 +44,13 @@ trait TransactionsTrait
         $station_code = $station->code;
         $fileName = 'Transacations ' . $station_name . '-' . $station_code . '.xlsx';
         return Excel::download(new TransactionsStationsExport($filters), $fileName);
+    }
+
+    private function bundleDataTransactions()
+    {
+        $payment_status = LookupC::where('lookup_type', ConstantsHelper::CONNECTIVITY_STATUS)->get();
+        return [
+            'payment_status' => $payment_status
+        ];
     }
 }
