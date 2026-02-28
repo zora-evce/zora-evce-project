@@ -29,7 +29,6 @@ class DashboardController extends Controller
     private function getStationIds()
     {
         return Stations::where('account_id', $this->auth->partner_id)->pluck('id');
-
     }
 
     private function getBundleDataDashboard()

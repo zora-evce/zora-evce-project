@@ -1,20 +1,14 @@
 <div class="row g-4">
     <div class="col-md-2">
-        <label for="startDate" class="form-label">Start Date</label>
-        <div class="input-group date" id="startDate" data-target-input="nearest">
-            <input type="text" class="form-control form-control-sm datetimepicker-input" data-target="#startDate" placeholder="YYYY-MM-DD"/>
-            <div class="input-group-append" data-target="#startDate" data-toggle="datetimepicker">
-                <div class="input-group-text"><i class="fa fa-calendar"></i></div>
+
+        <label for="range" class="form-label">Date Range</label>
+        <div class="input-group date" id="reservationdate" data-target-input="nearest">
+            <div class="input-group-prepend">
+                <span class="input-group-text">
+                    <i class="far fa-calendar-alt"></i>
+                </span>
             </div>
-        </div>
-    </div>
-    <div class="col-md-2">
-        <label for="endDate" class="form-label">End Date</label>
-        <div class="input-group date" id="endDate" data-target-input="nearest">
-            <input type="text" class="form-control form-control-sm datetimepicker-input" data-target="#endDate" placeholder="YYYY-MM-DD"/>
-            <div class="input-group-append" data-target="#endDate" data-toggle="datetimepicker">
-                <div class="input-group-text"><i class="fa fa-calendar"></i></div>
-            </div>
+            <input type="text" class="form-control form-control-sm float-right" id="dateRange">
         </div>
     </div>
     <div class="col-md-2">
@@ -30,7 +24,7 @@
         <select class="form-control form-control-sm" id="paymentStatus" style="width: 100%;">
             @if (!empty($data['payment_status']))
                 @foreach ($data['payment_status'] as $data_status)
-                    <option value="{{ $data_status->lookup_code }}">{{ $data_status->lookup_value }}
+                    <option value="{{ $data_status->lookup_id }}">{{ $data_status->lookup_value }}
                     </option>
                 @endforeach
             @endif
@@ -76,14 +70,29 @@
 
 <script>
     $(function() {
-        $('#startDate').datetimepicker({
-            format: 'YYYY-MM-DD'
+        const $dateRange = $('#dateRange');
+        let startDate = null;
+        let endDate = null;
+        $dateRange.daterangepicker({
+            autoUpdateInput: false,
+            locale: {
+                format: 'YYYY-MM-DD',
+                cancelLabel: 'Clear'
+            }
         });
-        $('#endDate').datetimepicker({
-            format: 'YYYY-MM-DD'
+        $dateRange.on('apply.daterangepicker', function (ev, picker) {
+            startDate = picker.startDate.format('YYYY-MM-DD');
+            endDate   = picker.endDate.format('YYYY-MM-DD');
+
+            $(this).val(startDate + ' - ' + endDate);
+        });
+        $dateRange.on('cancel.daterangepicker', function (ev, picker) {
+            startDate = null;
+            endDate   = null;
+            $(this).val('');
         });
 
-        const $filterStatus = $('#paymentStatus').select2({
+        const $paymentStatus = $('#paymentStatus').select2({
             placeholder: 'Payment Status',
             allowClear: true,
             theme: 'bootstrap4'
@@ -94,8 +103,14 @@
 
         $('#btn_export_excel').on('click', function(e) {
             e.preventDefault();
+
             let params = {
                 station_id: stationId || '',
+                start_date: startDate || '',
+                end_date: endDate || '',
+                transaction_id: $('#transactionId').val() || '',
+                customer_name: $('#customerName').val() || '',
+                payment_status: $paymentStatus.val() || '',
             };
 
             let url = '{{ route("cpo.stations.details.transactions.export-excel-transactions") }}'
@@ -116,6 +131,13 @@
                 type: 'GET',
                 data: function(d) {
                     d.station_id = stationId;
+                    d.start_date = startDate;
+                    d.end_date = endDate;
+                    d.transaction_id = $('#transactionId').val();
+                    d.customer_name = $('#customerName').val();
+                    d.payment_status = $paymentStatus.val();
+                    console.log(d);
+
                 }
             },
             columns: [
@@ -195,7 +217,10 @@
                     data: 'total_cost',
                     name: 'Total Cost',
                     searchable: true,
-                    orderable: true
+                    orderable: true,
+                    render: function(data, type, row) {
+                        return Zora.toRupiah(data);
+                    }
                 },
                 {
                     data: null,
@@ -218,8 +243,21 @@
             ],
         });
 
-        const detailRows = [];
+        $('#btn_filter').on('click', function() {
+            table.draw();
+        });
 
+        $('#btn_reset').on('click', function() {
+            startDate = null;
+            endDate = null;
+            $dateRange.val('');
+            $('#transactionId').val('');
+            $('#customerName').val('');
+            $paymentStatus.val(null).trigger('change');
+            table.draw();
+        });
+
+        const detailRows = [];
         table.on('click', '#btn-detail-table', function () {
             let btn = $(this);
             let tr = event.target.closest('tr');

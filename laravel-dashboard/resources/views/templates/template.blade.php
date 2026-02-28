@@ -294,6 +294,7 @@
             <script src="{{ asset('templates/adminlte/plugins/datatables-buttons/js/buttons.colVis.min.js') }}"></script>
             <script src="{{ asset('templates/adminlte/plugins/echarts/echarts.min.js') }}"></script>
             <script src="{{ asset('templates/adminlte/plugins/xlsx/xlsx.full.min.js') }}"></script>
+            <script src="{{ asset('js/zora.js') }}"></script>
             @if (Route::is('cpo.dashboard'))
             @else
                 <div class="content-header">

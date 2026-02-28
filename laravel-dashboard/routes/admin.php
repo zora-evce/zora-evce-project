@@ -65,6 +65,7 @@ Route::middleware(['auth'])->group(function () {
         Route::group(['prefix' => 'chargepoints'], function () {
             Route::get('/', [ChargepointsTransactionsController::class, 'index'])->name('transactions.chargepoints');
             Route::get('/get-data', [ChargepointsTransactionsController::class, 'getData'])->name('transactions.chargepoints.get-data');
+            Route::get('/detail-table/{id}', [ChargepointsTransactionsController::class, 'transactionsDetailTable'])->name('transactions.chargepoints.detail-table');
             Route::get('/export-excel', [ChargepointsTransactionsController::class, 'exportExcel'])->name('transactions.chargepoints.export-excel');
         });
     });
