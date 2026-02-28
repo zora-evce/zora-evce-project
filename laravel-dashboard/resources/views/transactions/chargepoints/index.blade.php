@@ -18,26 +18,42 @@
                 </div>
                 <div class="card-body">
                     <div class="row g-4">
-                        {{-- <div class="col-md-2">
-                            <label for="filter_name" class="form-label">Charging Station ID</label>
-                            <input type="text" class="form-control form-control-sm" id="filter_name" placeholder="">
-                        </div> --}}
                         <div class="col-md-2">
-                            <label for="filter_transaction_id" class="form-label">Transaction ID</label>
-                            <input type="text" class="form-control form-control-sm" id="filter_transaction_id" placeholder=".">
-                        </div>
-                        {{-- <div class="col-md-2">
-                            <label for="filter_name" class="form-label">Connector ID</label>
-                            <input type="text" class="form-control form-control-sm" id="filter_name" placeholder=".">
+
+                            <label for="range" class="form-label">Date Range</label>
+                            <div class="input-group date" id="reservationdate" data-target-input="nearest">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text">
+                                        <i class="far fa-calendar-alt"></i>
+                                    </span>
+                                </div>
+                                <input type="text" class="form-control form-control-sm float-right" id="dateRange">
+                            </div>
                         </div>
                         <div class="col-md-2">
-                            <label for="filter_name" class="form-label">Status</label>
-                            <input type="text" class="form-control form-control-sm" id="filter_name" placeholder="">
-                        </div> --}}
+                            <label for="transactionId" class="form-label">Transaction ID</label>
+                            <input type="text" class="form-control form-control-sm" id="transactionId" placeholder="Search by transaction ID...">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="customerName" class="form-label">Customer Name</label>
+                            <input type="text" class="form-control form-control-sm" id="customerName" placeholder="Search by customer name...">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="paymentStatus" class="form-label">Payment Status</label>
+                            <select class="form-control form-control-sm" id="paymentStatus" style="width: 100%;">
+                                @if (!empty($data['payment_status']))
+                                    @foreach ($data['payment_status'] as $data_status)
+                                        <option value="{{ $data_status->lookup_id }}">{{ $data_status->lookup_value }}
+                                        </option>
+                                    @endforeach
+                                @endif
+                            </select>
+                        </div>
                     </div>
                     <br>
                     <div class="row g-4">
                         <div class="col-md-12">
+                            {{-- <div id="colvis-container" style="display: inline-block; margin-left: 5px; vertical-align: middle;"></div> --}}
                             <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_export_excel"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
@@ -51,16 +67,17 @@
                                     <thead class="table-light">
                                         <tr>
                                             <th style="width: 30px;">No</th>
-                                            <th style="width: 30px;">Chargin Station ID</th>
+                                            <th style="width: 80px;">Chargin Station Name</th>
                                             <th>Transaction ID</th>
                                             <th>Connector ID</th>
-                                            <th>Address</th>
+                                            <th>Customer Name</th>
                                             <th>Payment Status</th>
                                             <th>Start Time</th>
                                             <th>Stop Time</th>
                                             <th>Total Time</th>
+                                            <th>Total Kwh</th>
                                             <th>Total Cost</th>
-                                            {{-- <th style="width: 80px;"><i class="fas fa-cogs"></i></th> --}}
+                                            <th style="width: 30px;"><i class="fas fa-cogs"></i></th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -91,121 +108,236 @@
         </div>
     </section>
     <script>
-        let table = $("#auditTable").DataTable({
-            responsive: true,
-            lengthChange: true,
-            autoWidth: false,
-            searching: false,
-            processing: true,
-            serverSide: true,
-            ajax: {
-                url: '{{ route("cpo.transactions.chargepoints.get-data") }}',
-                type: 'GET',
-                data: function(d) {
-                    d.transaction_id = $('#filter_transaction_id').val();
+        $(function() {
+            const $dateRange = $('#dateRange');
+            let startDate = null;
+            let endDate = null;
+            $dateRange.daterangepicker({
+                autoUpdateInput: false,
+                locale: {
+                    format: 'YYYY-MM-DD',
+                    cancelLabel: 'Clear'
                 }
-            },
-            columns: [{
-                    data: null,
-                    orderable: false,
-                    searchable: false,
-                    render: function(data, type, row, meta) {
-                        return meta.row + 1;
+            });
+            $dateRange.on('apply.daterangepicker', function (ev, picker) {
+                startDate = picker.startDate.format('YYYY-MM-DD');
+                endDate   = picker.endDate.format('YYYY-MM-DD');
+
+                $(this).val(startDate + ' - ' + endDate);
+            });
+            $dateRange.on('cancel.daterangepicker', function (ev, picker) {
+                startDate = null;
+                endDate   = null;
+                $(this).val('');
+            });
+
+            const $paymentStatus = $('#paymentStatus').select2({
+                placeholder: 'Payment Status',
+                allowClear: true,
+                theme: 'bootstrap4'
+            });
+            $('#paymentStatus').val(null).trigger('change');
+
+            $('#btn_export_excel').on('click', function(e) {
+                e.preventDefault();
+
+                let params = {
+                    start_date: startDate || '',
+                    end_date: endDate || '',
+                    transaction_id: $('#transactionId').val() || '',
+                    customer_name: $('#customerName').val() || '',
+                    payment_status: $paymentStatus.val() || '',
+                };
+
+                let url = '{{ route("cpo.transactions.chargepoints.export-excel") }}'
+                    + '?' + $.param(params);
+
+                window.location.href = url;
+            });
+
+            let table = $("#auditTable").DataTable({
+                responsive: true,
+                lengthChange: true,
+                autoWidth: false,
+                searching: false,
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: '{{ route("cpo.transactions.chargepoints.get-data") }}',
+                    type: 'GET',
+                    data: function(d) {
+                        d.start_date = startDate;
+                        d.end_date = endDate;
+                        d.transaction_id = $('#transactionId').val();
+                        d.customer_name = $('#customerName').val();
+                        d.payment_status = $paymentStatus.val();
+                        console.log(d);
                     }
                 },
-                {
-                    data: 'code',
-                    name: 'Chargin Station ID',
-                    searchable: true,
-                    orderable: true
-                },
-                {
-                    data: 'transaction_id',
-                    name: 'Transaction ID',
-                    searchable: true,
-                    orderable: true
-                },
-                {
-                    data: 'connector_id',
-                    name: 'Connector ID',
-                    searchable: true,
-                    orderable: true
-                },
-                {
-                    data: 'address',
-                    name: 'Address',
-                    searchable: true,
-                    orderable: true
-                },
-                {
-                    data: 'payment_status_name',
-                    name: 'Payment Status',
-                    searchable: true,
-                    orderable: true
-                },
-                {
-                    data: 'start_time',
-                    name: 'Start Time',
-                    searchable: true,
-                    orderable: true
-                },
-                {
-                    data: 'stop_time',
-                    name: 'Stop Time',
-                    searchable: true,
-                    orderable: true
-                },
-                {
-                    data: 'total_time',
-                    name: 'Total Time',
-                    searchable: true,
-                    orderable: true
-                },
-                {
-                    data: 'total_cost',
-                    name: 'Total Cost',
-                    searchable: true,
-                    orderable: true
-                },
-                // {
-                //     data: null,
-                //     render: function(data, type, row) {
-                //         let stationId = row.id;
-                //         return `
-                //             <div class="btn-group align-items-center" role="group" aria-label="Station Actions">
-                //                 <a href="" class="btn btn-primary btn-sm action-detail">
-                //                     <i class="fas fa-eye"></i>
-                //                 </a>
-                //             </div>
-                //         `;
-                //     }
-                // }
-            ],
-            order: [
-                [1, 'asc']
-            ],
-        });
+                columns: [
+                    {
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        render: function(data, type, row, meta) {
+                            return meta.row + 1;
+                        }
+                    },
+                    {
+                        data: 'station_name',
+                        name: 'Chargin Station Name',
+                        searchable: true,
+                        orderable: true
+                    },
+                    {
+                        data: 'transaction_id',
+                        name: 'Transaction ID',
+                        searchable: true,
+                        orderable: true
+                    },
+                    {
+                        data: 'connector_id',
+                        name: 'Connector ID',
+                        searchable: true,
+                        orderable: true
+                    },
+                    {
+                        data: 'customer_name',
+                        name: 'Customer Name',
+                        searchable: true,
+                        orderable: true
+                    },
+                    {
+                        data: 'payment_status_name',
+                        name: 'Payment Status',
+                        searchable: true,
+                        orderable: true
+                    },
+                    {
+                        data: 'start_time',
+                        name: 'Start Time',
+                        searchable: true,
+                        orderable: true
+                    },
+                    {
+                        data: 'stop_time',
+                        name: 'Stop Time',
+                        searchable: true,
+                        orderable: true
+                    },
+                    {
+                        data: 'total_time',
+                        name: 'Total Time',
+                        searchable: true,
+                        orderable: true,
+                        render: function(data, type, row) {
+                            if (data != null || data != undefined) {
+                                return data + ' Minutes';
+                            } else {
+                                return '-';
+                            }
+                        }
+                    },
+                    {
+                        data: null,
+                        name: 'Total Kwh',
+                        searchable: true,
+                        orderable: true,
+                        render: function(data, type, row) {
+                            return '-';
+                        }
+                    },
+                    {
+                        data: 'total_cost',
+                        name: 'Total Cost',
+                        searchable: true,
+                        orderable: true,
+                        render: function(data, type, row) {
+                            return Zora.toRupiah(data);
+                        }
+                    },
+                    {
+                        data: null,
+                        searchable: false,
+                        orderable: false,
+                        render: function(data, type, row) {
+                            let stationId = row.id;
+                            return `
+                                <div class="btn-group align-items-center" role="group" aria-label="Station Actions">
+                                    <a href="#" class="btn btn-primary btn-sm action-detail" id="btn-detail-table">
+                                        <i class="fas fa-chevron-down"></i>
+                                    </a>
+                                </div>
+                            `;
+                        }
+                    }
+                ],
+                order: [
+                    [1, 'asc']
+                ],
+            });
 
-        $('#btn_filter').on('click', function() {
-            table.draw();
-        });
+            $('#btn_filter').on('click', function() {
+                table.draw();
+            });
 
-        $('#btn_reset').on('click', function() {
-            $('#filter_transaction_id').val('');
+            $('#btn_reset').on('click', function() {
+                startDate = null;
+                endDate = null;
+                $dateRange.val('');
+                $('#transactionId').val('');
+                $('#customerName').val('');
+                $paymentStatus.val(null).trigger('change');
+                table.draw();
+            });
 
-            table.draw();
-        });
+            const detailRows = [];
+            table.on('click', '#btn-detail-table', function () {
+                let btn = $(this);
+                let tr = event.target.closest('tr');
+                let row = table.row(tr);
+                let idx = detailRows.indexOf(tr.id);
 
-        $('#btn_export_excel').on('click', function(e) {
-            e.preventDefault();
-            let params = {
-                filter_transaction_id: $('#filter_transaction_id').val() || ''
-            };
+                if (row.child.isShown()) {
+                    tr.classList.remove('details');
+                    row.child.hide();
 
-            let url = '{{ route("cpo.transactions.chargepoints.export-excel") }}'
-                + '?' + $.param(params);
+                    detailRows.splice(idx, 1);
+                    btn.find('i').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+                }
+                else {
+                    tr.classList.add('details');
+                    row.child(format(row.data())).show();
 
-            window.location.href = url;
+                    if (idx === -1) {
+                        detailRows.push(tr.id);
+                    }
+                    btn.find('i').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+                }
+            });
+
+            table.on('draw', () => {
+                detailRows.forEach((id, i) => {
+                    let el = document.querySelector('#' + id + ' td.dt-control');
+
+                    if (el) {
+                        el.dispatchEvent(new Event('click', { bubbles: true }));
+                    }
+                });
+            });
+
+            const detailTableUrl = "{{ route('cpo.transactions.chargepoints.detail-table', ['id' => '__ID__']) }}";
+            function format(d) {
+                let html = '';
+                $.ajax({
+                    url: detailTableUrl.replace('__ID__', d.id),
+                    async: false,
+                    success: function(response) {
+                        html = response;
+                    }
+                });
+                return html;
+            }
         });
     </script>
 @endsection

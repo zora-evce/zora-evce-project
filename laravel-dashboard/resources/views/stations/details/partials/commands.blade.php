@@ -228,7 +228,7 @@
 
                     <!-- REMOTE START -->
                     <div class="card action-card mb-3">
-                        <form id="remoteStopForm">
+                        <form id="remoteStartForm">
                         @csrf
                             <div class="card-body d-flex flex-wrap align-items-center">
                                 <div class="d-flex align-items-center">
@@ -240,8 +240,14 @@
                                 </div>
 
                                 <div class="action-form">
-                                    <input type="text" class="form-control form-control-sm mr-2" placeholder="Transaction ID" style="width:150px;">
-                                    <button class="btn btn-sm btn-primary" id="btnRemoteStart">Start</button>
+                                    <select class="form-control form-control-sm select2" id="select2TxStart" name="transactionId" style="width:150px;">
+                                        @if (!empty($data['transactions']['transactionStartIds']))
+                                            @foreach ($data['transactions']['transactionStartIds'] as $data_transactions)
+                                                <option value="{{ $data_transactions->transactionId }}">{{ $data_transactions->transactionId }} - {{ $data_transactions->name }}</option>
+                                            @endforeach
+                                        @endif
+                                    </select>
+                                    <button class="btn btn-sm btn-primary ml-2" id="btnRemoteStart">Start</button>
                                 </div>
 
                             </div>
@@ -263,9 +269,14 @@
                                 </div>
 
                                 <div class="action-form">
-                                    <input type="text" class="form-control form-control-sm mr-2" name="transactionId" placeholder="Transaction ID" style="width:150px;">
-
-                                    <button class="btn btn-sm btn-danger" id="btnRemoteStop">Stop</button>
+                                    <select class="form-control form-control-sm select2" id="select2TxStop" name="transactionId" style="width:150px;">
+                                        @if (!empty($data['transactions']['transactionStopIds']))
+                                            @foreach ($data['transactions']['transactionStopIds'] as $data_transactions)
+                                                <option value="{{ $data_transactions->transactionId }}">{{ $data_transactions->transactionId }} - {{ $data_transactions->name }}</option>
+                                            @endforeach
+                                        @endif
+                                    </select>
+                                    <button class="btn btn-sm btn-danger ml-2" id="btnRemoteStop">Stop</button>
                                 </div>
 
                             </div>
@@ -313,53 +324,20 @@
 <script>
 $(function () {
 
-    $('#btnRemoteStop').on('click', function (e) {
-        e.preventDefault();
-
-        let $btn = $(this);
-        let $form = $('#remoteStopForm');
-        Swal.fire({
-            title: 'Attention!',
-            text: "Are you sure you want to save this?",
-            type: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Save',
-            cancelButtonText: "Cancel"
-        }).then((result) => {
-            if (result.value) {
-                $.ajax({
-                    url: "{{ route('cpo.stop.action') }}",
-                    type: "POST",
-                    data: $form.serialize(),
-                    beforeSend: function () {
-                        $btn.prop('disabled', true).text('Stopping...');
-                    },
-                    success: function (res) {
-                        if (res.ok === true) {
-                            toastr.success(res.message || 'Remote stop command sent');
-                        } else {
-                            toastr.error(res.message || 'Failed to stop charging');
-                        }
-                    },
-                    error: function (xhr) {
-                        console.log(xhr);
-
-                        if (xhr.status === 422) {
-                            toastr.error('Validation error');
-                        } else if (xhr.status === 401 || xhr.status === 403) {
-                            toastr.error('Session expired, please login again');
-                        } else {
-                            toastr.error('Server error');
-                        }
-                    },
-                    complete: function () {
-                        $btn.prop('disabled', false).text('Stop');
-                    }
-                });
-            }
-        });
-
+    $('#select2TxStart').select2({
+        placeholder: 'Transaction ID',
+        allowClear: true,
+        theme: 'bootstrap4'
     });
+
+    $('#select2TxStop').select2({
+        placeholder: 'Transaction ID',
+        allowClear: true,
+        theme: 'bootstrap4'
+    });
+
+    $('#select2TxStart').val(null).trigger('change');
+    $('#select2TxStop').val(null).trigger('change');
 
     $('#btnRemoteStart').on('click', function (e) {
         e.preventDefault();
@@ -402,6 +380,56 @@ $(function () {
                     },
                     complete: function () {
                         $btn.prop('disabled', false).text('Start');
+                        $('#select2TxStart').val(null).trigger('change');
+                    }
+                });
+            }
+        });
+
+    });
+
+    $('#btnRemoteStop').on('click', function (e) {
+        e.preventDefault();
+
+        let $btn = $(this);
+        let $form = $('#remoteStopForm');
+        Swal.fire({
+            title: 'Attention!',
+            text: "Are you sure you want to save this?",
+            type: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Save',
+            cancelButtonText: "Cancel"
+        }).then((result) => {
+            if (result.value) {
+                $.ajax({
+                    url: "{{ route('cpo.stop.action') }}",
+                    type: "POST",
+                    data: $form.serialize(),
+                    beforeSend: function () {
+                        $btn.prop('disabled', true).text('Stopping...');
+                    },
+                    success: function (res) {
+                        if (res.ok === true) {
+                            toastr.success(res.message || 'Remote stop command sent');
+                        } else {
+                            toastr.error(res.message || 'Failed to stop charging');
+                        }
+                    },
+                    error: function (xhr) {
+                        console.log(xhr);
+
+                        if (xhr.status === 422) {
+                            toastr.error('Validation error');
+                        } else if (xhr.status === 401 || xhr.status === 403) {
+                            toastr.error('Session expired, please login again');
+                        } else {
+                            toastr.error('Server error');
+                        }
+                    },
+                    complete: function () {
+                        $btn.prop('disabled', false).text('Stop');
+                        $('#select2TxStop').val(null).trigger('change');
                     }
                 });
             }

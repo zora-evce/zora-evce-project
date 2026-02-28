@@ -9,18 +9,55 @@ use App\Models\Stations;
 use App\Models\Tariff;
 use App\Models\Transaction;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 trait CommandsTrait
 {
     public function renderCommands($tab, Stations $station, Request $request)
     {
         $station_id = $station->id;
-        $data = null;
+        $data = self::getBundleDataCommands($station_id);
         return view('stations.details.partials.' . $tab, get_defined_vars());
+    }
+
+    private static function getBundleDataCommands($station_id)
+    {
+        $transactionStartIds = self::getTransactions($station_id, 'start');
+        $transactionStopIds = self::getTransactions($station_id, 'stop');
+        return [
+            'transactions' => [
+                'transactionStartIds' => $transactionStartIds,
+                'transactionStopIds' => $transactionStopIds
+            ]
+        ];
+    }
+
+    private static function getTransactions($station_id, $type = 'stop')
+    {
+        $query = Transaction::query()
+            ->select([
+                'id',
+                'transactionId',
+                'name',
+                'station_id',
+                'connector_id',
+                DB::raw("extract(epoch from (stop_time - start_time)) as duration_seconds"),
+            ])
+            ->where('station_id', $station_id)
+            ->where('payment_status', 1);
+        if ($type == 'start') {
+            $query = $query->whereColumn('stop_time', '>', 'start_time');
+        }
+        $data = $query->orderByDesc('id')
+            ->limit(5)
+            ->get();
+        return $data;
     }
 
     public function startTransactionCommand(Request $request)
     {
+        Log::info($request->post());
         $data = $request->validate([
             'transactionId' => ['required','string','max:50'],
         ]);
@@ -36,50 +73,7 @@ trait CommandsTrait
                 'message' => 'Transaction ID not found.',
             ], 404);
         }
-
-        $connectors = Connector::where('id', $transaction['connector_id'])->first();
-        $id_tag = $connectors['idTag'];
-
-        $tariff = Tariff::where('tariff_code', $transaction['tariff_code'])->first();
-        $tariff_value = $tariff['tariff_price'];
-        $payload = [
-            'idTag' => $id_tag,
-            'tariff_value' => $tariff_value,
-        ];
-
-        $values = [
-            'station_id' => $transaction['station_id'],
-            'connector_id' => $transaction['connector_id'],
-            'command' => $transaction['RemoteStartTransaction'],
-            'payload' => json_encode($payload),
-            'status' => 'pending',
-        ];
-
-        $remote_commands = RemoteCommand::where('station_id', $transaction['station_id'])
-            ->where('connector_id', $transaction['connector_id'])
-            ->where('command', 'RemoteStartTransaction')
-            ->orderBy('id', 'desc')
-            ->first();
-        if (!$remote_commands){
-            RemoteCommand::create($values);
-            return response()->json([
-                'ok' => true,
-                'message' => 'Force start requested.',
-            ]);
-        }
-
-        if ($remote_commands->status != 'pending') {
-            RemoteCommand::where('station_id', $transaction['station_id'])
-                ->where('connector_id', $transaction['connector_id'])
-                ->where('command', 'RemoteStartTransaction')
-                ->update([
-                    'status' => 'pending'
-                ]);
-            return response()->json([
-                'ok' => true,
-                'message' => 'Force start requested.',
-            ]);
-        }
+        GlobalHelper::enqueueRemoteStartCommand($transaction);
         return response()->json([
             'ok' => true,
             'message' => 'Force start requested.',

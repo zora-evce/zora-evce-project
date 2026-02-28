@@ -2,13 +2,17 @@
 
 namespace App\Exports;
 
+use App\Helpers\GlobalHelper;
 use App\Models\StationsV;
 use App\Models\TransactionsV;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 
-class TransactionsChargepointsExport implements FromCollection, WithHeadings
+class TransactionsChargepointsExport implements FromCollection, WithHeadings, ShouldAutoSize
 {
     protected $filters;
 
@@ -22,27 +26,44 @@ class TransactionsChargepointsExport implements FromCollection, WithHeadings
      */
     public function collection()
     {
-        $model = new TransactionsV();
-        $query = $model->select();
-        $auth = auth()->user();
-        if ($auth->id_role == 2){
-            $query = $query->where('account_id', $auth->partner_id);
+        $query = TransactionsV::query();
+        if (!empty($this->filters['station_ids'])) {
+            $query->whereIn('station_id', $this->filters['station_ids']);
+        }
+        if (!empty($this->filters['start_date']) && !empty($this->filters['end_date'])) {
+            $start = Carbon::parse($this->filters['start_date'])->startOfDay();
+            $end   = Carbon::parse($this->filters['end_date'])->endOfDay();
+
+            $query->whereBetween('start_time', [$start, $end]);
         }
         if (!empty($this->filters['transaction_id'])) {
-            $query = $query->where('transaction_id', $this->filters['transaction_id']);
+            $query->where('transaction_id', $this->filters['transaction_id']);
         }
-        $records = $query->get();
+        if (!empty($this->filters['customer_name'])) {
+            $query->where('customer_name', 'ILIKE', '%'.$this->filters['customer_name'].'%');
+        }
+        if (array_key_exists('payment_status', $this->filters) && $this->filters['payment_status'] !== '' && $this->filters['payment_status'] !== null) {
+            $query->where('payment_status', $this->filters['payment_status']);
+        }
+        $records = $query->orderByDesc('id')->get();
         return $records->map(function ($item, $index) {
             return [
                 '#' => $index + 1,
-                'station_code' => $item->code,
+                'station_name' => $item->station_name,
+                'transaction_id' => $item->transaction_id,
                 'connector_id' => $item->connector_id,
-                'address' => $item->address,
+                'station_address' => $item->station_address,
+                'customer_name' => $item->customer_name,
+                'customer_email' => $item->customer_email,
+                'customer_phone' => $item->customer_phone,
                 'payment_status' => $item->payment_status_name,
+                'midtrans_order_id' => $item->midtrans_order_id,
+                'tariff_code' => $item->tariff_code,
                 'start_time' => $item->start_time,
                 'stop_time' => $item->stop_time,
                 'total_time' => !empty($item->total_time) ? $item->total_time . ' Minutes' : '-',
-                'total_cost' => $item->total_cost
+                'total_kwh' => '-',
+                'total_cost' => GlobalHelper::convertToRupiah($item->total_cost)
             ];
         });
     }
@@ -56,13 +77,20 @@ class TransactionsChargepointsExport implements FromCollection, WithHeadings
     {
         return [
             '#',
-            'Station Code',
+            'Station Name',
+            'Transaction ID',
             'Connector ID',
-            'Address',
+            'Station Address',
+            'Customer Name',
+            'Customer Email',
+            'Customer Phone',
             'Payment Status',
+            'Midtrans Order ID',
+            'Tariff Code',
             'Start Time',
             'Stop Time',
             'Total Time',
+            'Total Kwh',
             'Total Cost'
         ];
     }

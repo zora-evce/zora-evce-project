@@ -30,14 +30,16 @@ trait OcppLogsTrait
             COALESCE(payload->>'station_code', 'N/A') AS station_code,
             COALESCE(payload->>'firmware', null) AS firmware,
             COALESCE(payload->>'timestamp', null) AS device_timestamp,
+            payload,
+            response,
             deleted_at,
             created_at,
             updated_at
         ")->where('related_id', $station_id);
         if (!empty($type) && $type == 'heartbeat') {
-            $query = $query->where('type', 'heartbeat');
+            $query = $query->where('type', 'Heartbeat');
         } else {
-            $query = $query->where('type', '!=', 'heartbeat');
+            $query = $query->where('type', '!=', 'Heartbeat');
         }
         $query = $query->orderBy('id', 'DESC');
         $limited = DB::table(DB::raw("({$query->toSql()} LIMIT 100) as t"))->mergeBindings($query);
