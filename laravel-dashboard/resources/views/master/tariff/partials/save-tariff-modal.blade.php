@@ -1,10 +1,12 @@
-<div class="modal fade" id="addTariff" tabindex="-1">
+<div class="modal fade" id="saveTariff" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-3 shadow">
-            <form action="{{ route('cpo.master.tariff.add-tariff') }}" method="POST">
+            <form action="{{ route('cpo.master.tariff.save-tariff') }}" method="POST">
             @csrf
+                <input type="hidden" name="tariff_id" id="tariffId">
+                <input type="hidden" id="formMode" value="add">
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">Register New Station</h5>
+                    <h5 class="modal-title" id="modalTitle">Add Tariff</h5>
                     <button type="button" class="close text-white" data-dismiss="modal">
                         <span>&times;</span>
                     </button>

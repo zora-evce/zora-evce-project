@@ -6,6 +6,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Dashboard | Zora EV Charger</title>
 
     <!-- Google Font: Source Sans Pro -->
@@ -352,47 +353,6 @@
                     }, 1500);
                 }
             }
-        });
-
-        $(document).on("click", ".action-save", function(e) {
-            e.preventDefault();
-            let form = $(this).closest('form');
-            Swal.fire({
-                title: 'Attention!',
-                text: "Are you sure you want to save this?",
-                type: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'Save',
-                cancelButtonText: "Cancel"
-            }).then((result) => {
-                if (result.value) {
-                    form.submit();
-                }
-            });
-        });
-
-        $(document).on("click", ".action-delete", function(e) {
-            e.preventDefault();
-            let form = $(this).closest('form');
-            Swal.fire({
-                icon: 'warning',
-                title: 'Warning!',
-                text: "Are you sure you want to delete this?",
-                type: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'Save',
-                cancelButtonText: "Cancel"
-            }).then((result) => {
-                if (result.value) {
-                    const form = e.target.closest('form');
-                    const actionInput = document.createElement('input');
-                    actionInput.type = 'hidden';
-                    actionInput.name = 'action';
-                    actionInput.value = 'delete';
-                    form.appendChild(actionInput);
-                    form.submit();
-                }
-            });
         });
     });
 </script>

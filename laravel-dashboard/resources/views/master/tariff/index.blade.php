@@ -19,16 +19,12 @@
                 <div class="card-body">
                     <div class="row g-4">
                         <div class="col-md-2">
-                            <label for="filter_name" class="form-label form-label">Code</label>
-                            <input type="text" class="form-control form-control-sm" id="filter_name" placeholder="">
+                            <label for="tariffCode" class="form-label form-label">Code</label>
+                            <input type="text" class="form-control form-control-sm" id="tariffCode" placeholder="Tariff Code">
                         </div>
                         <div class="col-md-2">
-                            <label for="filter_name" class="form-label">Name</label>
-                            <input type="text" class="form-control form-control-sm" id="filter_name" placeholder=".">
-                        </div>
-                        <div class="col-md-2">
-                            <label for="filter_name" class="form-label">Type</label>
-                            <input type="text" class="form-control form-control-sm" id="filter_name" placeholder=".">
+                            <label for="tariffName" class="form-label">Name</label>
+                            <input type="text" class="form-control form-control-sm" id="tariffName" placeholder="Tariff Name">
                         </div>
                     </div>
                     <br>
@@ -36,8 +32,7 @@
                         <div class="col-md-12">
                             <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button>
-                            <button type="button" class="btn btn-sm btn-primary" id="btn_register_new_station" data-toggle="modal" data-target="#addTariff"><i class="fas fa-plus mr-2"></i>Add New Tariff</button>
-                            <button type="button" class="btn btn-sm btn-primary" id="btn_export"><i class="fas fa-file-excel mr-2"></i>Export Excel</button>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn_register_new_station" data-toggle="modal" data-target="#saveTariff" data-mode="add"><i class="fas fa-plus mr-2"></i>Add New Tariff</button>
                         </div>
                     </div>
                     <br>
@@ -86,7 +81,7 @@
             <!-- /.modal-dialog -->
         </div>
     </section>
-    @include('master.tariff.partials.add-tariff-modal')
+    @include('master.tariff.partials.save-tariff-modal')
     <script>
         // Standard Select2 for Status
         const $filterStatus = $('#filter_status').select2({
@@ -101,6 +96,8 @@
             allowClear: true,
             theme: 'bootstrap4'
         });
+
+        const deleteTariffRoute = "{{ route('cpo.master.tariff.delete-tariff', ':id') }}";
         let table = $("#tariffTable").DataTable({
             responsive: true,
             lengthChange: true,
@@ -113,6 +110,8 @@
                 url: '{{ route("cpo.master.tariff.get-data") }}',
                 type: 'GET',
                 data: function(d) {
+                    d.tariff_code = $('#tariffCode').val();
+                    d.tariff_name = $('#tariffName').val();
                 }
             },
             columns: [{
@@ -172,18 +171,23 @@
                     searchable: false,
                     orderable: false,
                     render: function(data, type, row) {
-                        let stationId = row.id;
+                        let deleteUrl = deleteTariffRoute.replace(':id', row.tariff_id);
                         return `
                             <div class="btn-group align-items-center" role="group" aria-label="Station Actions">
-                                <a href="#" class="btn btn-primary btn-sm action-detail" id="btn-detail-table">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <div class="btn-divider"></div>
-                                <a href="#" class="btn btn-primary btn-sm action-detail">
+                                <a href="#" class="btn btn-primary btn-sm action-detail" data-toggle="modal" data-target="#saveTariff"
+                                    data-mode="edit"
+                                    data-mode="edit"
+                                    data-id="${row.tariff_id}"
+                                    data-code="${row.tariff_code}"
+                                    data-name="${row.tariff_name}"
+                                    data-type="${row.tariff_type}"
+                                    data-value="${row.tariff_value}"
+                                    data-price="${row.tariff_price}"
+                                    data-tax="${row.tax_rate}">
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 <div class="btn-divider"></div>
-                                <a href="#" class="btn btn-primary btn-sm action-detail action-delete">
+                                <a href="#" class="btn btn-primary btn-sm action-detail action-delete" data-url="${deleteUrl}">
                                     <i class="fas fa-trash"></i>
                                 </a>
                             </div>
@@ -198,19 +202,42 @@
 
         // Filter button click event
         $('#btn_filter').on('click', function() {
-            table.draw(); // Redraw the table, which re-triggers the AJAX call with new data
+            table.draw();
         });
 
         // Reset button click event
         $('#btn_reset').on('click', function() {
-            // Reset all filter inputs to their default state
-            $('#filter_name').val('');
-            $filterStatus.val(null).trigger('change'); // Reset Select2
-            $filterRoaming.val(null).trigger('change');
-            $filterCity.val(null).trigger('change'); // Reset AJAX Select2
-
-            // Redraw the table
+            $('#tariffCode').val('');
+            $('#tariffName').val('');
             table.draw();
+        });
+
+        $('#saveTariff').on('show.bs.modal', function (event) {
+            const button = $(event.relatedTarget);
+            const mode = button.data('mode') || 'add';
+            const modal = $(this);
+            const form = modal.find('form')[0];
+            if (mode === 'edit') {
+                modal.find('#formMode').val('edit');
+                modal.find('#modalTitle').text('Edit Tariff');
+                modal.find('.action-save').text('Update');
+                modal.find('#tariffId').val(button.data('id'));
+                modal.find('#tariffCode').val(button.data('code'));
+                modal.find('#tariffName').val(button.data('name'));
+                modal.find('#tariffValue').val(button.data('value'));
+                modal.find('#tariffPrice').val(button.data('price'));
+                modal.find('#tariffTaxRate').val(button.data('tax'));
+                modal.find('#tariffType')
+                    .val(button.data('type'))
+                    .trigger('change');
+            } else {
+                modal.find('#formMode').val('add');
+                modal.find('#modalTitle').text('Add Tariff');
+                modal.find('.action-save').text('Save');
+                form.reset();
+                modal.find('#tariffId').val('');
+                modal.find('#tariffType').val('minute').trigger('change');
+            }
         });
     </script>
 @endsection
