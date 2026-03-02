@@ -30,80 +30,95 @@
                     padding: .6rem 1rem;
                 }
 
-                .chart-wrap { height: 160px; }
+                .chart-wrap { height: 320px; }
+                .chart-wrap-all-time { height: 150px; }
                 .map-wrap { height: 320px; border-radius: 12px; overflow: hidden; }
 
                 .stat-row { padding: .55rem 0; }
                 .stat-row + .stat-row { border-top: 1px dashed rgba(0,0,0,.12); }
                 .stat-label { letter-spacing: .06em; }
             </style>
-            {{-- <div class="row align-items-stretch">
-                <div class="col-lg-9 mb-4 d-flex">
-                    <div class="card shadow-sm border-0 z-card h-100 w-100 d-flex flex-column">
-                        <div class="card-header d-flex align-items-center justify-content-between">
-                            <h6 class="mb-0">
-                                <span class="mr-2">&#x23FB;</span> Usage
-                            </h6>
-                            <small class="text-muted">Last period</small>
-                        </div>
-                        <div class="card-body d-flex flex-column">
-                            <div class="chart-wrap">
-                                <canvas id="usageChartAll"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-lg-3 mb-4 d-flex">
-                    <div class="card shadow-sm border-0 z-card h-100 w-100 d-flex flex-column">
-                        <div class="card-header d-flex align-items-center justify-content-between">
-                            <h6 class="mb-0">
-                                <span class="mr-2">&#x21BB;</span> Transactions
-                            </h6>
-                        </div>
-                        <div class="card-body d-flex flex-column">
-                            <div class="d-flex justify-content-between align-items-center stat-row">
-                                <div>
-                                    <div class="text-muted small text-uppercase stat-label">Ongoing</div>
-                                </div>
-                                <a href="#" class="font-weight-bold text-primary" id="transactionsOngoingAll">0</a>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center stat-row">
-                                <div>
-                                    <div class="text-muted small text-uppercase stat-label">Finished</div>
-                                </div>
-                                <a href="#" class="font-weight-bold text-primary" id="transactionsFinishedAll">0</a>
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center stat-row">
-                                <div>
-                                    <div class="text-muted small text-uppercase stat-label">Total Price</div>
-                                </div>
-                                <a href="#" class="font-weight-bold text-primary" id="transactionsSumPriceAll">Rp 0</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div> --}}
             <div class="row align-items-stretch">
-                <div class="col-lg-2 mb-4 d-flex">
-                    <select class="form-control form-control-sm" id="filterStations" style="width: 100%;">
-                        @if (!empty($stations))
-                            @foreach ($stations as $s)
-                                <option value="{{ $s->id }}">{{ $s->name }}</option>
-                            @endforeach
-                        @endif
-                    </select>
+                <div class="col-lg-4 mb-4 d-flex">
+                    <div class="card shadow-sm border-0 z-card h-100 w-100 d-flex flex-column">
+                        <div class="card-header d-flex align-items-center">
+                            <h6 class="mb-0 flex-shrink-0">
+                                <span class="mr-2"><i class="far fa-battery-bolt"></i></span> Ongoing
+                            </h6>
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            <div class="chart-wrap-all-time">
+                                <canvas id="chartOngoing"></canvas>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-lg-2 mb-4 d-flex">
-                    <select class="form-control form-control-sm" id="filterMonth" style="width: 100%;">
-                        @if (!empty($months))
-                            @foreach ($months as $number => $name)
-                                <option value="{{ $number }}">{{ $name }}</option>
-                            @endforeach
-                        @endif
-                    </select>
+                <div class="col-lg-4 mb-4 d-flex">
+                    <div class="card shadow-sm border-0 z-card h-100 w-100 d-flex flex-column">
+                        <div class="card-header d-flex align-items-center">
+                            <h6 class="mb-0 flex-shrink-0">
+                                <span class="mr-2"><i class="fas fa-battery-full"></i></span> Finished
+                            </h6>
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            <div class="chart-wrap-all-time">
+                                <canvas id="chartFinished"></canvas>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-lg-2 mb-4 d-flex">
-                    <button type="button" class="btn btn-sm btn-primary" id="btnReset"><i class="fas fa-redo-alt"></i></button>
+                <div class="col-lg-4 mb-4 d-flex">
+                    <div class="card shadow-sm border-0 z-card h-100 w-100 d-flex flex-column">
+                        <div class="card-header d-flex align-items-center">
+                            <h6 class="mb-0 flex-shrink-0">
+                                <span class="mr-2"><i class="fas fa-money-bill"></i></span> Total Revenue
+                            </h6>
+                        </div>
+                        <div class="card-body d-flex flex-column">
+                            <div class="text-center">
+                                <div class="text-muted small text-uppercase mb-2">
+                                    All Time
+                                </div>
+                                <div class="font-weight-bold text-primary" id="revenueCounter" style="font-size: 30px;">
+                                    Rp 0
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row justify-content-center align-items-center mb-4">
+
+                <div class="col-lg-8">
+                    <div class="d-flex align-items-center justify-content-center">
+                        <div class="flex-grow-1 border-top mr-3" style="height:1px;"></div>
+                        <div class="d-flex align-items-center">
+                            <div class="mx-2" style="min-width:180px;">
+                                <select class="form-control form-control-sm" id="filterStations">
+                                    @if (!empty($stations))
+                                        @foreach ($stations as $s)
+                                            <option value="{{ $s->id }}">{{ $s->name }}</option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
+                            <div class="mx-2" style="min-width:150px;">
+                                <select class="form-control form-control-sm" id="filterMonth">
+                                    @if (!empty($months))
+                                        @foreach ($months as $number => $name)
+                                            <option value="{{ $number }}">{{ $name }}</option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
+                            <div class="mx-2">
+                                <button type="button" class="btn btn-sm btn-primary" id="btnReset">
+                                    <i class="fas fa-redo-alt"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1 border-top ml-3" style="height:1px;"></div>
+                    </div>
                 </div>
             </div>
             <div class="row align-items-stretch">
@@ -145,7 +160,7 @@
                             </div>
                             <div class="d-flex justify-content-between align-items-center stat-row">
                                 <div>
-                                    <div class="text-muted small text-uppercase stat-label">Total Price</div>
+                                    <div class="text-muted small text-uppercase stat-label">Total Revenue</div>
                                 </div>
                                 <a href="#" class="font-weight-bold text-primary" id="transactionsSumPriceStation">Rp 0</a>
                             </div>
@@ -241,69 +256,92 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
     <script>
-        // CHART ALL
-        // $.ajax({
-        //     url: "{{ route('cpo.dashboard.get-chart-all') }}",
-        //     type: "GET",
-        //     dataType: "json",
-        //     success: function (response) {
-        //         if (response.data.tx_sum.tx_date != null || response.data.tx_sum.tx_date != undefined) {
-        //             loadChartAll(response.data.tx_sum.tx_date, response.data.tx_sum.tx_sum);
-        //         }
-        //         if (response.data.transactions) {
-        //             $('#transactionsOngoingAll').text(response.data.transactions.ongoing);
-        //             $('#transactionsFinishedAll').text(response.data.transactions.finished);
-        //             $('#transactionsSumPriceAll').text(response.data.transactions.sum_price);
-        //         }
-        //     },
-        //     error: function (xhr) {
-        //         console.error('Failed load usage chart:', xhr.responseText);
-        //     }
-        // });
+        // CHART ALL TIME
 
-        // function loadChartAll(labels, data) {
-        //     const ctx = document.getElementById('usageChartAll').getContext('2d');
-        //     new Chart(ctx, {
-        //         type: 'line',
-        //         data: {
-        //             labels: labels,
-        //             datasets: [{
-        //                 label: 'Transactions Sum',
-        //                 data: data,
-        //                 borderWidth: 2,
-        //                 pointRadius: 0,
-        //                 fill: false,
-        //                 lineTension: 0.25
-        //             }]
-        //         },
-        //         options: {
-        //             responsive: true,
-        //             maintainAspectRatio: false,
-        //             legend: { display: false },
-        //             tooltips: { mode: 'index', intersect: false },
-        //             hover: { mode: 'nearest', intersect: false },
-        //             scales: {
-        //                 xAxes: [{
-        //                     gridLines: { display: false },
-        //                     ticks: { maxTicksLimit: 8 }
-        //                 }],
-        //                 yAxes: [{
-        //                     ticks: {
-        //                         beginAtZero: true,
-        //                         maxTicksLimit: 5
-        //                     },
-        //                     gridLines: {
-        //                         color: 'rgba(0,0,0,.06)'
-        //                     },
-        //                     scaleLabel: {
-        //                         display: true,
-        //                         labelString: 'Summary'
-        //                     }
-        //                 }]
-        //             }
-        //         }
-        //     });
-        // }
+        Chart.pluginService.register({
+            beforeDraw: function(chart) {
+                if (!chart.config.options.centerText) return;
+                var ctx = chart.chart.ctx;
+                var text = chart.config.options.centerText;
+                ctx.save();
+                ctx.font = "600 20px \"Source Sans Pro\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif, \"Apple Color Emoji\", \"Segoe UI Emoji\", \"Segoe UI Symbol\"";
+                ctx.fillStyle = "#333";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+
+                var centerX = (chart.chartArea.left + chart.chartArea.right) / 2;
+                var centerY = (chart.chartArea.top + chart.chartArea.bottom) / 2;
+
+                ctx.fillText(text, centerX, centerY);
+                ctx.restore();
+            }
+        });
+
+        function createDoughnutProgress(canvasId, value, maxValue, color) {
+            var ctx = document.getElementById(canvasId).getContext('2d');
+            return new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [value, maxValue - value],
+                        backgroundColor: [
+                            color,
+                            '#e9ecef'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutoutPercentage: 75,
+                    legend: { display: false },
+                    tooltips: { enabled: false },
+                    centerText: value + " / " + maxValue
+                }
+            });
+        }
+
+        $.ajax({
+            url: "{{ route('cpo.dashboard.get-chart-all') }}",
+            type: "GET",
+            dataType: "json",
+            success: function (response) {
+                if (response.data.transactions != null || response.data.transactions != undefined) {
+                    createDoughnutProgress('chartOngoing', response.data.transactions.ongoing, response.data.transactions.total, '#28a745');
+                    createDoughnutProgress('chartFinished', response.data.transactions.finished, response.data.transactions.total, '#007bff');
+                    animateCounter('revenueCounter', response.data.transactions.sum_price, true, 1800);
+                }
+            },
+            error: function (xhr) {
+                console.error('Failed load usage chart:', xhr.responseText);
+            }
+        });
+
+        function animateCounter(id, target, isCurrency, duration = 1500) {
+
+            const el = document.getElementById(id);
+
+            let start = 0;
+            const startTime = performance.now();
+
+            function updateCounter(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const current = Math.floor(easeOut * target);
+                if (isCurrency) {
+                    el.innerText = 'Rp ' + current.toLocaleString('id-ID');
+                } else {
+                    el.innerText = current.toLocaleString('id-ID');
+                }
+                if (progress < 1) {
+                    requestAnimationFrame(updateCounter);
+                }
+            }
+            requestAnimationFrame(updateCounter);
+        }
 
         // CHART STATION
         let transactionChart = null;
@@ -366,9 +404,9 @@
                         renderChartStation(response.data.tx_sum.tx_date, response.data.tx_sum.tx_sum);
                     }
                     if (response.data.transactions) {
-                        $('#transactionsOngoingStation').text(response.data.transactions.ongoing);
-                        $('#transactionsFinishedStation').text(response.data.transactions.finished);
-                        $('#transactionsSumPriceStation').text(response.data.transactions.sum_price);
+                        animateCounter('transactionsOngoingStation', response.data.transactions.ongoing, false, 1800);
+                        animateCounter('transactionsFinishedStation', response.data.transactions.finished, false, 1800);
+                        animateCounter('transactionsSumPriceStation', response.data.transactions.sum_price, true, 1800);
                     }
                 },
                 error: function (xhr) {

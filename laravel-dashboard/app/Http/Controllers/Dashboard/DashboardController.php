@@ -118,35 +118,6 @@ class DashboardController extends Controller
     public function getChartAll(Request $request)
     {
         try {
-            $startOfMonth = Carbon::now()->startOfMonth();
-            $endOfMonth   = Carbon::now()->endOfMonth();
-
-            $query = Transaction::query()
-                ->when($this->auth->id_role === 2, function ($q) {
-                    $q->whereIn('station_id', $this->station_ids);
-                })
-                ->selectRaw("DATE(start_time) as trx_date, COUNT(id) as transaction_sum")
-                ->whereBetween('start_time', [$startOfMonth, $endOfMonth])
-                ->whereNotNull('start_time')
-                ->where('payment_status', 1)
-                ->groupByRaw("DATE(start_time)")
-                ->orderBy('trx_date')
-                ->get()
-                ->keyBy('trx_date');
-
-            $period = CarbonPeriod::create($startOfMonth, $endOfMonth);
-            $txDate = [];
-            $txSum  = [];
-            foreach ($period as $date) {
-
-                $fullDate = $date->format('Y-m-d');
-                $dayOnly  = $date->format('j');
-                $txDate[] = $dayOnly;
-                $txSum[] = isset($query[$fullDate])
-                    ? (int) $query[$fullDate]->transaction_sum
-                    : 0;
-            }
-
             $tx = Transaction::query()
                 ->when($this->auth->id_role === 2, fn ($q) => $q->whereIn('station_id', $this->station_ids))
                 ->where('payment_status', 1)
@@ -156,19 +127,18 @@ class DashboardController extends Controller
                 ")
                 ->first();
 
+            $ongoing = (int) ($tx->ongoing ?? 0);
+            $finished = (int) ($tx->finished ?? 0);
+            $total = $ongoing + $finished;
             $sumPrice = Transaction::query()
                 ->when($this->auth->id_role === 2, fn ($q) => $q->whereIn('station_id', $this->station_ids))
                 ->where('payment_status', 1)
                 ->sum('total_price');
-            $sumPrice = GlobalHelper::convertToRupiah($sumPrice);
             $data = [
-                'tx_sum' => [
-                    'tx_date'  => $txDate,
-                    'tx_sum'   => $txSum,
-                ],
                 'transactions' => [
-                    'ongoing'  => (int) ($tx->ongoing ?? 0),
-                    'finished' => (int) ($tx->finished ?? 0),
+                    'ongoing'  => $ongoing,
+                    'finished' => $finished,
+                    'total' => $total,
                     'sum_price'=> $sumPrice
                 ]
             ];
@@ -250,7 +220,6 @@ class DashboardController extends Controller
                 ->where('payment_status', 1)
                 ->whereBetween('start_time', [$startOfMonth, $endOfMonth])
                 ->sum('total_price');
-            $sumPrice = GlobalHelper::convertToRupiah($sumPrice);
             $data = [
                 'tx_sum' => [
                     'tx_date'  => $txDate,
@@ -259,7 +228,7 @@ class DashboardController extends Controller
                 'transactions' => [
                     'ongoing'  => (int) ($tx->ongoing ?? 0),
                     'finished' => (int) ($tx->finished ?? 0),
-                    'sum_price'=> $sumPrice
+                    'sum_price'=> (int) ($sumPrice ?? 0)
                 ]
             ];
             return response()->json([
