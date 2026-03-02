@@ -79,7 +79,7 @@
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-header bg-primary text-white text-center py-3">
                             <h5 class="card-title mb-0 fw-semibold">
-                                <i class="fas fa-info-circle me-2"></i>Account Information
+                                <i class="fas fa-info-circle me-2"></i>Partner Information
                             </h5>
                         </div>
                         <div class="card-body p-4 bg-white">
@@ -140,7 +140,7 @@
                             @else
                                 <div class="text-center py-4">
                                     <i class="fas fa-exclamation-circle text-muted fa-3x mb-3"></i>
-                                    <p class="text-muted mb-0">No account information found.</p>
+                                    <p class="text-muted mb-0">No partner information found.</p>
                                     @if(!$user->partner_id)
                                         <small class="text-muted">This user does not have a partner_id assigned.</small>
                                     @endif

@@ -4,7 +4,7 @@
             <form action="{{ route('cpo.users.create-account') }}" method="POST">
             @csrf
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">Register New Station</h5>
+                    <h5 class="modal-title">Register New Partner</h5>
                     <button type="button" class="close text-white" data-dismiss="modal">
                         <span>&times;</span>
                     </button>
