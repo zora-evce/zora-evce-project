@@ -22,8 +22,11 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/change-password', [AuthController::class, 'showChangePassword'])->name('change-password');
     Route::post('/change-password', [AuthController::class, 'changePassword'])->name('change-password.post');
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::group(['prefix' => 'dashboard'], function () {
+        Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/get-data-dashboard', [DashboardController::class, 'getDataDashboard'])->name('dashboard.get-data-dashboard');
+    });
     Route::group(['prefix' => 'stations'], function () {
         Route::get('/', [StationsController::class, 'index'])->name('stations');
         Route::get('/get-data', [StationsController::class, 'getData'])->name('stations.get-data');
