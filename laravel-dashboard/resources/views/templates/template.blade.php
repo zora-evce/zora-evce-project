@@ -163,7 +163,7 @@
                                     class="nav-link {{ Route::is('cpo.users*') ? 'active' : '' }}">
                                     <i class="nav-icon fas fa-users"></i>
                                     <p>
-                                        Accounts
+                                        Partners
                                     </p>
                                 </a>
                             </li>

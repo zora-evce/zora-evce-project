@@ -8,7 +8,7 @@
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-header bg-primary text-white text-center py-3">
                             <h5 class="card-title mb-0 fw-semibold">
-                                <i class="fas fa-info-circle me-2"></i>Account Information
+                                <i class="fas fa-info-circle me-2"></i>Partner Information
                             </h5>
                         </div>
                         <div class="card-body p-4 bg-white">
@@ -69,7 +69,7 @@
                             @else
                                 <div class="text-center py-4">
                                     <i class="fas fa-exclamation-circle text-muted fa-3x mb-3"></i>
-                                    <p class="text-muted mb-0">No account information found.</p>
+                                    <p class="text-muted mb-0">No parnter information found.</p>
                                 </div>
                             @endif
                         </div>
@@ -109,18 +109,18 @@
                                                     <td>{{ $station->code ?? '-' }}</td>
                                                     <td>{{ $station->name ?? '-' }}</td>
                                                     <td>
-                                                        @if($station->status == 'available')
+                                                        @if($connector->status == 'available')
                                                             <span class="badge badge-primary">Available</span>
-                                                        @elseif($station->status == 'charging')
+                                                        @elseif($connector->status == 'charging')
                                                             <span class="badge badge-warning">Charging</span>
-                                                        @elseif($station->status == 'faulted')
+                                                        @elseif($connector->status == 'faulted')
                                                             <span class="badge badge-danger">Faulted</span>
                                                         @else
-                                                            <span class="badge badge-secondary">{{ ucfirst($station->status ?? '-') }}</span>
+                                                            <span class="badge badge-secondary">{{ ucfirst($connector->status ?? '-') }}</span>
                                                         @endif
                                                     </td>
                                                     <td>
-                                                        @if($station->connectivity_status == 'online')
+                                                        @if($connector->connectivity_status == 'online')
                                                             <span class="badge badge-success">
                                                                 <i class="fas fa-signal-alt"></i> Online
                                                             </span>
@@ -153,7 +153,7 @@
                             @else
                                 <div class="text-center py-4">
                                     <i class="fas fa-charging-station text-muted fa-3x mb-3"></i>
-                                    <p class="text-muted mb-0">No stations found for this account.</p>
+                                    <p class="text-muted mb-0">No stations found for this parnter.</p>
                                 </div>
                             @endif
                         </div>
@@ -231,7 +231,7 @@
                                             <tr>
                                                 <td colspan="6" class="text-center py-4">
                                                     <i class="fas fa-users text-muted fa-3x mb-3"></i>
-                                                    <p class="text-muted mb-0">No users found for this account.</p>
+                                                    <p class="text-muted mb-0">No users found for this partner.</p>
                                                 </td>
                                             </tr>
                                         @endif

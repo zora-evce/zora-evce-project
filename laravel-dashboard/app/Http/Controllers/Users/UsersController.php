@@ -6,6 +6,7 @@ use App\Helpers\ConstantsHelper;
 use App\Helpers\GlobalHelper;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
+use App\Models\Connector;
 use App\Models\Partner;
 use App\Models\Stations;
 use App\Models\User;
@@ -235,6 +236,7 @@ class UsersController extends Controller
 
         // Get stations where stations.account_id = accounts.account_id
         $stations = Stations::where('account_id', $account->account_id)->get();
+        $connector = Connector::where('station_id', $stations[0]['id'])->first();
 
         // Get users where users.partner_id = accounts.account_id
         $users = User::where('partner_id', $account->account_id)->get();
@@ -242,6 +244,7 @@ class UsersController extends Controller
         return view('users.detail', [
             'account' => $account,
             'stations' => $stations,
+            'connector' => $connector,
             'users' => $users
         ]);
     }

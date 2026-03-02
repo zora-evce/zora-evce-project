@@ -21,8 +21,8 @@
                 <div class="card-body">
                     <div class="row g-4">
                         <div class="col-md-3">
-                            <label for="filter_account_id" class="form-label">Account ID</label>
-                            <input type="text" class="form-control form-control-sm" id="filter_account_id" placeholder="Search by Account ID...">
+                            <label for="filter_account_id" class="form-label">Partner ID</label>
+                            <input type="text" class="form-control form-control-sm" id="filter_account_id" placeholder="Search by Partner ID...">
                         </div>
                     </div>
                     <br>
@@ -31,7 +31,7 @@
                             <div id="colvis-container" style="display: inline-block; margin-left: 5px; vertical-align: middle;"></div>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_filter"><i class="fas fa-search"></i></button>
                             <button type="button" class="btn btn-sm btn-primary" id="btn_reset"><i class="fas fa-redo-alt"></i></button>
-                            <button type="button" class="btn btn-sm btn-primary" id="btn_add_new_account" data-toggle="modal" data-target="#addAccount"><i class="fas fa-plus mr-2"></i>Add New Account</button>
+                            <button type="button" class="btn btn-sm btn-primary" id="btn_add_new_account" data-toggle="modal" data-target="#addAccount"><i class="fas fa-plus mr-2"></i>Add New Partner</button>
                         </div>
                     </div>
                     <br>
@@ -42,8 +42,8 @@
                                     <thead class="table-light">
                                         <tr id="table-headers">
                                             <th style="width: 30px;">No</th>
-                                            <th>Account ID</th>
-                                            <th>Account Details</th>
+                                            <th>Partner ID</th>
+                                            <th>Partner Details</th>
                                             <th>Created At</th>
                                             <th style="width: 120px;"><i class="fas fa-cogs"></i></th>
                                         </tr>
@@ -183,7 +183,7 @@
                         let accountId = row.account_id;
                         let detailUrl = '{{ route("cpo.users.detail", ":id") }}'.replace(':id', accountId);
                         return `
-                            <div class="btn-group align-items-center" role="group" aria-label="Account Actions">
+                            <div class="btn-group align-items-center" role="group" aria-label="Partner Actions">
                                 <a href="${detailUrl}" class="btn btn-primary btn-sm action-detail" data-id="${accountId}">
                                     <i class="fas fa-info-circle"></i> Detail
                                 </a>
