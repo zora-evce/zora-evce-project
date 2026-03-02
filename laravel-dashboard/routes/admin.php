@@ -25,6 +25,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::group(['prefix' => 'dashboard'], function () {
         Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+        Route::get('/get-chart-all', [DashboardController::class, 'getChartAll'])->name('dashboard.get-chart-all');
+        Route::get('/get-chart-station', [DashboardController::class, 'getChartStation'])->name('dashboard.get-chart-station');
         Route::get('/get-data-dashboard', [DashboardController::class, 'getDataDashboard'])->name('dashboard.get-data-dashboard');
     });
     Route::group(['prefix' => 'stations'], function () {

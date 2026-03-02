@@ -4,9 +4,12 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Helpers\GlobalHelper;
 use App\Http\Controllers\Controller;
+use App\Models\Account;
 use App\Models\Connector;
 use App\Models\Stations;
 use App\Models\Transaction;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -32,11 +35,21 @@ class DashboardController extends Controller
         return Stations::where('account_id', $this->auth->partner_id)->pluck('id');
     }
 
+    private function getPartner()
+    {
+        return Account::findOrFail($this->auth->partner_id);
+    }
+
     private function getBundleDataDashboard()
     {
         $stations = self::getStationsDropdown();
         $months = GlobalHelper::getMonths();
+        $partner = null;
+        if ($this->auth->id_role === 2) {
+            $partner = self::getPartner();
+        }
         return [
+            'partner' => $partner,
             'stations' => $stations,
             'months' => $months
         ];
@@ -47,7 +60,7 @@ class DashboardController extends Controller
         $model = new Stations();
         $query = $model->select('id', 'code', 'name');
         if ($this->auth->id_role === 2) {
-            $query = $query->wherIn('id', $this->station_ids);
+            $query = $query->whereIn('id', $this->station_ids);
         }
         return $query->get();
     }
@@ -55,40 +68,6 @@ class DashboardController extends Controller
     public function getDataDashboard(Request $request)
     {
         try {
-            $qTxSum = Transaction::query()
-                ->when($this->auth->id_role === 2, fn ($q) => $q->whereIn('station_id', $this->station_ids))
-                ->selectRaw("DATE(start_time) as trx_date, COUNT(id) as transaction_sum")
-                ->groupByRaw("DATE(start_time)")
-                ->whereNotNull('start_time')
-                ->where('payment_status', 1)
-                ->orderBy('trx_date')
-                ->limit(7)
-                ->get();
-            $txDate = $qTxSum->pluck('trx_date')
-                ->map(fn ($d) => \Carbon\Carbon::parse($d)->format('Y-m-d'))
-                ->values()
-                ->toArray();
-
-            $txSum = $qTxSum->pluck('transaction_sum')
-                ->map(fn ($v) => (int) $v)
-                ->values()
-                ->toArray();
-
-            $tx = Transaction::query()
-                ->when($this->auth->id_role === 2, fn ($q) => $q->whereIn('station_id', $this->station_ids))
-                ->where('payment_status', 1)
-                ->selectRaw("
-                    SUM(CASE WHEN start_time IS NOT NULL AND stop_time IS NULL THEN 1 ELSE 0 END) AS ongoing,
-                    SUM(CASE WHEN start_time IS NOT NULL AND stop_time IS NOT NULL THEN 1 ELSE 0 END) AS finished
-                ")
-                ->first();
-
-            $sumPrice = Transaction::query()
-                ->when($this->auth->id_role === 2, fn ($q) => $q->whereIn('station_id', $this->station_ids))
-                ->where('payment_status', 1)
-                ->sum('total_price');
-            $sumPrice = GlobalHelper::convertToRupiah($sumPrice);
-
             $st = Connector::query()
                 ->when($this->auth->id_role === 2, fn ($q) => $q->whereIn('station_id', $this->station_ids))
                 ->selectRaw("
@@ -113,15 +92,6 @@ class DashboardController extends Controller
             }
 
             $data = [
-                'tx_sum' => [
-                    'tx_date'  => $txDate,
-                    'tx_sum'   => $txSum,
-                ],
-                'transactions' => [
-                    'ongoing'  => (int) ($tx->ongoing ?? 0),
-                    'finished' => (int) ($tx->finished ?? 0),
-                    'sum_price'=> $sumPrice
-                ],
                 'stations' => [
                     'online'  => (int) ($st->online ?? 0),
                     'offline' => (int) ($st->offline ?? 0),
@@ -131,6 +101,166 @@ class DashboardController extends Controller
                     'preparing' => (int) ($st->preparing ?? 0),
                 ],
                 'gmap_url' => $gmap_url
+            ];
+            return response()->json([
+                'ok' => true,
+                'message' => 'Success.',
+                'data' => $data,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Something went wrong. Please try again.',
+            ], 500);
+        }
+    }
+
+    public function getChartAll(Request $request)
+    {
+        try {
+            $startOfMonth = Carbon::now()->startOfMonth();
+            $endOfMonth   = Carbon::now()->endOfMonth();
+
+            $query = Transaction::query()
+                ->when($this->auth->id_role === 2, function ($q) {
+                    $q->whereIn('station_id', $this->station_ids);
+                })
+                ->selectRaw("DATE(start_time) as trx_date, COUNT(id) as transaction_sum")
+                ->whereBetween('start_time', [$startOfMonth, $endOfMonth])
+                ->whereNotNull('start_time')
+                ->where('payment_status', 1)
+                ->groupByRaw("DATE(start_time)")
+                ->orderBy('trx_date')
+                ->get()
+                ->keyBy('trx_date');
+
+            $period = CarbonPeriod::create($startOfMonth, $endOfMonth);
+            $txDate = [];
+            $txSum  = [];
+            foreach ($period as $date) {
+
+                $fullDate = $date->format('Y-m-d');
+                $dayOnly  = $date->format('j');
+                $txDate[] = $dayOnly;
+                $txSum[] = isset($query[$fullDate])
+                    ? (int) $query[$fullDate]->transaction_sum
+                    : 0;
+            }
+
+            $tx = Transaction::query()
+                ->when($this->auth->id_role === 2, fn ($q) => $q->whereIn('station_id', $this->station_ids))
+                ->where('payment_status', 1)
+                ->selectRaw("
+                    SUM(CASE WHEN start_time IS NOT NULL AND stop_time IS NULL THEN 1 ELSE 0 END) AS ongoing,
+                    SUM(CASE WHEN start_time IS NOT NULL AND stop_time IS NOT NULL THEN 1 ELSE 0 END) AS finished
+                ")
+                ->first();
+
+            $sumPrice = Transaction::query()
+                ->when($this->auth->id_role === 2, fn ($q) => $q->whereIn('station_id', $this->station_ids))
+                ->where('payment_status', 1)
+                ->sum('total_price');
+            $sumPrice = GlobalHelper::convertToRupiah($sumPrice);
+            $data = [
+                'tx_sum' => [
+                    'tx_date'  => $txDate,
+                    'tx_sum'   => $txSum,
+                ],
+                'transactions' => [
+                    'ongoing'  => (int) ($tx->ongoing ?? 0),
+                    'finished' => (int) ($tx->finished ?? 0),
+                    'sum_price'=> $sumPrice
+                ]
+            ];
+            return response()->json([
+                'ok' => true,
+                'message' => 'Success.',
+                'data' => $data,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Something went wrong. Please try again.',
+            ], 500);
+        }
+    }
+
+    public function getChartStation(Request $request)
+    {
+        try {
+            $station_id = (int) $request->get('station_id');
+            $month = (int) $request->get('month');
+            $year  = Carbon::now()->year;
+            if ($month < 1 || $month > 12) {
+                $month = Carbon::now()->month;
+            }
+            $startOfMonth = Carbon::create($year, $month, 1)->startOfMonth();
+            $endOfMonth   = Carbon::create($year, $month, 1)->endOfMonth();
+
+            $query = Transaction::query()
+                ->when($this->auth->id_role === 2, function ($q) {
+                    $q->whereIn('station_id', $this->station_ids);
+                })
+                ->when($station_id > 0, function ($q) use ($station_id) {
+                    $q->where('station_id', $station_id);
+                })
+                ->selectRaw("DATE(start_time) as trx_date, COUNT(id) as transaction_sum")
+                ->whereBetween('start_time', [$startOfMonth, $endOfMonth])
+                ->whereNotNull('start_time')
+                ->where('payment_status', 1)
+                ->groupByRaw("DATE(start_time)")
+                ->orderBy('trx_date')
+                ->get()
+                ->keyBy('trx_date');
+
+            $period = CarbonPeriod::create($startOfMonth, $endOfMonth);
+            $txDate = [];
+            $txSum  = [];
+
+            foreach ($period as $date) {
+
+                $fullDate = $date->format('Y-m-d');
+                $dayOnly  = $date->format('j');
+
+                $txDate[] = $dayOnly;
+
+                $txSum[] = isset($query[$fullDate])
+                    ? (int) $query[$fullDate]->transaction_sum
+                    : 0;
+            }
+
+            $tx = Transaction::query()
+                ->when($this->auth->id_role === 2, fn ($q) => $q->whereIn('station_id', $this->station_ids))
+                ->when($station_id > 0, function ($q) use ($station_id) {
+                    $q->where('station_id', $station_id);
+                })
+                ->where('payment_status', 1)
+                ->whereBetween('start_time', [$startOfMonth, $endOfMonth])
+                ->selectRaw("
+                    SUM(CASE WHEN start_time IS NOT NULL AND stop_time IS NULL THEN 1 ELSE 0 END) AS ongoing,
+                    SUM(CASE WHEN start_time IS NOT NULL AND stop_time IS NOT NULL THEN 1 ELSE 0 END) AS finished
+                ")
+                ->first();
+
+            $sumPrice = Transaction::query()
+                ->when($this->auth->id_role === 2, fn ($q) => $q->whereIn('station_id', $this->station_ids))
+                ->when($station_id > 0, function ($q) use ($station_id) {
+                    $q->where('station_id', $station_id);
+                })
+                ->where('payment_status', 1)
+                ->whereBetween('start_time', [$startOfMonth, $endOfMonth])
+                ->sum('total_price');
+            $sumPrice = GlobalHelper::convertToRupiah($sumPrice);
+            $data = [
+                'tx_sum' => [
+                    'tx_date'  => $txDate,
+                    'tx_sum'   => $txSum,
+                ],
+                'transactions' => [
+                    'ongoing'  => (int) ($tx->ongoing ?? 0),
+                    'finished' => (int) ($tx->finished ?? 0),
+                    'sum_price'=> $sumPrice
+                ]
             ];
             return response()->json([
                 'ok' => true,
