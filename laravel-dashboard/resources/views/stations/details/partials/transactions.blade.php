@@ -53,6 +53,7 @@
                         <th>Connector ID</th>
                         <th>Customer Name</th>
                         <th>Payment Status</th>
+                        <th>Date</th>
                         <th>Start Time</th>
                         <th>Stop Time</th>
                         <th>Total Time</th>
@@ -178,6 +179,16 @@
                     name: 'Payment Status',
                     searchable: true,
                     orderable: true
+                },
+                {
+                    data: 'created_at',
+                    name: 'Date',
+                    searchable: true,
+                    orderable: true,
+                    render: function (data, type) {
+                        if (type === 'sort' || type === 'type') return data;
+                        return moment(data).format('YYYY-MM-DD HH:mm:ss');
+                    }
                 },
                 {
                     data: 'start_time',
