@@ -43,6 +43,7 @@ class TariffController extends Controller
                 if ($query != null) {
                     $model = $model->find($tariff_id);
                     $post['tariff_id'] = $tariff_id;
+                    $model->rules['tariff_code'] = 'required|unique:tariff,tariff_code,' . $tariff_id . ',tariff_id';
                 }
             } else {
                 unset($post['tariff_id']);
