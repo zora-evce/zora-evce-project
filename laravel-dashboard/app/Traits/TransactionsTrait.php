@@ -40,6 +40,7 @@ trait TransactionsTrait
         if ($request->has('payment_status') && $request->payment_status !== '' && $request->payment_status !== null) {
             $query->where('payment_status', $request->payment_status);
         }
+        $query->orderBy('created_at', 'desc');
         return response()->json(GlobalHelper::dataTable($request, $query));
     }
 
