@@ -174,11 +174,11 @@ class DashboardController extends Controller
                 ->when($station_id > 0, function ($q) use ($station_id) {
                     $q->where('station_id', $station_id);
                 })
-                ->selectRaw("DATE(start_time) as trx_date, COUNT(id) as transaction_sum")
-                ->whereBetween('start_time', [$startOfMonth, $endOfMonth])
+                ->selectRaw("DATE(created_at) as trx_date, COUNT(id) as transaction_sum")
+                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
                 ->whereNotNull('start_time')
                 ->where('payment_status', 1)
-                ->groupByRaw("DATE(start_time)")
+                ->groupByRaw("DATE(created_at)")
                 ->orderBy('trx_date')
                 ->get()
                 ->keyBy('trx_date');
@@ -205,7 +205,7 @@ class DashboardController extends Controller
                     $q->where('station_id', $station_id);
                 })
                 ->where('payment_status', 1)
-                ->whereBetween('start_time', [$startOfMonth, $endOfMonth])
+                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
                 ->selectRaw("
                     SUM(CASE WHEN start_time IS NOT NULL AND stop_time IS NULL THEN 1 ELSE 0 END) AS ongoing,
                     SUM(CASE WHEN start_time IS NOT NULL AND stop_time IS NOT NULL THEN 1 ELSE 0 END) AS finished
@@ -218,7 +218,7 @@ class DashboardController extends Controller
                     $q->where('station_id', $station_id);
                 })
                 ->where('payment_status', 1)
-                ->whereBetween('start_time', [$startOfMonth, $endOfMonth])
+                ->whereBetween('created_at', [$startOfMonth, $endOfMonth])
                 ->sum('total_price');
             $data = [
                 'tx_sum' => [
