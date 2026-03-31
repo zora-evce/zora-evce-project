@@ -28,18 +28,14 @@ class Connectors extends BaseModel
 
     public $rules = [
         'station_id' => 'required',
-        'connector_number' => 'required|unique:connectors,connector_number',
-        'power_kw' => 'required',
-        'connector_code' => 'required|unique:connectors,connector_code'
+        'connector_number' => 'required',
+        'connector_code' => 'required'
     ];
 
     public $customMessages = [
         'station_id.required' => 'Station ID cannot be empty.',
         'connector_number.required' => 'Connector Number cannot be empty.',
-        'connector_number.unique' => 'Connector Number already used.',
-        'power_kw.required' => 'Power KW be empty.',
-        'connector_code.required' => 'Connector Code cannot be empty.',
-        'connector_code.unique' => 'Connector Code already used.'
+        'connector_code.required' => 'Connector Code cannot be empty.'
     ];
 
     public $attributes = [

@@ -130,7 +130,7 @@
                     name: 'Firmware'
                 },
                 {
-                    data: 'device_timestamp',
+                    data: 'created_at',
                     name: 'Timestamp'
                 },
                 {
@@ -228,7 +228,7 @@
                     name: 'Firmware'
                 },
                 {
-                    data: 'device_timestamp',
+                    data: 'created_at',
                     name: 'Timestamp'
                 },
                 {
