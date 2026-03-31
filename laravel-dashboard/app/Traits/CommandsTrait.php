@@ -47,7 +47,11 @@ trait CommandsTrait
             ->where('station_id', $station_id)
             ->where('payment_status', 1);
         if ($type == 'start') {
-            $query = $query->whereColumn('stop_time', '>', 'start_time');
+            $query = $query->where(function ($q) {
+                $q->whereColumn('stop_time', '>', 'start_time')
+                ->orWhereNull('start_time')
+                ->orWhereNull('stop_time');
+            });
         }
         $data = $query->orderByDesc('id')
             ->limit(5)
