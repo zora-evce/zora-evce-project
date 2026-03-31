@@ -5,6 +5,7 @@ namespace App\Exports;
 use App\Helpers\GlobalHelper;
 use App\Models\StationsV;
 use App\Models\TransactionsV;
+use App\Models\TransactionsVTemporary;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -26,7 +27,8 @@ class TransactionsChargepointsExport implements FromCollection, WithHeadings, Sh
      */
     public function collection()
     {
-        $query = TransactionsV::query();
+        // $query = TransactionsV::query();
+        $query = TransactionsVTemporary::query();
         if (!empty($this->filters['station_ids'])) {
             $query->whereIn('station_id', $this->filters['station_ids']);
         }
@@ -62,7 +64,7 @@ class TransactionsChargepointsExport implements FromCollection, WithHeadings, Sh
                 'start_time' => $item->start_time,
                 'stop_time' => $item->stop_time,
                 'total_time' => !empty($item->total_time) ? $item->total_time . ' Minutes' : '-',
-                'total_kwh' => '-',
+                'total_kwh' => !empty($item->calculated_kwh) ? $item->calculated_kwh . ' kWh' : '-',
                 'total_cost' => GlobalHelper::convertToRupiah($item->total_cost)
             ];
         });

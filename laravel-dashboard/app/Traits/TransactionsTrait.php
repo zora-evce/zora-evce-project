@@ -8,6 +8,7 @@ use App\Models\Connectors;
 use App\Models\LookupC;
 use App\Models\Stations;
 use App\Models\TransactionsV;
+use App\Models\TransactionsVTemporary;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -24,7 +25,8 @@ trait TransactionsTrait
 
     public function getDataTransactions(Request $request)
     {
-        $model = new TransactionsV();
+        // $model = new TransactionsV();
+        $model = new TransactionsVTemporary();
         $query = $model->select()->where('station_id', $request->get('station_id'));
         if ($request->filled('start_date') && $request->filled('end_date')) {
             $start = Carbon::parse($request->start_date)->startOfDay();
@@ -46,7 +48,8 @@ trait TransactionsTrait
 
     public function transactionsDetailTable($id)
     {
-        $model = new TransactionsV();
+        // $model = new TransactionsV();
+        $model = new TransactionsVTemporary();
         $data = $model->select()->where('id', $id)->first();
         return view('stations.details.partials.transactions-partials.detail-table', compact('data'))->render();
     }

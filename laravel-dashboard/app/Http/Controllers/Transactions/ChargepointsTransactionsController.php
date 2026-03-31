@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LookupC;
 use App\Models\Stations;
 use App\Models\TransactionsV;
+use App\Models\TransactionsVTemporary;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -37,7 +38,8 @@ class ChargepointsTransactionsController extends Controller
 
     public function transactionsDetailTable($id)
     {
-        $model = new TransactionsV();
+        // $model = new TransactionsV();
+        $model = new TransactionsVTemporary();
         $data = $model->select()->where('id', $id)->first();
         return view('transactions.chargepoints.partials.detail-table', compact('data'))->render();
     }
@@ -46,7 +48,8 @@ class ChargepointsTransactionsController extends Controller
     {
         $idRole = (int) ($this->auth->id_role ?? 0);
         $stationIds = $this->station_ids ?? [];
-        $model = new TransactionsV();
+        // $model = new TransactionsV();
+        $model = new TransactionsVTemporary();
         $query = $model->select();
         if ($idRole == 2) {
             $query->whereIn('station_id', $stationIds);

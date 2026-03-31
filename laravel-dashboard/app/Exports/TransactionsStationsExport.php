@@ -5,6 +5,7 @@ namespace App\Exports;
 use App\Helpers\GlobalHelper;
 use App\Models\StationsV;
 use App\Models\TransactionsV;
+use App\Models\TransactionsVTemporary;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -26,7 +27,8 @@ class TransactionsStationsExport implements FromCollection, WithHeadings, Should
      */
     public function collection()
     {
-        $query = TransactionsV::query()->where('station_id', $this->filters['station_id']);
+        // $query = TransactionsV::query()->where('station_id', $this->filters['station_id']);
+        $query = TransactionsVTemporary::query()->where('station_id', $this->filters['station_id']);
         if (!empty($this->filters['start_date']) && !empty($this->filters['end_date'])) {
             $start = Carbon::parse($this->filters['start_date'])->startOfDay();
             $end   = Carbon::parse($this->filters['end_date'])->endOfDay();
@@ -59,7 +61,7 @@ class TransactionsStationsExport implements FromCollection, WithHeadings, Should
                 'start_time' => $item->start_time,
                 'stop_time' => $item->stop_time,
                 'total_time' => !empty($item->total_time) ? $item->total_time . ' Minutes' : '-',
-                'total_kwh' => '-',
+                'total_kwh' => !empty($item->calculated_kwh) ? $item->calculated_kwh . ' kWh' : '-',
                 'total_cost' => GlobalHelper::convertToRupiah($item->total_cost)
             ];
         });

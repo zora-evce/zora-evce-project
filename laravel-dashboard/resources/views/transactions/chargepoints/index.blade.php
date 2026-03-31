@@ -255,7 +255,11 @@
                         searchable: true,
                         orderable: true,
                         render: function(data, type, row) {
-                            return '-';
+                            if (row.calculated_kwh != null) {
+                                return row.calculated_kwh + ' kWh';
+                            } else {
+                                return '-';
+                            }
                         }
                     },
                     {
