@@ -236,7 +236,11 @@ class UsersController extends Controller
 
         // Get stations where stations.account_id = accounts.account_id
         $stations = Stations::where('account_id', $account->account_id)->get();
-        $connector = Connector::where('station_id', $stations[0]['id'])->first();
+        if (count($stations) > 0) {
+            $connector = Connector::where('station_id', $stations[0]['id'])->first();
+        } else {
+            $connector = null;
+        }
 
         // Get users where users.partner_id = accounts.account_id
         $users = User::where('partner_id', $account->account_id)->get();

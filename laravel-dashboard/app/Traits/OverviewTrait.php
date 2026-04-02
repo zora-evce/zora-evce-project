@@ -40,6 +40,7 @@ trait OverviewTrait
         $model = new Connectors();
         unset($post['_token']);
         $model->attributes = $post;
+        $model->status = 'unavailable';
         if ($model->validate() === true) {
             if ($model->save()) {
                 DB::commit();

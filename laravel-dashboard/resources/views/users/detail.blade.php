@@ -109,18 +109,18 @@
                                                     <td>{{ $station->code ?? '-' }}</td>
                                                     <td>{{ $station->name ?? '-' }}</td>
                                                     <td>
-                                                        @if($connector->status == 'available')
+                                                        @if(isset($connector->status) && $connector->status == 'available')
                                                             <span class="badge badge-primary">Available</span>
-                                                        @elseif($connector->status == 'charging')
+                                                        @elseif(isset($connector->status) && $connector->status == 'charging')
                                                             <span class="badge badge-warning">Charging</span>
-                                                        @elseif($connector->status == 'faulted')
+                                                        @elseif(isset($connector->status) && $connector->status == 'faulted')
                                                             <span class="badge badge-danger">Faulted</span>
                                                         @else
                                                             <span class="badge badge-secondary">{{ ucfirst($connector->status ?? '-') }}</span>
                                                         @endif
                                                     </td>
                                                     <td>
-                                                        @if($connector->connectivity_status == 'online')
+                                                        @if(isset($connector->connectivity_status) && $connector->connectivity_status == 'online')
                                                             <span class="badge badge-success">
                                                                 <i class="fas fa-signal-alt"></i> Online
                                                             </span>
