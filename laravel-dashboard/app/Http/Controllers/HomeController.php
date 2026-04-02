@@ -64,6 +64,10 @@ class HomeController extends Controller
             $station = Station::where('code', $station_code)->first();
             $connector = Connector::where('connector_code', $connector_code)->first();
 
+            if ($connector->station_id != $station->id) {
+                return response()->view('errors.404', [], 404);
+            }
+
             if (!$station || !$connector) {
                 return response()->view('errors.404', [], 404);
             }
